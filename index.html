@@ -814,6 +814,20 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
           <label class="small-caps mb-1 d-block" for="soalPertanyaan">Pertanyaan</label>
           <textarea class="form-control form-control-premium" id="soalPertanyaan" rows="3" placeholder="Tulis pertanyaan..."></textarea>
         </div>
+        <div class="mb-3">
+          <label class="small-caps mb-1 d-block">Gambar Pertanyaan (opsional)</label>
+          <div class="dropzone" id="soalGambarDropzone" onclick="document.getElementById('soalGambarInput').click()" role="button" tabindex="0" style="padding:16px">
+            <i class="bi bi-image" style="font-size:1.5rem"></i>
+            <div class="fw-semibold mt-1" style="font-size:.85rem">Klik untuk unggah gambar</div>
+            <div class="text-muted" style="font-size:.75rem">JPG, PNG, WEBP, GIF · otomatis dikompresi (max sisi 1280px)</div>
+            <div id="soalGambarPreview" class="mt-2"></div>
+          </div>
+          <input type="file" id="soalGambarInput" class="d-none" accept="image/jpeg,image/png,image/webp,image/gif" onchange="onSoalGambarChosen(this)">
+          <button type="button" class="btn btn-sm btn-outline-danger mt-2 d-none" id="soalGambarRemoveBtn" onclick="removeSoalGambar()">
+            <i class="bi bi-trash me-1"></i>Hapus gambar
+          </button>
+          <div class="text-muted mt-1" style="font-size:.75rem" id="soalGambarHint"></div>
+        </div>
         <div id="pgFields">
           <div class="row g-2 mb-2">
             <div class="col-6"><label class="small-caps mb-1 d-block" for="soalA">Pilihan A</label><input class="form-control form-control-premium" id="soalA"></div>
@@ -882,6 +896,9 @@ let CURRENT_ROLE = null;
 let CACHE = { materi: [], kategori: [], quiz: [], latihan: [], activeMateriId: null };
 let deferredInstallPrompt = null;
 let pendingMateriFile = null;
+let pendingSoalGambar = null; // { fileName, mimeType, base64 } | null
+let soalGambarExistingUrl = ''; // URL gambar yang sudah ada saat edit
+let soalGambarRemove = false;   // true jika user klik hapus gambar
 
 /* ==========================================================
  * TOAST + generic server error helper
@@ -946,17 +963,18 @@ function buildPayload(action, args) {
 
 async function callServer(name, ...args) {
   if (!API_URL || API_URL.includes('YOUR_DEPLOYMENT_ID')) {
-    throw new Error('API_URL belum diatur. Buka Index.html, ganti konstanta API_URL dengan URL Web App Google Apps Script Anda (.../exec).');
+    throw new Error('API_URL belum diatur. Buka index.html, ganti konstanta API_URL dengan URL Web App Google Apps Script Anda (yang berakhiran /exec).');
   }
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 28000);
+  const timer = setTimeout(() => controller.abort(), 30000);
 
   try {
     const body = buildPayload(name, args);
+
+    // Content-Type text/plain menghindari CORS preflight (penting untuk GAS)
     const res = await fetch(API_URL, {
       method: 'POST',
-      // redirect: 'follow' penting karena GAS sering redirect
       redirect: 'follow',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(body),
@@ -966,7 +984,7 @@ async function callServer(name, ...args) {
     clearTimeout(timer);
 
     if (!res.ok) {
-      throw new Error('HTTP ' + res.status + ' — pastikan Web App di-deploy dengan akses "Anyone".');
+      throw new Error('HTTP ' + res.status + '. Pastikan Web App di-deploy dengan akses "Anyone" dan sudah New version setelah edit Code.gs.');
     }
 
     const text = await res.text();
@@ -974,18 +992,22 @@ async function callServer(name, ...args) {
     try {
       data = JSON.parse(text);
     } catch (e) {
-      throw new Error('Respons server bukan JSON. Cek deployment Apps Script.');
+      // Kadang GAS mengembalikan HTML login Google jika akses belum "Anyone"
+      if (text && text.indexOf('<!DOCTYPE') !== -1) {
+        throw new Error('Server mengembalikan halaman HTML (bukan JSON). Deployment Web App harus "Who has access: Anyone".');
+      }
+      throw new Error('Respons server bukan JSON. Cek deployment Apps Script & pastikan API_URL benar (berakhiran /exec).');
     }
 
-    // Beberapa action mengembalikan { success:false, message }
-    if (data && data.success === false && data.message) {
-      // biarkan caller yang memutuskan (login, dll)
-    }
     return data;
   } catch (err) {
     clearTimeout(timer);
     if (err.name === 'AbortError') {
       throw new Error('Waktu permintaan habis. Periksa koneksi internet & pastikan URL API benar.');
+    }
+    // Perjelas error jaringan / CORS
+    if (err.message === 'Failed to fetch' || (err.message && err.message.indexOf('Failed to fetch') !== -1)) {
+      throw new Error('Failed to fetch — cek: (1) API_URL sudah diganti URL /exec yang benar, (2) Deploy Web App akses "Anyone", (3) Setelah edit Code.gs buat New version, (4) Jangan buka file lewat file:// tapi lewat https (GitHub Pages).');
     }
     throw err;
   }
@@ -1353,13 +1375,14 @@ async function loadSoalForMateri(){
       html += list.map((s,i) => `
         <div class="quiz-q-card fade-item" style="${s.status==='Terkunci' ? 'border-left-color:#b42323' : ''}">
           <div class="d-flex justify-content-between align-items-start gap-2">
-            <div class="fw-semibold" style="flex:1; min-width:0">${i+1}. ${escapeHtml(s.pertanyaan)} <span class="badge-kategori ms-1">${s.tipe}</span> ${s.status==='Terkunci' ? '<span class="file-type-badge ft-pdf ms-1"><i class="bi bi-lock-fill"></i>Terkunci</span>' : '<span class="file-type-badge ft-excel ms-1"><i class="bi bi-unlock-fill"></i>Aktif</span>'}</div>
+            <div class="fw-semibold" style="flex:1; min-width:0">${i+1}. ${escapeHtml(s.pertanyaan || '(gambar)')} <span class="badge-kategori ms-1">${s.tipe}</span> ${s.status==='Terkunci' ? '<span class="file-type-badge ft-pdf ms-1"><i class="bi bi-lock-fill"></i>Terkunci</span>' : '<span class="file-type-badge ft-excel ms-1"><i class="bi bi-unlock-fill"></i>Aktif</span>'}${s.gambarUrl ? ' <span class="file-type-badge ft-file ms-1"><i class="bi bi-image"></i>Gambar</span>' : ''}</div>
             <div class="d-flex gap-1 flex-shrink-0">
               <button class="btn btn-icon-sm" onclick="toggleSoalStatusQuick('${s.id}')" title="${s.status==='Terkunci' ? 'Buka kunci' : 'Kunci soal'}" aria-label="Toggle status"><i class="bi ${s.status==='Terkunci' ? 'bi-unlock' : 'bi-lock'}"></i></button>
               <button class="btn btn-icon-sm" onclick="openSoalModal('${s.id}')" title="Edit" aria-label="Edit soal"><i class="bi bi-pencil"></i></button>
               <button class="btn btn-icon-sm text-danger" onclick="deleteSoalConfirm('${s.id}')" title="Hapus" aria-label="Hapus soal"><i class="bi bi-trash"></i></button>
             </div>
           </div>
+          ${s.gambarUrl ? `<div class="mt-2"><img src="${s.gambarUrl}" alt="Gambar soal" style="max-width:100%;max-height:200px;border-radius:10px;object-fit:contain;border:1px solid #eef1f8"></div>` : ''}
           ${s.tipe === 'PG' ? `
           <div class="mt-2 text-muted" style="font-size:.85rem">
             A. ${escapeHtml(s.a||'')} &nbsp; B. ${escapeHtml(s.b||'')} &nbsp; C. ${escapeHtml(s.c||'')} &nbsp; D. ${escapeHtml(s.d||'')}
@@ -1395,9 +1418,160 @@ function setSoalStatus(status){
   document.getElementById('soalModal').dataset.status = status;
 }
 
+function resetSoalGambarUI(){
+  pendingSoalGambar = null;
+  soalGambarExistingUrl = '';
+  soalGambarRemove = false;
+  const input = document.getElementById('soalGambarInput');
+  if (input) input.value = '';
+  const prev = document.getElementById('soalGambarPreview');
+  if (prev) prev.innerHTML = '';
+  const btn = document.getElementById('soalGambarRemoveBtn');
+  if (btn) btn.classList.add('d-none');
+  const hint = document.getElementById('soalGambarHint');
+  if (hint) hint.innerText = '';
+}
+
+function showSoalGambarPreview(url){
+  const prev = document.getElementById('soalGambarPreview');
+  const btn = document.getElementById('soalGambarRemoveBtn');
+  if (!prev) return;
+  if (url) {
+    prev.innerHTML = `<img src="${url}" alt="Preview gambar soal" style="max-width:100%;max-height:180px;border-radius:10px;object-fit:contain;border:1px solid #e7ebf3">`;
+    if (btn) btn.classList.remove('d-none');
+  } else {
+    prev.innerHTML = '';
+    if (btn) btn.classList.add('d-none');
+  }
+}
+
+/**
+ * Kompresi gambar di browser: resize max sisi panjang + JPEG quality.
+ * Mengurangi ukuran upload tanpa library eksternal.
+ * @param {File} file
+ * @param {{ maxEdge?: number, quality?: number }} opts
+ * @returns {Promise<{ base64: string, mimeType: string, fileName: string, dataUrl: string, originalBytes: number, compressedBytes: number }>}
+ */
+function compressImageFile(file, opts) {
+  const maxEdge = (opts && opts.maxEdge) || 1280;
+  const quality = (opts && opts.quality) != null ? opts.quality : 0.78;
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Gagal membaca file gambar.'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          let w = img.naturalWidth || img.width;
+          let h = img.naturalHeight || img.height;
+          if (!w || !h) {
+            reject(new Error('Dimensi gambar tidak valid.'));
+            return;
+          }
+          // Resize jika sisi terpanjang > maxEdge
+          if (w > maxEdge || h > maxEdge) {
+            const ratio = Math.min(maxEdge / w, maxEdge / h);
+            w = Math.round(w * ratio);
+            h = Math.round(h * ratio);
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          // Latar putih agar transparansi PNG tidak jadi hitam di JPEG
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, w, h);
+          ctx.drawImage(img, 0, 0, w, h);
+
+          const mimeType = 'image/jpeg';
+          const dataUrl = canvas.toDataURL(mimeType, quality);
+          const base64 = dataUrl.split(',')[1] || '';
+          // Estimasi byte dari base64
+          const compressedBytes = Math.round((base64.length * 3) / 4);
+          const baseName = (file.name || 'gambar').replace(/\.[^.]+$/, '');
+          resolve({
+            base64,
+            mimeType,
+            fileName: baseName + '.jpg',
+            dataUrl,
+            originalBytes: file.size,
+            compressedBytes
+          });
+        } catch (e) {
+          reject(e);
+        }
+      };
+      img.onerror = () => reject(new Error('Gagal memuat gambar untuk kompresi.'));
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function formatBytes(n) {
+  if (n < 1024) return n + ' B';
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+  return (n / (1024 * 1024)).toFixed(2) + ' MB';
+}
+
+async function onSoalGambarChosen(input){
+  const file = input.files && input.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    showToast('File harus berupa gambar.', 'warn');
+    input.value = '';
+    return;
+  }
+  // Batas sebelum kompresi (file kamera bisa besar)
+  if (file.size > 12 * 1024 * 1024) {
+    showToast('Ukuran gambar terlalu besar (maks 12MB sebelum kompresi).', 'warn');
+    input.value = '';
+    return;
+  }
+
+  const hint = document.getElementById('soalGambarHint');
+  if (hint) hint.innerText = 'Mengompresi gambar...';
+
+  try {
+    const result = await compressImageFile(file, { maxEdge: 1280, quality: 0.78 });
+    // Jika hasil masih > ~1.5MB, kompres lagi lebih agresif
+    let final = result;
+    if (result.compressedBytes > 1.5 * 1024 * 1024) {
+      final = await compressImageFile(file, { maxEdge: 1024, quality: 0.65 });
+    }
+
+    pendingSoalGambar = {
+      fileName: final.fileName,
+      mimeType: final.mimeType,
+      base64: final.base64
+    };
+    soalGambarRemove = false;
+    showSoalGambarPreview(final.dataUrl);
+    if (hint) {
+      hint.innerText = `${final.fileName} · ${formatBytes(final.originalBytes)} → ${formatBytes(final.compressedBytes)} (terkompresi)`;
+    }
+  } catch (err) {
+    showToast('Gagal mengompresi gambar: ' + (err.message || err), 'error');
+    pendingSoalGambar = null;
+    if (hint) hint.innerText = '';
+    input.value = '';
+  }
+}
+
+function removeSoalGambar(){
+  pendingSoalGambar = null;
+  soalGambarRemove = true;
+  const input = document.getElementById('soalGambarInput');
+  if (input) input.value = '';
+  showSoalGambarPreview('');
+  document.getElementById('soalGambarHint').innerText = 'Gambar akan dihapus saat disimpan.';
+}
+
 function openSoalModal(id){
   document.getElementById('soalModalTitle').innerText = id ? 'Edit Soal' : 'Tambah Soal';
   document.getElementById('soalIdInput').value = id || '';
+  resetSoalGambarUI();
   if (id) {
     const s = CACHE.quiz.find(x => x.id === id);
     if (!s) return;
@@ -1409,6 +1583,11 @@ function openSoalModal(id){
     document.getElementById('soalC').value = s.c || '';
     document.getElementById('soalD').value = s.d || '';
     document.getElementById('soalJawabanBenar').value = s.jawabanBenar || 'A';
+    if (s.gambarUrl) {
+      soalGambarExistingUrl = s.gambarUrl;
+      showSoalGambarPreview(s.gambarUrl);
+      document.getElementById('soalGambarHint').innerText = 'Gambar saat ini. Unggah file baru untuk mengganti.';
+    }
   } else {
     setSoalTipe('PG');
     setSoalStatus('Aktif');
@@ -1424,7 +1603,15 @@ function submitSoalForm(){
   const status = document.getElementById('soalModal').dataset.status || 'Aktif';
   const materiId = document.getElementById('soalMateriSelect').value;
   const pertanyaan = document.getElementById('soalPertanyaan').value.trim();
-  if (!pertanyaan) { showToast('Pertanyaan wajib diisi.', 'warn'); return; }
+  // Pertanyaan teks boleh kosong jika ada gambar
+  if (!pertanyaan && !pendingSoalGambar && !soalGambarExistingUrl) {
+    showToast('Isi pertanyaan teks atau unggah gambar.', 'warn');
+    return;
+  }
+  if (!pertanyaan && soalGambarRemove && !pendingSoalGambar) {
+    showToast('Isi pertanyaan teks atau unggah gambar.', 'warn');
+    return;
+  }
 
   const data = {
     id: document.getElementById('soalIdInput').value,
@@ -1437,6 +1624,14 @@ function submitSoalForm(){
     data.d = document.getElementById('soalD').value.trim();
     data.jawabanBenar = document.getElementById('soalJawabanBenar').value;
     if (!data.a || !data.b) { showToast('Minimal pilihan A dan B wajib diisi.', 'warn'); return; }
+  }
+  if (pendingSoalGambar) {
+    data.gambarBase64 = pendingSoalGambar.base64;
+    data.gambarFileName = pendingSoalGambar.fileName;
+    data.gambarMimeType = pendingSoalGambar.mimeType;
+  }
+  if (soalGambarRemove && !pendingSoalGambar) {
+    data.removeGambar = true;
   }
 
   callServer('saveSoal', data)
@@ -1717,7 +1912,10 @@ async function startQuiz(materiId, judul){
     html += `<form id="quizForm">`;
     list.forEach((s, i) => {
       const terkunci = s.status === 'Terkunci';
-      html += `<div class="quiz-q-card" style="${terkunci ? 'opacity:.7; border-left-color:#b42323' : ''}"><div class="fw-semibold mb-1">${i+1}. ${escapeHtml(s.pertanyaan)} ${terkunci ? '<span class="file-type-badge ft-pdf ms-1"><i class="bi bi-lock-fill"></i>Terkunci</span>' : ''}</div>`;
+      html += `<div class="quiz-q-card" style="${terkunci ? 'opacity:.7; border-left-color:#b42323' : ''}"><div class="fw-semibold mb-1">${i+1}. ${escapeHtml(s.pertanyaan || '')} ${terkunci ? '<span class="file-type-badge ft-pdf ms-1"><i class="bi bi-lock-fill"></i>Terkunci</span>' : ''}</div>`;
+      if (s.gambarUrl) {
+        html += `<div class="mt-2 mb-2"><img src="${s.gambarUrl}" alt="Gambar soal ${i+1}" style="max-width:100%;max-height:280px;border-radius:12px;object-fit:contain;border:1px solid #eef1f8;background:#fafbfc" loading="lazy"></div>`;
+      }
       if (terkunci) {
         html += `<div class="alert alert-danger py-2 mt-2 mb-0" style="border-radius:10px; font-size:.85rem"><i class="bi bi-exclamation-triangle-fill me-1"></i>Soal ini sedang dikunci admin. Hubungi admin jika ini seharusnya bisa dikerjakan.</div>`;
       } else if (s.tipe === 'PG') {
