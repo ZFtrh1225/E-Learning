@@ -1,0 +1,1964 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+
+<title>EduFSR — E-Learning Platform</title>
+
+<!-- Viewport & Mobile Optimization -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b1730" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b1730" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="EduFSR">
+<meta name="application-name" content="EduFSR">
+<meta name="msapplication-TileColor" content="#0b1730">
+<meta name="msapplication-navbutton-color" content="#0b1730">
+<meta name="format-detection" content="telephone=no">
+
+<!-- Icons -->
+<link rel="apple-touch-icon" sizes="180x180" href="https://api.iconify.design/mdi/school.svg?color=%23d4af37&width=180&height=180">
+<link rel="icon" type="image/svg+xml" href="https://api.iconify.design/mdi/school.svg?color=%23d4af37&width=32&height=32">
+<link rel="icon" type="image/png" sizes="192x192" href="https://api.iconify.design/mdi/school.svg?color=%23d4af37&width=192&height=192">
+<link rel="icon" type="image/png" sizes="512x512" href="https://api.iconify.design/mdi/school.svg?color=%23d4af37&width=512&height=512">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ===================== DESIGN TOKENS ===================== */
+:root{
+  color-scheme: light;
+  --navy-950:#060b1a;
+  --navy-900:#0b1730;
+  --navy-850:#0e1d3c;
+  --navy-800:#122145;
+  --navy-700:#1c2f5c;
+  --emerald:#10b981;
+  --emerald-dark:#047857;
+  --emerald-soft:rgba(16,185,129,.14);
+  --gold:#d4af37;
+  --gold-soft:#eccd6d;
+  --white:#ffffff;
+  --off-white:#f5f7fb;
+  --ink:#0b1730;
+  --muted:#8ba0c9;
+  --muted-dark:#5b6b8c;
+  --border-soft:rgba(255,255,255,.08);
+  --border-light:#eef1f8;
+  --shadow-lg:0 20px 60px -20px rgba(6,11,26,.45);
+  --shadow-md:0 12px 32px -12px rgba(6,11,26,.22);
+  --shadow-sm:0 8px 24px -12px rgba(6,11,26,.18);
+  --radius-lg:20px;
+  --radius-md:14px;
+  --radius-sm:10px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --bottom-nav-h: 64px;
+  --sidebar-w: 264px;
+}
+
+/* ===================== BASE ===================== */
+*,*::before,*::after{box-sizing:border-box}
+html{height:100%; -webkit-text-size-adjust:100%; scroll-behavior:smooth}
+body{
+  font-family:'Inter',system-ui,-apple-system,sans-serif;
+  font-weight:400;
+  background:var(--off-white);
+  color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  overflow-x:hidden;
+  min-height:100%;
+  min-height:100dvh;
+  margin:0;
+  padding:0;
+  padding-top:var(--safe-top);
+  padding-bottom:var(--safe-bottom);
+  padding-left:var(--safe-left);
+  padding-right:var(--safe-right);
+}
+h1,h2,h3,h4,h5,h6,.font-display{
+  font-family:'Sora',system-ui,sans-serif;
+  font-weight:700;
+  letter-spacing:-.01em;
+  line-height:1.25;
+}
+.text-gold{color:var(--gold)!important}
+.text-emerald{color:var(--emerald)!important}
+.bg-navy{background:var(--navy-900)!important}
+.small-caps{
+  font-size:.72rem; letter-spacing:.14em; text-transform:uppercase; font-weight:600; color:var(--muted);
+}
+
+/* Touch targets & focus */
+button, a, .btn, .side-link, .quiz-option, .dropzone{
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+button:focus-visible, a:focus-visible, .form-control-premium:focus-visible, .form-select:focus-visible{
+  outline:3px solid var(--emerald);
+  outline-offset:2px;
+}
+
+/* ===================== SCREEN FADE ===================== */
+.screen{display:none}
+.screen.active{display:block; animation:fadeIn .4s ease both}
+@keyframes fadeIn{from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:translateY(0)}}
+.fade-item{animation:fadeIn .45s ease both}
+
+/* ===================== LOGIN ===================== */
+#loginScreen{
+  min-height:100vh;
+  min-height:100dvh;
+  background:
+    radial-gradient(1100px 500px at 85% -10%, rgba(16,185,129,.25), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(212,175,55,.14), transparent 55%),
+    linear-gradient(160deg, var(--navy-950), var(--navy-900) 55%, var(--navy-850));
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:max(16px, var(--safe-top)) max(16px, var(--safe-right)) max(16px, var(--safe-bottom)) max(16px, var(--safe-left));
+  position:relative;
+}
+.login-shell{
+  width:100%; max-width:980px;
+  display:grid; grid-template-columns:1.05fr .95fr;
+  border-radius:28px;
+  overflow:hidden;
+  box-shadow:var(--shadow-lg);
+  background:var(--navy-900);
+}
+@media(max-width:860px){
+  .login-shell{grid-template-columns:1fr; border-radius:22px; max-width:420px}
+  .login-hero{display:none!important}
+}
+
+.login-hero{
+  position:relative;
+  padding:48px 40px;
+  color:#fff;
+  background:
+    radial-gradient(600px 300px at 20% 0%, rgba(212,175,55,.18), transparent 60%),
+    linear-gradient(200deg, var(--navy-850), var(--navy-950));
+  display:flex; flex-direction:column; justify-content:space-between;
+  min-height:540px;
+}
+.login-hero .brand{display:flex; align-items:center; gap:10px; font-family:'Sora'; font-weight:800; font-size:1.25rem}
+.brand .dot{width:10px;height:10px;border-radius:50%;background:var(--gold);box-shadow:0 0 14px var(--gold)}
+.login-hero .headline{font-size:clamp(1.6rem, 3vw, 2.1rem); line-height:1.2; margin-top:32px}
+.login-hero .sub{color:var(--muted); margin-top:12px; font-size:.95rem; line-height:1.5}
+.orbit-card{
+  margin-top:28px; padding:14px 16px; border-radius:16px;
+  background:rgba(255,255,255,.05); border:1px solid var(--border-soft);
+  backdrop-filter:blur(8px);
+  display:flex; align-items:center; gap:12px;
+  animation:floaty 5s ease-in-out infinite;
+}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.orbit-icon{
+  width:42px;height:42px;border-radius:12px;
+  background:linear-gradient(135deg, var(--emerald), var(--emerald-dark));
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.2rem;flex:none;
+}
+.hero-stats{display:flex; gap:24px; margin-top:32px; flex-wrap:wrap}
+.hero-stats .num{font-family:'Sora'; font-weight:800; font-size:1.35rem; color:var(--gold-soft)}
+.hero-stats .lbl{font-size:.72rem; color:var(--muted); letter-spacing:.05em}
+
+.login-form-wrap{
+  background:var(--white);
+  padding:clamp(28px, 5vw, 48px) clamp(22px, 4vw, 40px);
+  display:flex; flex-direction:column; justify-content:center;
+}
+.login-form-wrap h2{font-size:clamp(1.35rem, 4vw, 1.6rem); margin-bottom:4px}
+.login-form-wrap .muted{color:var(--muted-dark); font-size:.9rem; margin-bottom:22px; line-height:1.45}
+.role-toggle{display:flex; gap:6px; margin-bottom:20px; background:var(--off-white); padding:5px; border-radius:12px}
+.role-toggle button{
+  flex:1; border:none; background:transparent; padding:12px 8px; border-radius:9px;
+  font-weight:600; font-size:.88rem; color:var(--muted-dark); transition:.2s; min-height:44px;
+}
+.role-toggle button.active{background:var(--navy-900); color:#fff; box-shadow:var(--shadow-sm)}
+.form-control-premium{
+  border-radius:12px; border:1.5px solid #e7ebf3; padding:14px 16px; font-size:16px; /* 16px prevents iOS zoom */
+  transition:.2s; background:#fff; color:var(--ink); width:100%;
+}
+.form-control-premium:focus{
+  border-color:var(--emerald); box-shadow:0 0 0 4px var(--emerald-soft); outline:none;
+}
+select.form-control-premium, select.form-select{
+  background-color:#fff !important;
+  color:var(--ink) !important;
+  color-scheme:light;
+  font-size:16px;
+  min-height:48px;
+}
+select.form-control-premium option, select.form-select option{
+  background-color:#fff;
+  color:var(--ink);
+}
+.btn-premium{
+  background:linear-gradient(135deg, var(--emerald), var(--emerald-dark));
+  border:none; color:#fff; font-weight:600; padding:14px 18px; border-radius:12px;
+  transition:.25s; letter-spacing:.01em; min-height:48px; font-size:.95rem;
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+}
+.btn-premium:hover,.btn-premium:active{transform:translateY(-1px); box-shadow:0 12px 24px -8px rgba(16,185,129,.5); color:#fff}
+.btn-premium:disabled{opacity:.65; transform:none; box-shadow:none}
+.btn-gold-outline{
+  border:1.5px solid var(--gold); color:#8a6d1e; background:#fffaf0; font-weight:600; border-radius:12px;
+  min-height:44px; padding:10px 16px;
+}
+#loginError{display:none}
+
+/* ===================== APP SHELL ===================== */
+#appShell{display:none; min-height:100vh; min-height:100dvh}
+#appShell.active{display:flex}
+
+/* Sidebar */
+.sidebar{
+  width:var(--sidebar-w); flex:none;
+  background:linear-gradient(195deg, var(--navy-950), var(--navy-900));
+  color:#fff; padding:22px 16px; position:sticky; top:0; height:100vh; height:100dvh; overflow-y:auto;
+  z-index:1030;
+  display:flex; flex-direction:column;
+  padding-top:calc(22px + var(--safe-top));
+  padding-bottom:calc(16px + var(--safe-bottom));
+  -webkit-overflow-scrolling:touch;
+}
+.sidebar .brand{display:flex; align-items:center; gap:10px; font-family:'Sora'; font-weight:800; font-size:1.15rem; padding:0 8px 22px}
+.sidebar .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--gold); box-shadow:0 0 12px var(--gold)}
+.nav-section-label{font-size:.68rem; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); padding:12px 12px 6px}
+.side-link{
+  display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:12px; color:#cfd9ee;
+  text-decoration:none; font-size:.9rem; font-weight:500; margin-bottom:3px; transition:.2s; cursor:pointer; border:none; background:none; width:100%; text-align:left;
+  min-height:46px;
+}
+.side-link i{font-size:1.1rem; width:22px; text-align:center; flex-shrink:0}
+.side-link:hover{background:rgba(255,255,255,.07); color:#fff}
+.side-link.active{background:linear-gradient(135deg, var(--emerald), var(--emerald-dark)); color:#fff; box-shadow:0 8px 18px -8px rgba(16,185,129,.55)}
+.side-user{
+  margin-top:auto; padding:12px; border-radius:14px; background:rgba(255,255,255,.05); border:1px solid var(--border-soft);
+  display:flex; align-items:center; gap:10px;
+}
+.avatar-circle{
+  width:38px; height:38px; border-radius:50%; background:linear-gradient(135deg, var(--gold), #b8912b);
+  display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--navy-950); flex:none; font-family:'Sora'; font-size:.95rem;
+}
+.main-col{flex:1; min-width:0; display:flex; flex-direction:column; position:relative}
+.topbar{
+  background:#fff; padding:14px 22px; display:flex; align-items:center; justify-content:space-between;
+  border-bottom:1px solid var(--border-light); position:sticky; top:0; z-index:1020;
+  padding-top:calc(14px + var(--safe-top));
+  min-height:60px;
+}
+.topbar h5{margin:0; font-size:1.1rem}
+.content-area{
+  padding:22px;
+  flex:1;
+  padding-bottom:calc(22px + var(--safe-bottom));
+}
+
+/* Mobile sidebar drawer */
+@media(max-width:991px){
+  .sidebar{
+    position:fixed; left:0; top:0; bottom:0;
+    transform:translateX(-105%);
+    transition:transform .28s cubic-bezier(.4,0,.2,1);
+    box-shadow:none;
+    width:min(280px, 85vw);
+  }
+  .sidebar.open{
+    transform:translateX(0);
+    box-shadow:24px 0 48px rgba(0,0,0,.3);
+  }
+  .content-area{padding:16px; padding-bottom:calc(16px + var(--bottom-nav-h) + var(--safe-bottom))}
+  .topbar{padding:12px 14px; padding-top:calc(12px + var(--safe-top))}
+  .topbar h5{font-size:1rem}
+}
+
+.sidebar-overlay{
+  display:none; position:fixed; inset:0; background:rgba(6,11,26,.55); z-index:1025;
+  backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px);
+  opacity:0; transition:opacity .25s;
+}
+.sidebar-overlay.show{display:block; opacity:1}
+
+/* ===================== BOTTOM NAV (Mobile) ===================== */
+.bottom-nav{
+  display:none;
+  position:fixed; bottom:0; left:0; right:0;
+  background:#fff;
+  border-top:1px solid var(--border-light);
+  z-index:1015;
+  padding:6px 8px calc(6px + var(--safe-bottom));
+  box-shadow:0 -4px 20px -8px rgba(6,11,26,.12);
+  justify-content:space-around;
+  align-items:center;
+  height:calc(var(--bottom-nav-h) + var(--safe-bottom));
+}
+.bottom-nav .bnav-item{
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:2px; padding:6px 10px; border:none; background:none; color:var(--muted-dark);
+  font-size:.68rem; font-weight:600; border-radius:12px; min-width:64px; min-height:48px;
+  transition:.2s; cursor:pointer; flex:1; max-width:90px;
+}
+.bottom-nav .bnav-item i{font-size:1.25rem; line-height:1}
+.bottom-nav .bnav-item.active{color:var(--emerald)}
+.bottom-nav .bnav-item.active i{color:var(--emerald)}
+@media(max-width:991px){
+  .bottom-nav{display:flex}
+  /* Hide install in sidebar on mobile, show in bottom or floating */
+  .sidebar .install-btn{display:none !important}
+}
+
+/* ===================== CARDS / COMPONENTS ===================== */
+.card-premium{
+  background:#fff; border:1px solid var(--border-light); border-radius:var(--radius-lg);
+  box-shadow:var(--shadow-sm); padding:20px; transition:.25s;
+}
+.card-premium:hover{box-shadow:var(--shadow-md); transform:translateY(-2px)}
+@media(max-width:767px){
+  .card-premium:hover{transform:none}
+}
+
+.stat-card{
+  border-radius:var(--radius-lg); padding:18px; color:#fff; position:relative; overflow:hidden;
+  box-shadow:var(--shadow-sm); min-height:110px;
+}
+.stat-card .icon-badge{
+  width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,.16);
+  display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:12px;
+}
+.stat-card .num{font-family:'Sora'; font-size:clamp(1.5rem, 4vw, 1.85rem); font-weight:800; line-height:1.1}
+.stat-card .lbl{font-size:.8rem; opacity:.88; margin-top:2px}
+.stat-navy{background:linear-gradient(135deg, var(--navy-900), var(--navy-700))}
+.stat-emerald{background:linear-gradient(135deg, var(--emerald), var(--emerald-dark))}
+.stat-gold{background:linear-gradient(135deg, #caa440, #8a6d1e)}
+.stat-slate{background:linear-gradient(135deg,#334155,#1e293b)}
+
+.materi-card{
+  border-radius:var(--radius-lg); overflow:hidden; border:1px solid var(--border-light); background:#fff;
+  box-shadow:var(--shadow-sm); transition:.25s; cursor:pointer; height:100%;
+  display:flex; flex-direction:column;
+}
+.materi-card:hover{transform:translateY(-3px); box-shadow:var(--shadow-md)}
+@media(max-width:767px){
+  .materi-card:hover{transform:none}
+}
+.materi-card .top{height:6px; background:linear-gradient(90deg, var(--emerald), var(--gold)); flex-shrink:0}
+.materi-card .body{padding:18px; flex:1; display:flex; flex-direction:column}
+.badge-kategori{
+  background:var(--emerald-soft); color:var(--emerald-dark); font-weight:600; font-size:.7rem;
+  padding:5px 10px; border-radius:20px; letter-spacing:.02em; display:inline-block;
+}
+.file-type-badge{
+  display:inline-flex; align-items:center; gap:5px; font-weight:700; font-size:.75rem; padding:5px 10px; border-radius:20px;
+  white-space:nowrap;
+}
+.ft-word{background:#e5edff; color:#1d4ed8}
+.ft-excel{background:#e3f9ec; color:#047857}
+.ft-powerpoint{background:#ffece0; color:#c2410c}
+.ft-pdf{background:#fde2e2; color:#b42323}
+.ft-file{background:#eef1f8; color:#5b6b8c}
+
+.progress-premium{height:8px; border-radius:20px; background:#eef1f8; overflow:hidden}
+.progress-premium .bar{height:100%; border-radius:20px; background:linear-gradient(90deg, var(--emerald), var(--gold)); transition:width .6s ease}
+
+.table-premium{border-collapse:separate; border-spacing:0 8px; width:100%}
+.table-premium thead th{border:none; font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted-dark); padding:0 14px 6px; white-space:nowrap}
+.table-premium tbody tr{background:#fff; box-shadow:var(--shadow-sm)}
+.table-premium tbody td{padding:14px; border:none; vertical-align:middle}
+.table-premium tbody tr td:first-child{border-radius:12px 0 0 12px}
+.table-premium tbody tr td:last-child{border-radius:0 12px 12px 0}
+@media(max-width:767px){
+  .table-responsive{margin:0 -4px; padding:0 4px}
+  .table-premium thead th{font-size:.65rem; padding:0 10px 6px}
+  .table-premium tbody td{padding:12px 10px; font-size:.88rem}
+}
+
+.btn-icon-sm{
+  width:40px;height:40px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid #e7ebf3;background:#fff;transition:.2s; flex-shrink:0;
+}
+.btn-icon-sm:hover{background:var(--off-white)}
+.btn-icon-sm:active{transform:scale(.95)}
+
+.pill-score{padding:5px 12px; border-radius:20px; font-weight:700; font-size:.8rem; display:inline-block}
+.pill-score.high{background:var(--emerald-soft); color:var(--emerald-dark)}
+.pill-score.mid{background:#fff4d6; color:#8a6d1e}
+.pill-score.low{background:#fde2e2; color:#b42323}
+
+.empty-state{text-align:center; padding:48px 16px; color:var(--muted-dark)}
+.empty-state i{font-size:2.4rem; color:#cfd8ea; margin-bottom:12px; display:block}
+
+.reader-frame-wrap{background:#fff; border-radius:var(--radius-lg); box-shadow:var(--shadow-sm); overflow:hidden}
+.reader-frame-wrap iframe{width:100%; height:min(75vh, 640px); border:none; display:block; background:#f5f7fb}
+@media(max-width:767px){
+  .reader-frame-wrap iframe{height:min(65vh, 480px)}
+}
+
+.dropzone{
+  border:2px dashed #d7deed; border-radius:14px; padding:22px 16px; text-align:center; cursor:pointer; transition:.2s; background:var(--off-white);
+}
+.dropzone:hover,.dropzone:active{border-color:var(--emerald); background:var(--emerald-soft)}
+.dropzone i{font-size:1.7rem; color:var(--emerald)}
+.file-chip{
+  display:inline-flex; align-items:center; gap:8px; background:var(--emerald-soft); color:var(--emerald-dark);
+  padding:8px 12px; border-radius:11px; font-size:.84rem; font-weight:600; margin-top:10px; max-width:100%;
+  word-break:break-all;
+}
+
+.quiz-q-card{background:#fff; border-radius:var(--radius-md); padding:18px; box-shadow:var(--shadow-sm); margin-bottom:14px; border-left:4px solid var(--emerald)}
+.quiz-option{
+  display:block; border:1.5px solid #e7ebf3; border-radius:12px; padding:14px 16px; margin-top:8px; cursor:pointer; transition:.2s;
+  font-size:.92rem; line-height:1.4; min-height:48px;
+}
+.quiz-option:hover,.quiz-option:active{border-color:var(--emerald)}
+input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var(--emerald); background:var(--emerald-soft)}
+
+/* Modal mobile friendly */
+.modal-content{border-radius:18px; border:none; box-shadow:var(--shadow-lg)}
+.modal-header{border-bottom:1px solid var(--border-light); padding:16px 20px}
+.modal-body{padding:20px}
+.modal-footer{border-top:1px solid var(--border-light); padding:14px 20px; gap:8px}
+@media(max-width:575px){
+  .modal-dialog{margin:12px; max-width:calc(100% - 24px)}
+  .modal-content{border-radius:16px}
+}
+
+.install-btn{cursor:pointer}
+
+/* Floating Install Button (mobile) */
+.fab-install{
+  display:none;
+  position:fixed;
+  bottom:calc(var(--bottom-nav-h) + var(--safe-bottom) + 14px);
+  right:16px;
+  z-index:1010;
+  background:linear-gradient(135deg, var(--navy-900), var(--navy-700));
+  color:#fff;
+  border:none;
+  border-radius:50px;
+  padding:12px 18px;
+  font-weight:600;
+  font-size:.85rem;
+  box-shadow:0 8px 24px -6px rgba(6,11,26,.4);
+  align-items:center;
+  gap:8px;
+  min-height:48px;
+  animation:fadeIn .4s ease;
+}
+.fab-install i{font-size:1.1rem}
+.fab-install:active{transform:scale(.97)}
+@media(max-width:991px){
+  .fab-install.show{display:inline-flex}
+}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-thumb{background:#cdd6e8;border-radius:10px}
+::-webkit-scrollbar-track{background:transparent}
+
+.spinner-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 16px; gap:12px; color:var(--muted-dark); font-size:.85rem}
+.error-state{text-align:center; padding:40px 16px; color:#b42323}
+.error-state i{font-size:2.2rem; display:block; margin-bottom:10px}
+
+/* Utility */
+.gap-2{gap:.5rem}
+.text-truncate-2{
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+
+/* Prevent pull-to-refresh issues on some Android browsers when scrolling content */
+.content-area{-webkit-overflow-scrolling:touch}
+</style>
+</head>
+<body>
+
+<!-- ===================== TOAST ===================== -->
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index:2000; padding-top:calc(12px + env(safe-area-inset-top,0px)) !important">
+  <div id="appToast" class="toast align-items-center border-0 text-white" role="alert">
+    <div class="d-flex">
+      <div class="toast-body" id="appToastBody">Pesan</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Tutup"></button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== LOGIN SCREEN ===================== -->
+<div id="loginScreen" class="screen active">
+  <div class="login-shell fade-item">
+    <div class="login-hero">
+      <div>
+        <div class="brand"><span class="dot"></span> EduFSR</div>
+        <div class="headline">Belajar terarah,<br>hasil yang <span class="text-gold">terukur.</span></div>
+        <div class="sub">Platform pembelajaran digital dengan materi terstruktur, latihan soal otomatis, dan progres belajar yang selalu bisa kamu pantau.</div>
+        <div class="orbit-card">
+          <div class="orbit-icon"><i class="bi bi-graph-up-arrow"></i></div>
+          <div>
+            <div style="font-weight:600;font-size:.92rem">Progres belajar real-time</div>
+            <div style="font-size:.78rem;color:var(--muted)">Nilai otomatis untuk setiap latihan</div>
+          </div>
+        </div>
+      </div>
+      <div class="hero-stats">
+        <div><div class="num">100%</div><div class="lbl">Online</div></div>
+        <div><div class="num">Auto</div><div class="lbl">Penilaian PG</div></div>
+        <div><div class="num">24/7</div><div class="lbl">Akses Materi</div></div>
+      </div>
+    </div>
+    <div class="login-form-wrap">
+      <h2>Masuk ke akun kamu</h2>
+      <div class="muted">Pilih peran, lalu masukkan kredensial untuk melanjutkan.</div>
+
+      <div class="role-toggle">
+        <button type="button" class="active" id="roleStudentBtn" onclick="setRole('student')"><i class="bi bi-mortarboard me-1"></i>Siswa</button>
+        <button type="button" id="roleAdminBtn" onclick="setRole('admin')"><i class="bi bi-shield-lock me-1"></i>Admin</button>
+      </div>
+
+      <form id="loginForm" onsubmit="return handleLogin(event)">
+        <div class="mb-3">
+          <label class="form-label small-caps" for="loginUsername">Username</label>
+          <input type="text" class="form-control form-control-premium" id="loginUsername" placeholder="Masukkan username" required autocomplete="username" enterkeyhint="next">
+        </div>
+        <div class="mb-2">
+          <label class="form-label small-caps" for="loginPassword">Password</label>
+          <input type="password" class="form-control form-control-premium" id="loginPassword" placeholder="Masukkan password" required autocomplete="current-password" enterkeyhint="go">
+        </div>
+        <div id="loginHint" class="mb-3" style="font-size:.8rem;color:var(--muted-dark)">
+          Akun siswa baru? Cukup isi username bebas &amp; password angka — akun otomatis dibuat.
+        </div>
+        <div class="alert alert-danger py-2" id="loginError" role="alert"></div>
+        <button type="submit" class="btn btn-premium w-100" id="loginSubmitBtn">
+          <span id="loginBtnText">Masuk</span>
+          <span class="spinner-border spinner-border-sm ms-2 d-none" id="loginSpinner" role="status"></span>
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== APP SHELL ===================== -->
+<div id="appShell">
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar(false)" aria-hidden="true"></div>
+  <aside class="sidebar" id="sidebar" aria-label="Navigasi utama">
+    <div class="brand"><span class="dot"></span> EduFSR</div>
+
+    <!-- ADMIN NAV -->
+    <div id="adminNav" style="display:none">
+      <div class="nav-section-label">Menu Utama</div>
+      <button class="side-link" data-target="admin-dashboard" onclick="navTo('admin-dashboard')"><i class="bi bi-grid-1x2-fill"></i>Dashboard</button>
+      <button class="side-link" data-target="admin-materi" onclick="navTo('admin-materi')"><i class="bi bi-journal-richtext"></i>Materi</button>
+      <button class="side-link" data-target="admin-soal" onclick="navTo('admin-soal')"><i class="bi bi-patch-question"></i>Manajemen Soal</button>
+      <div class="nav-section-label">Monitoring</div>
+      <button class="side-link" data-target="admin-siswa" onclick="navTo('admin-siswa')"><i class="bi bi-people-fill"></i>Daftar Siswa</button>
+      <button class="side-link" data-target="admin-hasil" onclick="navTo('admin-hasil')"><i class="bi bi-bar-chart-fill"></i>Hasil Latihan</button>
+    </div>
+
+    <!-- STUDENT NAV -->
+    <div id="studentNav" style="display:none">
+      <div class="nav-section-label">Menu Utama</div>
+      <button class="side-link" data-target="student-dashboard" onclick="navTo('student-dashboard')"><i class="bi bi-grid-1x2-fill"></i>Dashboard</button>
+      <button class="side-link" data-target="student-materi" onclick="navTo('student-materi')"><i class="bi bi-journal-richtext"></i>Materi Belajar</button>
+      <button class="side-link" data-target="student-latihan" onclick="navTo('student-latihan')"><i class="bi bi-patch-question"></i>Latihan Soal</button>
+      <button class="side-link" data-target="student-riwayat" onclick="navTo('student-riwayat')"><i class="bi bi-clock-history"></i>Riwayat Latihan</button>
+    </div>
+
+    <button class="side-link install-btn" id="installBtn" style="display:none" onclick="triggerInstall()" aria-label="Instal aplikasi">
+      <i class="bi bi-download"></i>Instal Aplikasi
+    </button>
+
+    <div class="side-user">
+      <div class="avatar-circle" id="sideAvatar">A</div>
+      <div class="flex-grow-1" style="min-width:0">
+        <div style="font-weight:600; font-size:.86rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis" id="sideFullname">-</div>
+        <div style="font-size:.72rem; color:var(--muted)" id="sideRole">-</div>
+      </div>
+      <button class="btn btn-sm" style="color:#fda4a4; min-width:40px; min-height:40px" onclick="logout()" title="Keluar" aria-label="Keluar">
+        <i class="bi bi-box-arrow-right"></i>
+      </button>
+    </div>
+  </aside>
+
+  <div class="main-col">
+    <div class="topbar">
+      <div class="d-flex align-items-center gap-2">
+        <button class="btn d-lg-none p-1" onclick="toggleSidebar(true)" aria-label="Buka menu" style="min-width:44px;min-height:44px">
+          <i class="bi bi-list fs-3"></i>
+        </button>
+        <h5 class="font-display" id="topbarTitle">Dashboard</h5>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge rounded-pill" style="background:var(--emerald-soft); color:var(--emerald-dark); padding:8px 12px; font-size:.78rem" id="topbarBadge">Siswa</span>
+      </div>
+    </div>
+
+    <div class="content-area">
+
+      <!-- ============ ADMIN: DASHBOARD ============ -->
+      <div class="screen" id="admin-dashboard">
+        <div class="row g-3 mb-4">
+          <div class="col-6 col-lg-3"><div class="stat-card stat-navy"><div class="icon-badge"><i class="bi bi-journal-richtext"></i></div><div class="num" id="statMateri">0</div><div class="lbl">Total Materi</div></div></div>
+          <div class="col-6 col-lg-3"><div class="stat-card stat-emerald"><div class="icon-badge"><i class="bi bi-patch-question"></i></div><div class="num" id="statSoal">0</div><div class="lbl">Total Soal</div></div></div>
+          <div class="col-6 col-lg-3"><div class="stat-card stat-gold"><div class="icon-badge"><i class="bi bi-people-fill"></i></div><div class="num" id="statStudent">0</div><div class="lbl">Total Siswa</div></div></div>
+          <div class="col-6 col-lg-3"><div class="stat-card stat-slate"><div class="icon-badge"><i class="bi bi-bar-chart-fill"></i></div><div class="num" id="statLatihan">0</div><div class="lbl">Latihan Dikerjakan</div></div></div>
+        </div>
+        <div class="card-premium">
+          <h5 class="mb-1">Selamat datang, Administrator 👋</h5>
+          <p class="text-muted mb-0" style="font-size:.9rem">Kelola materi pembelajaran, soal latihan, serta pantau perkembangan seluruh siswa dari satu tempat.</p>
+        </div>
+      </div>
+
+      <!-- ============ ADMIN: MATERI ============ -->
+      <div class="screen" id="admin-materi">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <h5 class="font-display mb-0">Materi Pembelajaran</h5>
+          <button class="btn btn-premium btn-sm px-3" onclick="openMateriModal()"><i class="bi bi-plus-lg me-1"></i>Unggah Materi</button>
+        </div>
+        <div id="adminMateriList" class="row g-3"></div>
+      </div>
+
+      <!-- ============ ADMIN: SOAL ============ -->
+      <div class="screen" id="admin-soal">
+        <h5 class="font-display mb-3">Manajemen Soal</h5>
+        <div class="card-premium mb-3">
+          <label class="small-caps mb-2 d-block" for="soalMateriSelect">Pilih Materi</label>
+          <select class="form-select form-control-premium" id="soalMateriSelect" onchange="loadSoalForMateri()">
+            <option value="">Memuat daftar materi...</option>
+          </select>
+        </div>
+        <div id="soalManageArea"></div>
+      </div>
+
+      <!-- ============ ADMIN: SISWA ============ -->
+      <div class="screen" id="admin-siswa">
+        <h5 class="font-display mb-3">Daftar Siswa</h5>
+        <div class="table-responsive">
+          <table class="table table-premium">
+            <thead><tr><th>Siswa</th><th>Terdaftar</th><th>Latihan</th><th>Rata-rata</th><th>Progress Materi</th></tr></thead>
+            <tbody id="adminSiswaTable"></tbody>
+          </table>
+        </div>
+        <div id="adminSiswaEmpty"></div>
+      </div>
+
+      <!-- ============ ADMIN: HASIL ============ -->
+      <div class="screen" id="admin-hasil">
+        <h5 class="font-display mb-3">Hasil Latihan Siswa</h5>
+        <div class="table-responsive">
+          <table class="table table-premium">
+            <thead><tr><th>Siswa</th><th>Materi</th><th>Skor PG</th><th>Status</th><th>Essay</th><th>Tanggal</th></tr></thead>
+            <tbody id="adminHasilTable"></tbody>
+          </table>
+        </div>
+        <div id="adminHasilEmpty"></div>
+      </div>
+
+      <!-- ============ STUDENT: DASHBOARD ============ -->
+      <div class="screen" id="student-dashboard">
+        <div class="row g-3 mb-4">
+          <div class="col-12 col-lg-7">
+            <div class="card-premium h-100">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <div class="small-caps mb-1">Progress Belajar</div>
+                  <h4 class="font-display mb-0" id="progressPercentText">0%</h4>
+                </div>
+                <div class="icon-badge" style="background:var(--emerald-soft); width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center">
+                  <i class="bi bi-graph-up-arrow text-emerald"></i>
+                </div>
+              </div>
+              <div class="progress-premium mt-3 mb-2"><div class="bar" id="progressBar" style="width:0%"></div></div>
+              <div class="text-muted" style="font-size:.84rem" id="progressSubtext">0 dari 0 materi diselesaikan</div>
+            </div>
+          </div>
+          <div class="col-6 col-lg" style="flex:1">
+            <div class="stat-card stat-emerald h-100"><div class="icon-badge"><i class="bi bi-clipboard-check"></i></div><div class="num" id="stuTotalLatihan">0</div><div class="lbl">Latihan Selesai</div></div>
+          </div>
+          <div class="col-6 col-lg" style="flex:1">
+            <div class="stat-card stat-gold h-100"><div class="icon-badge"><i class="bi bi-star-fill"></i></div><div class="num" id="stuRataRata">0</div><div class="lbl">Rata-rata Nilai</div></div>
+          </div>
+        </div>
+
+        <h6 class="font-display mb-3">Materi Terbaru</h6>
+        <div id="studentDashboardMateri" class="row g-3"></div>
+      </div>
+
+      <!-- ============ STUDENT: MATERI LIST ============ -->
+      <div class="screen" id="student-materi">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <h5 class="font-display mb-0">Materi Belajar</h5>
+          <select class="form-select form-control-premium" style="max-width:min(220px,100%)" id="studentKategoriFilter" onchange="renderStudentMateriList()">
+            <option value="">Semua Kategori</option>
+          </select>
+        </div>
+        <div id="studentMateriList" class="row g-3"></div>
+      </div>
+
+      <!-- ============ STUDENT: BACA MATERI ============ -->
+      <div class="screen" id="student-read">
+        <button class="btn btn-icon-sm mb-3" onclick="navTo('student-materi')" aria-label="Kembali"><i class="bi bi-arrow-left"></i></button>
+        <div id="studentReadArea"></div>
+      </div>
+
+      <!-- ============ STUDENT: LATIHAN SOAL ============ -->
+      <div class="screen" id="student-latihan">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <h5 class="font-display mb-0">Latihan Soal</h5>
+          <select class="form-select form-control-premium" style="max-width:min(220px,100%)" id="latihanKategoriFilter" onchange="renderStudentLatihanList()">
+            <option value="">Semua Kategori</option>
+          </select>
+        </div>
+        <div id="studentLatihanList" class="row g-3"></div>
+      </div>
+
+      <!-- ============ STUDENT: QUIZ ============ -->
+      <div class="screen" id="student-quiz">
+        <button class="btn btn-icon-sm mb-3" onclick="navTo('student-latihan')" aria-label="Kembali"><i class="bi bi-arrow-left"></i></button>
+        <div id="studentQuizArea"></div>
+      </div>
+
+      <!-- ============ STUDENT: RIWAYAT ============ -->
+      <div class="screen" id="student-riwayat">
+        <h5 class="font-display mb-3">Riwayat Latihan</h5>
+        <div id="studentRiwayatList"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Bottom Navigation (Mobile) -->
+  <nav class="bottom-nav" id="bottomNav" aria-label="Navigasi bawah">
+    <!-- Dynamically filled based on role -->
+  </nav>
+
+  <!-- Floating Install Button (Mobile) -->
+  <button class="fab-install" id="fabInstall" onclick="triggerInstall()" aria-label="Instal aplikasi ke perangkat">
+    <i class="bi bi-download"></i> Instal App
+  </button>
+</div>
+
+<!-- ===================== MODAL: MATERI ===================== -->
+<div class="modal fade" id="materiModal" tabindex="-1" aria-labelledby="materiModalTitle" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title font-display" id="materiModalTitle">Unggah Materi</h5>
+        <button class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="materiIdInput">
+        <div class="mb-3">
+          <label class="small-caps mb-1 d-block" for="materiKategori">Kategori</label>
+          <input type="text" class="form-control form-control-premium" id="materiKategori" list="kategoriList" placeholder="Contoh: Matematika, Bahasa Inggris, IPA..." enterkeyhint="next">
+          <datalist id="kategoriList"></datalist>
+        </div>
+        <div class="mb-3">
+          <label class="small-caps mb-1 d-block" for="materiJudul">Judul Materi</label>
+          <input type="text" class="form-control form-control-premium" id="materiJudul" placeholder="Judul materi" enterkeyhint="next">
+        </div>
+        <div class="mb-3">
+          <label class="small-caps mb-1 d-block" for="materiKkm">Standar Kelulusan / KKM (%)</label>
+          <input type="number" class="form-control form-control-premium" id="materiKkm" min="0" max="100" step="1" placeholder="70" value="70" inputmode="numeric">
+          <div class="text-muted mt-1" style="font-size:.78rem">Siswa dinyatakan <b>Lulus</b> jika skor pilihan ganda mencapai persentase ini. Default 70% jika dikosongkan.</div>
+        </div>
+        <div class="mb-1">
+          <label class="small-caps mb-1 d-block">File Materi (Word / Excel / PowerPoint / PDF)</label>
+          <div class="dropzone" onclick="document.getElementById('materiFileInput').click()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')document.getElementById('materiFileInput').click()">
+            <i class="bi bi-cloud-arrow-up-fill"></i>
+            <div class="fw-semibold mt-2" style="font-size:.9rem">Klik untuk pilih file</div>
+            <div class="text-muted" style="font-size:.78rem">.docx .doc .xlsx .xls .pptx .ppt .pdf — maks 20MB</div>
+            <div id="materiFileChip"></div>
+          </div>
+          <input type="file" id="materiFileInput" class="d-none" accept=".doc,.docx,.xls,.xlsx,.ppt,.pptx,.pdf" onchange="onMateriFileChosen(this)">
+          <div class="text-muted mt-2" style="font-size:.78rem" id="materiFileEditHint"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+        <button class="btn btn-premium px-4" id="materiSubmitBtn" onclick="submitMateriForm()">
+          <span id="materiSubmitText">Simpan Materi</span>
+          <span class="spinner-border spinner-border-sm ms-2 d-none" id="materiSubmitSpinner" role="status"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: SOAL ===================== -->
+<div class="modal fade" id="soalModal" tabindex="-1" aria-labelledby="soalModalTitle" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title font-display" id="soalModalTitle">Tambah Soal</h5>
+        <button class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="soalIdInput">
+        <div class="mb-3">
+          <label class="small-caps mb-1 d-block">Tipe Soal</label>
+          <div class="role-toggle" style="max-width:280px">
+            <button type="button" class="active" id="tipePGBtn" onclick="setSoalTipe('PG')">Pilihan Ganda</button>
+            <button type="button" id="tipeEssayBtn" onclick="setSoalTipe('Essay')">Essay</button>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="small-caps mb-1 d-block" for="soalPertanyaan">Pertanyaan</label>
+          <textarea class="form-control form-control-premium" id="soalPertanyaan" rows="3" placeholder="Tulis pertanyaan..."></textarea>
+        </div>
+        <div id="pgFields">
+          <div class="row g-2 mb-2">
+            <div class="col-6"><label class="small-caps mb-1 d-block" for="soalA">Pilihan A</label><input class="form-control form-control-premium" id="soalA"></div>
+            <div class="col-6"><label class="small-caps mb-1 d-block" for="soalB">Pilihan B</label><input class="form-control form-control-premium" id="soalB"></div>
+          </div>
+          <div class="row g-2 mb-2">
+            <div class="col-6"><label class="small-caps mb-1 d-block" for="soalC">Pilihan C</label><input class="form-control form-control-premium" id="soalC"></div>
+            <div class="col-6"><label class="small-caps mb-1 d-block" for="soalD">Pilihan D</label><input class="form-control form-control-premium" id="soalD"></div>
+          </div>
+          <div class="mb-1">
+            <label class="small-caps mb-1 d-block" for="soalJawabanBenar">Jawaban Benar</label>
+            <select class="form-select form-control-premium" id="soalJawabanBenar">
+              <option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option>
+            </select>
+          </div>
+        </div>
+        <div class="mt-3">
+          <label class="small-caps mb-1 d-block">Status Soal</label>
+          <div class="role-toggle" style="max-width:280px">
+            <button type="button" class="active" id="statusAktifBtn" onclick="setSoalStatus('Aktif')"><i class="bi bi-unlock-fill me-1"></i>Aktif</button>
+            <button type="button" id="statusTerkunciBtn" onclick="setSoalStatus('Terkunci')"><i class="bi bi-lock-fill me-1"></i>Terkunci</button>
+          </div>
+          <div class="text-muted mt-1" style="font-size:.78rem">Soal terkunci tetap tampil ke siswa tapi tidak bisa dijawab — muncul peringatan "hubungi admin".</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+        <button class="btn btn-premium px-4" onclick="submitSoalForm()">Simpan Soal</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: HASIL QUIZ ===================== -->
+<div class="modal fade" id="hasilModal" tabindex="-1" data-bs-backdrop="static" aria-labelledby="hasilSkorText" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content text-center">
+      <div class="modal-body py-5 px-4">
+        <div style="width:84px;height:84px;border-radius:50%;background:var(--emerald-soft);display:flex;align-items:center;justify-content:center;margin:0 auto 18px">
+          <i class="bi bi-trophy-fill text-emerald" style="font-size:2rem"></i>
+        </div>
+        <h4 class="font-display">Latihan Selesai!</h4>
+        <div class="display-5 font-display text-emerald my-2" id="hasilSkorText">0</div>
+        <span class="file-type-badge ft-excel mb-2" id="hasilLulusBadge" style="display:none"></span>
+        <p class="text-muted mb-4" id="hasilDetailText" style="font-size:.92rem">-</p>
+        <button class="btn btn-premium px-4" onclick="closeHasilModal()">Kembali ke Latihan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+/* ==========================================================
+ * CONFIG — ganti URL ini dengan URL Web App Google Apps Script
+ * Setelah deploy Code.gs sebagai Web App, salin URL (.../exec)
+ * ========================================================*/
+const API_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
+// Contoh: 'https://script.google.com/macros/s/AKfycbx.../exec'
+
+/* ==========================================================
+ * APP STATE
+ * ========================================================*/
+let CURRENT_USER = null;
+let CURRENT_ROLE = null;
+let CACHE = { materi: [], kategori: [], quiz: [], latihan: [], activeMateriId: null };
+let deferredInstallPrompt = null;
+let pendingMateriFile = null;
+
+/* ==========================================================
+ * TOAST + generic server error helper
+ * ========================================================*/
+function showToast(msg, type){
+  const el = document.getElementById('appToast');
+  el.className = 'toast align-items-center border-0 text-white';
+  el.classList.add(type === 'error' ? 'bg-danger' : (type === 'warn' ? 'bg-warning text-dark' : 'bg-success'));
+  document.getElementById('appToastBody').innerText = msg;
+  new bootstrap.Toast(el, {delay:3800}).show();
+}
+function onServerError(err){
+  console.error(err);
+  showToast('Terjadi kesalahan server: ' + (err && err.message ? err.message : err), 'error');
+}
+function errorStateHtml(msg, retryFn){
+  const btn = retryFn ? `<button class="btn btn-premium btn-sm px-3 mt-2" onclick="${retryFn}"><i class="bi bi-arrow-clockwise me-1"></i>Coba Lagi</button>` : '';
+  return `<div class="error-state w-100"><i class="bi bi-exclamation-triangle-fill"></i>${escapeHtml(msg)}<br>${btn}</div>`;
+}
+
+/* ==========================================================
+ * API CLIENT (fetch) — untuk hosting di GitHub Pages / Netlify
+ * ========================================================*/
+function buildPayload(action, args) {
+  // Mapping pemanggilan lama google.script.run.xxx(...) ke body API
+  const payload = { action };
+  switch (action) {
+    case 'login':
+      payload.username = args[0];
+      payload.password = args[1];
+      break;
+    case 'getMateriById':
+    case 'deleteMateri':
+    case 'deleteSoal':
+    case 'toggleSoalStatus':
+      payload.id = args[0];
+      break;
+    case 'getSoalByMateriAdmin':
+    case 'getSoalByMateriStudent':
+      payload.materiId = args[0];
+      break;
+    case 'saveMateri':
+    case 'saveSoal':
+      payload.data = args[0];
+      break;
+    case 'submitJawaban':
+      payload.payload = args[0];
+      break;
+    case 'getHasilByStudent':
+    case 'getProgressByStudent':
+      payload.username = args[0];
+      break;
+    case 'setSpreadsheetId':
+      payload.id = args[0];
+      break;
+    default:
+      // no-arg actions: getMateriList, getKategoriList, getAdminStats, dll
+      break;
+  }
+  return payload;
+}
+
+async function callServer(name, ...args) {
+  if (!API_URL || API_URL.includes('YOUR_DEPLOYMENT_ID')) {
+    throw new Error('API_URL belum diatur. Buka Index.html, ganti konstanta API_URL dengan URL Web App Google Apps Script Anda (.../exec).');
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 28000);
+
+  try {
+    const body = buildPayload(name, args);
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      // redirect: 'follow' penting karena GAS sering redirect
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(body),
+      signal: controller.signal
+    });
+
+    clearTimeout(timer);
+
+    if (!res.ok) {
+      throw new Error('HTTP ' + res.status + ' — pastikan Web App di-deploy dengan akses "Anyone".');
+    }
+
+    const text = await res.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      throw new Error('Respons server bukan JSON. Cek deployment Apps Script.');
+    }
+
+    // Beberapa action mengembalikan { success:false, message }
+    if (data && data.success === false && data.message) {
+      // biarkan caller yang memutuskan (login, dll)
+    }
+    return data;
+  } catch (err) {
+    clearTimeout(timer);
+    if (err.name === 'AbortError') {
+      throw new Error('Waktu permintaan habis. Periksa koneksi internet & pastikan URL API benar.');
+    }
+    throw err;
+  }
+}
+
+/* ==========================================================
+ * LOGIN
+ * ========================================================*/
+function setRole(role){
+  document.getElementById('roleStudentBtn').classList.toggle('active', role==='student');
+  document.getElementById('roleAdminBtn').classList.toggle('active', role==='admin');
+  document.getElementById('loginUsername').value = role === 'admin' ? 'admin' : '';
+  document.getElementById('loginHint').style.display = role === 'admin' ? 'none' : 'block';
+}
+
+async function handleLogin(e){
+  e.preventDefault();
+  const username = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value.trim();
+  const errBox = document.getElementById('loginError');
+  errBox.style.display = 'none';
+
+  document.getElementById('loginBtnText').innerText = 'Memeriksa...';
+  document.getElementById('loginSpinner').classList.remove('d-none');
+  document.getElementById('loginSubmitBtn').disabled = true;
+
+  function resetBtn(){
+    document.getElementById('loginBtnText').innerText = 'Masuk';
+    document.getElementById('loginSpinner').classList.add('d-none');
+    document.getElementById('loginSubmitBtn').disabled = false;
+  }
+
+  try {
+    const res = await callServer('login', username, password);
+    resetBtn();
+    if (res.success) {
+      CURRENT_USER = { username: res.username, fullname: res.fullname };
+      CURRENT_ROLE = res.role;
+      enterApp();
+      if (res.newUser) showToast('Akun baru berhasil dibuat. Selamat belajar!', 'success');
+    } else {
+      errBox.innerText = res.message || 'Login gagal.';
+      errBox.style.display = 'block';
+    }
+  } catch (err) {
+    resetBtn();
+    errBox.innerText = 'Terjadi kesalahan: ' + (err.message || err);
+    errBox.style.display = 'block';
+  }
+
+  return false;
+}
+
+function logout(){
+  CURRENT_USER = null; CURRENT_ROLE = null;
+  document.getElementById('appShell').classList.remove('active');
+  document.getElementById('loginScreen').classList.add('active');
+  document.getElementById('loginForm').reset();
+  document.getElementById('bottomNav').innerHTML = '';
+  document.getElementById('fabInstall').classList.remove('show');
+}
+
+/* ==========================================================
+ * APP ENTRY
+ * ========================================================*/
+function enterApp(){
+  document.getElementById('loginScreen').classList.remove('active');
+  document.getElementById('appShell').classList.add('active');
+
+  document.getElementById('sideFullname').innerText = CURRENT_USER.fullname;
+  document.getElementById('sideAvatar').innerText = CURRENT_USER.fullname.charAt(0).toUpperCase();
+
+  if (CURRENT_ROLE === 'admin') {
+    document.getElementById('adminNav').style.display = 'block';
+    document.getElementById('studentNav').style.display = 'none';
+    document.getElementById('sideRole').innerText = 'Administrator';
+    document.getElementById('topbarBadge').innerText = 'Admin';
+    buildBottomNav('admin');
+    navTo('admin-dashboard');
+    loadAdminStats();
+  } else {
+    document.getElementById('adminNav').style.display = 'none';
+    document.getElementById('studentNav').style.display = 'block';
+    document.getElementById('sideRole').innerText = 'Siswa';
+    document.getElementById('topbarBadge').innerText = 'Siswa';
+    buildBottomNav('student');
+    navTo('student-dashboard');
+    loadStudentDashboard();
+  }
+}
+
+function buildBottomNav(role){
+  const nav = document.getElementById('bottomNav');
+  if (role === 'admin') {
+    nav.innerHTML = `
+      <button class="bnav-item" data-target="admin-dashboard" onclick="navTo('admin-dashboard')"><i class="bi bi-grid-1x2-fill"></i><span>Home</span></button>
+      <button class="bnav-item" data-target="admin-materi" onclick="navTo('admin-materi')"><i class="bi bi-journal-richtext"></i><span>Materi</span></button>
+      <button class="bnav-item" data-target="admin-soal" onclick="navTo('admin-soal')"><i class="bi bi-patch-question"></i><span>Soal</span></button>
+      <button class="bnav-item" data-target="admin-siswa" onclick="navTo('admin-siswa')"><i class="bi bi-people-fill"></i><span>Siswa</span></button>
+      <button class="bnav-item" data-target="admin-hasil" onclick="navTo('admin-hasil')"><i class="bi bi-bar-chart-fill"></i><span>Hasil</span></button>
+    `;
+  } else {
+    nav.innerHTML = `
+      <button class="bnav-item" data-target="student-dashboard" onclick="navTo('student-dashboard')"><i class="bi bi-grid-1x2-fill"></i><span>Home</span></button>
+      <button class="bnav-item" data-target="student-materi" onclick="navTo('student-materi')"><i class="bi bi-journal-richtext"></i><span>Materi</span></button>
+      <button class="bnav-item" data-target="student-latihan" onclick="navTo('student-latihan')"><i class="bi bi-patch-question"></i><span>Latihan</span></button>
+      <button class="bnav-item" data-target="student-riwayat" onclick="navTo('student-riwayat')"><i class="bi bi-clock-history"></i><span>Riwayat</span></button>
+    `;
+  }
+}
+
+const TITLE_MAP = {
+  'admin-dashboard': 'Dashboard',
+  'admin-materi': 'Manajemen Materi',
+  'admin-soal': 'Manajemen Soal',
+  'admin-siswa': 'Daftar Siswa',
+  'admin-hasil': 'Hasil Latihan Siswa',
+  'student-dashboard': 'Dashboard',
+  'student-materi': 'Materi Belajar',
+  'student-read': 'Baca Materi',
+  'student-latihan': 'Latihan Soal',
+  'student-quiz': 'Kerjakan Soal',
+  'student-riwayat': 'Riwayat Latihan'
+};
+
+function navTo(screenId){
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const target = document.getElementById(screenId);
+  if (target) target.classList.add('active');
+
+  document.querySelectorAll('.side-link').forEach(l => l.classList.toggle('active', l.dataset.target === screenId));
+  document.querySelectorAll('.bnav-item').forEach(l => l.classList.toggle('active', l.dataset.target === screenId));
+
+  // For nested screens, highlight parent in bottom nav
+  if (screenId === 'student-read') {
+    document.querySelectorAll('.bnav-item').forEach(l => l.classList.toggle('active', l.dataset.target === 'student-materi'));
+  }
+  if (screenId === 'student-quiz') {
+    document.querySelectorAll('.bnav-item').forEach(l => l.classList.toggle('active', l.dataset.target === 'student-latihan'));
+  }
+
+  document.getElementById('topbarTitle').innerText = TITLE_MAP[screenId] || 'EduFSR';
+  toggleSidebar(false);
+
+  // Scroll content to top on navigation
+  const content = document.querySelector('.content-area');
+  if (content) content.scrollTop = 0;
+  window.scrollTo(0, 0);
+
+  if (screenId === 'admin-materi') loadAdminMateri();
+  if (screenId === 'admin-soal') loadSoalMateriSelect();
+  if (screenId === 'admin-siswa') loadAdminSiswa();
+  if (screenId === 'admin-hasil') loadAdminHasil();
+  if (screenId === 'student-materi') loadStudentMateriListScreen();
+  if (screenId === 'student-latihan') loadStudentLatihanScreen();
+  if (screenId === 'student-riwayat') loadStudentRiwayat();
+  if (screenId === 'student-dashboard') loadStudentDashboard();
+}
+
+function toggleSidebar(open){
+  document.getElementById('sidebar').classList.toggle('open', !!open);
+  document.getElementById('sidebarOverlay').classList.toggle('show', !!open);
+  document.body.style.overflow = open ? 'hidden' : '';
+}
+</script>
+<script>
+/* ==========================================================
+ * ADMIN: DASHBOARD
+ * ========================================================*/
+async function loadAdminStats(){
+  try {
+    const s = await callServer('getAdminStats');
+    document.getElementById('statMateri').innerText = s.totalMateri;
+    document.getElementById('statSoal').innerText = s.totalSoal;
+    document.getElementById('statStudent').innerText = s.totalStudent;
+    document.getElementById('statLatihan').innerText = s.totalLatihan;
+  } catch (err) { onServerError(err); }
+}
+
+/* ==========================================================
+ * ADMIN: MATERI
+ * ========================================================*/
+function fileTypeBadge(type){
+  const map = { Word:'ft-word', Excel:'ft-excel', PowerPoint:'ft-powerpoint', PDF:'ft-pdf' };
+  const cls = map[type] || 'ft-file';
+  const icon = type==='Word' ? 'bi-file-earmark-word' : type==='Excel' ? 'bi-file-earmark-excel' : type==='PowerPoint' ? 'bi-file-earmark-ppt' : type==='PDF' ? 'bi-file-earmark-pdf' : 'bi-file-earmark';
+  return `<span class="file-type-badge ${cls}"><i class="bi ${icon}"></i>${escapeHtml(type||'File')}</span>`;
+}
+
+async function loadAdminMateri(){
+  const cont = document.getElementById('adminMateriList');
+  cont.innerHTML = '<div class="spinner-wrap w-100"><div class="spinner-border text-success"></div><span>Memuat materi...</span></div>';
+
+  try {
+    const list = (await callServer('getMateriList')) || [];
+    CACHE.materi = list;
+    if (!list.length) {
+      cont.innerHTML = '<div class="empty-state w-100"><i class="bi bi-journal-x"></i>Belum ada materi. Klik "Unggah Materi" untuk mulai.</div>';
+    } else {
+      cont.innerHTML = list.map(m => `
+        <div class="col-sm-6 col-lg-4">
+          <div class="materi-card fade-item">
+            <div class="top"></div>
+            <div class="body">
+              <div class="d-flex justify-content-between align-items-start gap-2">
+                <span class="badge-kategori">${escapeHtml(m.kategori||'-')}</span>
+                ${fileTypeBadge(m.fileType)}
+              </div>
+              <h6 class="font-display mt-3 mb-1 text-truncate-2">${escapeHtml(m.judul)}</h6>
+              <div class="text-muted mb-1" style="font-size:.8rem"><i class="bi bi-file-earmark me-1"></i>${escapeHtml(m.fileName||'-')}</div>
+              <div class="text-muted mb-3" style="font-size:.78rem"><i class="bi bi-flag-fill me-1 text-emerald"></i>KKM: ${m.kkm}%</div>
+              <div class="d-flex gap-2 flex-wrap mt-auto">
+                <a class="btn btn-icon-sm" href="${m.previewUrl}" target="_blank" rel="noopener" title="Lihat" aria-label="Lihat materi"><i class="bi bi-eye"></i></a>
+                <button class="btn btn-icon-sm" onclick="openMateriModal('${m.id}')" title="Edit" aria-label="Edit materi"><i class="bi bi-pencil"></i></button>
+                <button class="btn btn-icon-sm text-danger" onclick="deleteMateriConfirm('${m.id}')" title="Hapus" aria-label="Hapus materi"><i class="bi bi-trash"></i></button>
+              </div>
+            </div>
+          </div>
+        </div>`).join('');
+    }
+  } catch (err) {
+    cont.innerHTML = errorStateHtml(err.message || err, 'loadAdminMateri()');
+  }
+
+  try {
+    const cats = (await callServer('getKategoriList')) || [];
+    document.getElementById('kategoriList').innerHTML = cats.map(c => `<option value="${escapeHtml(c)}">`).join('');
+  } catch (err) { /* non-kritis */ }
+}
+
+function onMateriFileChosen(input){
+  const file = input.files[0];
+  const chip = document.getElementById('materiFileChip');
+  if (!file) { chip.innerHTML=''; pendingMateriFile = null; return; }
+
+  if (file.size > 20 * 1024 * 1024) {
+    showToast('Ukuran file maksimal 20MB.', 'warn');
+    input.value = '';
+    chip.innerHTML=''; pendingMateriFile = null;
+    return;
+  }
+
+  chip.innerHTML = `<div class="file-chip"><i class="bi bi-file-earmark-check-fill"></i>${escapeHtml(file.name)} <span class="spinner-border spinner-border-sm ms-1"></span></div>`;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    pendingMateriFile = {
+      fileName: file.name,
+      mimeType: file.type || 'application/octet-stream',
+      base64: reader.result.split(',')[1]
+    };
+    chip.innerHTML = `<div class="file-chip"><i class="bi bi-check-circle-fill"></i>${escapeHtml(file.name)} siap diunggah</div>`;
+  };
+  reader.onerror = () => {
+    showToast('Gagal membaca file.', 'error');
+    pendingMateriFile = null;
+    chip.innerHTML = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+function openMateriModal(id){
+  pendingMateriFile = null;
+  document.getElementById('materiFileInput').value = '';
+  document.getElementById('materiFileChip').innerHTML = '';
+  document.getElementById('materiModalTitle').innerText = id ? 'Edit Materi' : 'Unggah Materi';
+  document.getElementById('materiIdInput').value = id || '';
+
+  if (id) {
+    const m = CACHE.materi.find(x => x.id === id);
+    document.getElementById('materiKategori').value = m ? m.kategori : '';
+    document.getElementById('materiJudul').value = m ? m.judul : '';
+    document.getElementById('materiKkm').value = (m && m.kkm !== undefined && m.kkm !== null) ? m.kkm : 70;
+    document.getElementById('materiFileEditHint').innerText = 'File saat ini: ' + ((m && m.fileName) || '-') + ' — kosongkan jika tidak ingin mengganti file.';
+  } else {
+    document.getElementById('materiKategori').value = '';
+    document.getElementById('materiJudul').value = '';
+    document.getElementById('materiKkm').value = 70;
+    document.getElementById('materiFileEditHint').innerText = '';
+  }
+  new bootstrap.Modal(document.getElementById('materiModal')).show();
+}
+
+function submitMateriForm(){
+  const id = document.getElementById('materiIdInput').value;
+  const kategori = document.getElementById('materiKategori').value.trim();
+  const judul = document.getElementById('materiJudul').value.trim();
+
+  if (!kategori || !judul) { showToast('Kategori dan judul wajib diisi.', 'warn'); return; }
+  if (!id && !pendingMateriFile) { showToast('File materi wajib diunggah.', 'warn'); return; }
+
+  const data = { id: id, kategori: kategori, judul: judul, kkm: document.getElementById('materiKkm').value };
+  if (pendingMateriFile) {
+    data.fileName = pendingMateriFile.fileName;
+    data.mimeType = pendingMateriFile.mimeType;
+    data.base64 = pendingMateriFile.base64;
+  }
+
+  const btn = document.getElementById('materiSubmitBtn');
+  document.getElementById('materiSubmitText').innerText = 'Mengunggah...';
+  document.getElementById('materiSubmitSpinner').classList.remove('d-none');
+  btn.disabled = true;
+
+  callServer('saveMateri', data).then(res => {
+    document.getElementById('materiSubmitText').innerText = 'Simpan Materi';
+    document.getElementById('materiSubmitSpinner').classList.add('d-none');
+    btn.disabled = false;
+    bootstrap.Modal.getInstance(document.getElementById('materiModal')).hide();
+    if (res && res.sharingOk === false) {
+      showToast('Materi tersimpan, tapi izin "siapa saja bisa lihat" ditolak kebijakan akun Drive. Preview mungkin perlu dibuka manual oleh admin.', 'warn');
+    } else {
+      showToast('Materi berhasil disimpan.', 'success');
+    }
+    loadAdminMateri();
+  }).catch(err => {
+    document.getElementById('materiSubmitText').innerText = 'Simpan Materi';
+    document.getElementById('materiSubmitSpinner').classList.add('d-none');
+    btn.disabled = false;
+    showToast('Gagal menyimpan: ' + (err.message || err), 'error');
+  });
+}
+
+function deleteMateriConfirm(id){
+  if (!confirm('Hapus materi ini? File di Drive & semua soal terkait juga akan terhapus.')) return;
+  callServer('deleteMateri', id)
+    .then(() => { showToast('Materi dihapus.', 'success'); loadAdminMateri(); })
+    .catch(onServerError);
+}
+
+/* ==========================================================
+ * ADMIN: SOAL
+ * ========================================================*/
+async function loadSoalMateriSelect(){
+  const sel = document.getElementById('soalMateriSelect');
+  sel.innerHTML = '<option value="">Memuat...</option>';
+  try {
+    const list = (await callServer('getMateriList')) || [];
+    CACHE.materi = list;
+    if (!list.length) {
+      sel.innerHTML = '<option value="">Belum ada materi — unggah materi dulu</option>';
+      document.getElementById('soalManageArea').innerHTML='';
+      return;
+    }
+    sel.innerHTML = '<option value="">— Pilih materi —</option>' + list.map(m => `<option value="${m.id}">${escapeHtml(m.kategori)} — ${escapeHtml(m.judul)}</option>`).join('');
+    document.getElementById('soalManageArea').innerHTML = '';
+  } catch (err) {
+    sel.innerHTML = '<option value="">Gagal memuat materi</option>';
+    document.getElementById('soalManageArea').innerHTML = errorStateHtml(err.message || err, 'loadSoalMateriSelect()');
+  }
+}
+
+async function loadSoalForMateri(){
+  const materiId = document.getElementById('soalMateriSelect').value;
+  const area = document.getElementById('soalManageArea');
+  if (!materiId) { area.innerHTML=''; return; }
+  area.innerHTML = '<div class="spinner-wrap"><div class="spinner-border text-success"></div><span>Memuat soal...</span></div>';
+
+  try {
+    const list = (await callServer('getSoalByMateriAdmin', materiId)) || [];
+    CACHE.quiz = list;
+    let html = `<div class="d-flex justify-content-end mb-3"><button class="btn btn-premium btn-sm px-3" onclick="openSoalModal()"><i class="bi bi-plus-lg me-1"></i>Tambah Soal</button></div>`;
+    if (!list.length) {
+      html += '<div class="empty-state"><i class="bi bi-patch-question"></i>Belum ada soal untuk materi ini.</div>';
+    } else {
+      html += list.map((s,i) => `
+        <div class="quiz-q-card fade-item" style="${s.status==='Terkunci' ? 'border-left-color:#b42323' : ''}">
+          <div class="d-flex justify-content-between align-items-start gap-2">
+            <div class="fw-semibold" style="flex:1; min-width:0">${i+1}. ${escapeHtml(s.pertanyaan)} <span class="badge-kategori ms-1">${s.tipe}</span> ${s.status==='Terkunci' ? '<span class="file-type-badge ft-pdf ms-1"><i class="bi bi-lock-fill"></i>Terkunci</span>' : '<span class="file-type-badge ft-excel ms-1"><i class="bi bi-unlock-fill"></i>Aktif</span>'}</div>
+            <div class="d-flex gap-1 flex-shrink-0">
+              <button class="btn btn-icon-sm" onclick="toggleSoalStatusQuick('${s.id}')" title="${s.status==='Terkunci' ? 'Buka kunci' : 'Kunci soal'}" aria-label="Toggle status"><i class="bi ${s.status==='Terkunci' ? 'bi-unlock' : 'bi-lock'}"></i></button>
+              <button class="btn btn-icon-sm" onclick="openSoalModal('${s.id}')" title="Edit" aria-label="Edit soal"><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-icon-sm text-danger" onclick="deleteSoalConfirm('${s.id}')" title="Hapus" aria-label="Hapus soal"><i class="bi bi-trash"></i></button>
+            </div>
+          </div>
+          ${s.tipe === 'PG' ? `
+          <div class="mt-2 text-muted" style="font-size:.85rem">
+            A. ${escapeHtml(s.a||'')} &nbsp; B. ${escapeHtml(s.b||'')} &nbsp; C. ${escapeHtml(s.c||'')} &nbsp; D. ${escapeHtml(s.d||'')}
+            <br><span class="text-emerald fw-semibold">Jawaban benar: ${s.jawabanBenar}</span>
+          </div>` : `<div class="mt-2 text-muted" style="font-size:.85rem">Soal essay — dinilai manual oleh admin.</div>`}
+        </div>`).join('');
+    }
+    area.innerHTML = html;
+  } catch (err) {
+    area.innerHTML = errorStateHtml(err.message || err, 'loadSoalForMateri()');
+  }
+}
+
+function toggleSoalStatusQuick(id){
+  callServer('toggleSoalStatus', id)
+    .then(res => {
+      showToast(res.status === 'Terkunci' ? 'Soal dikunci.' : 'Soal dibuka kembali.', 'success');
+      loadSoalForMateri();
+    })
+    .catch(onServerError);
+}
+
+function setSoalTipe(tipe){
+  document.getElementById('tipePGBtn').classList.toggle('active', tipe==='PG');
+  document.getElementById('tipeEssayBtn').classList.toggle('active', tipe==='Essay');
+  document.getElementById('pgFields').style.display = tipe==='PG' ? 'block' : 'none';
+  document.getElementById('soalModal').dataset.tipe = tipe;
+}
+
+function setSoalStatus(status){
+  document.getElementById('statusAktifBtn').classList.toggle('active', status==='Aktif');
+  document.getElementById('statusTerkunciBtn').classList.toggle('active', status==='Terkunci');
+  document.getElementById('soalModal').dataset.status = status;
+}
+
+function openSoalModal(id){
+  document.getElementById('soalModalTitle').innerText = id ? 'Edit Soal' : 'Tambah Soal';
+  document.getElementById('soalIdInput').value = id || '';
+  if (id) {
+    const s = CACHE.quiz.find(x => x.id === id);
+    if (!s) return;
+    setSoalTipe(s.tipe);
+    setSoalStatus(s.status === 'Terkunci' ? 'Terkunci' : 'Aktif');
+    document.getElementById('soalPertanyaan').value = s.pertanyaan;
+    document.getElementById('soalA').value = s.a || '';
+    document.getElementById('soalB').value = s.b || '';
+    document.getElementById('soalC').value = s.c || '';
+    document.getElementById('soalD').value = s.d || '';
+    document.getElementById('soalJawabanBenar').value = s.jawabanBenar || 'A';
+  } else {
+    setSoalTipe('PG');
+    setSoalStatus('Aktif');
+    document.getElementById('soalPertanyaan').value = '';
+    document.getElementById('soalA').value = document.getElementById('soalB').value = document.getElementById('soalC').value = document.getElementById('soalD').value = '';
+    document.getElementById('soalJawabanBenar').value = 'A';
+  }
+  new bootstrap.Modal(document.getElementById('soalModal')).show();
+}
+
+function submitSoalForm(){
+  const tipe = document.getElementById('soalModal').dataset.tipe || 'PG';
+  const status = document.getElementById('soalModal').dataset.status || 'Aktif';
+  const materiId = document.getElementById('soalMateriSelect').value;
+  const pertanyaan = document.getElementById('soalPertanyaan').value.trim();
+  if (!pertanyaan) { showToast('Pertanyaan wajib diisi.', 'warn'); return; }
+
+  const data = {
+    id: document.getElementById('soalIdInput').value,
+    materiId: materiId, tipe: tipe, pertanyaan: pertanyaan, status: status
+  };
+  if (tipe === 'PG') {
+    data.a = document.getElementById('soalA').value.trim();
+    data.b = document.getElementById('soalB').value.trim();
+    data.c = document.getElementById('soalC').value.trim();
+    data.d = document.getElementById('soalD').value.trim();
+    data.jawabanBenar = document.getElementById('soalJawabanBenar').value;
+    if (!data.a || !data.b) { showToast('Minimal pilihan A dan B wajib diisi.', 'warn'); return; }
+  }
+
+  callServer('saveSoal', data)
+    .then(() => {
+      bootstrap.Modal.getInstance(document.getElementById('soalModal')).hide();
+      showToast('Soal berhasil disimpan.', 'success');
+      loadSoalForMateri();
+    })
+    .catch(err => showToast('Gagal menyimpan: ' + (err.message || err), 'error'));
+}
+
+function deleteSoalConfirm(id){
+  if (!confirm('Hapus soal ini?')) return;
+  callServer('deleteSoal', id)
+    .then(() => { showToast('Soal dihapus.', 'success'); loadSoalForMateri(); })
+    .catch(onServerError);
+}
+
+/* ==========================================================
+ * ADMIN: SISWA
+ * ========================================================*/
+async function loadAdminSiswa(){
+  const tb = document.getElementById('adminSiswaTable');
+  tb.innerHTML = '<tr><td colspan="5"><div class="spinner-wrap"><div class="spinner-border text-success"></div></div></td></tr>';
+  try {
+    const list = (await callServer('getStudentList')) || [];
+    if (!list.length) { tb.innerHTML=''; document.getElementById('adminSiswaEmpty').innerHTML = '<div class="empty-state"><i class="bi bi-people"></i>Belum ada siswa terdaftar.</div>'; return; }
+    document.getElementById('adminSiswaEmpty').innerHTML='';
+    tb.innerHTML = list.map(u => `
+      <tr class="fade-item">
+        <td><div class="d-flex align-items-center gap-2"><div class="avatar-circle" style="width:32px;height:32px;font-size:.8rem;color:#fff;background:linear-gradient(135deg,var(--emerald),var(--emerald-dark))">${(u.username||'').charAt(0).toUpperCase()}</div><span class="text-truncate" style="max-width:120px">${escapeHtml(u.username)}</span></div></td>
+        <td class="text-muted" style="font-size:.85rem">${formatDate(u.tanggalDaftar)}</td>
+        <td>${u.totalLatihan}</td>
+        <td>${scorePill(u.rataRata)}</td>
+        <td style="min-width:140px"><div class="progress-premium"><div class="bar" style="width:${u.progress}%"></div></div><div style="font-size:.72rem;color:var(--muted-dark)" class="mt-1">${u.progress}% selesai</div></td>
+      </tr>`).join('');
+  } catch (err) {
+    tb.innerHTML='';
+    document.getElementById('adminSiswaEmpty').innerHTML = errorStateHtml(err.message || err, 'loadAdminSiswa()');
+  }
+}
+
+/* ==========================================================
+ * ADMIN: HASIL
+ * ========================================================*/
+async function loadAdminHasil(){
+  const tb = document.getElementById('adminHasilTable');
+  tb.innerHTML = '<tr><td colspan="6"><div class="spinner-wrap"><div class="spinner-border text-success"></div></div></td></tr>';
+  try {
+    const list = (await callServer('getAllHasil')) || [];
+    if (!list.length) { tb.innerHTML=''; document.getElementById('adminHasilEmpty').innerHTML = '<div class="empty-state"><i class="bi bi-bar-chart"></i>Belum ada data latihan.</div>'; return; }
+    document.getElementById('adminHasilEmpty').innerHTML='';
+    tb.innerHTML = list.map(h => {
+      let essay = [];
+      try { essay = JSON.parse(h.jawabanEssay || '[]'); } catch(e){}
+      return `
+      <tr class="fade-item">
+        <td>${escapeHtml(h.username)}</td>
+        <td><span class="text-truncate d-inline-block" style="max-width:140px">${escapeHtml(h.judulMateri)}</span></td>
+        <td>${scorePill(h.skor)} <span class="text-muted" style="font-size:.75rem">(${h.benarPG}/${h.totalPG})</span></td>
+        <td>${lulusBadgeHtml(h.lulus) || '<span class="text-muted">-</span>'}</td>
+        <td>${essay.length ? `<button class="btn btn-icon-sm" onclick='showEssayReview(${JSON.stringify(essay).replace(/'/g,"&apos;")})' aria-label="Lihat essay"><i class="bi bi-eye"></i> ${essay.length}</button>` : '<span class="text-muted">-</span>'}</td>
+        <td class="text-muted" style="font-size:.82rem">${formatDate(h.tanggal)}</td>
+      </tr>`;
+    }).join('');
+  } catch (err) {
+    tb.innerHTML='';
+    document.getElementById('adminHasilEmpty').innerHTML = errorStateHtml(err.message || err, 'loadAdminHasil()');
+  }
+}
+
+function showEssayReview(essayArr){
+  const text = essayArr.map((e,i) => `${i+1}. ${e.pertanyaan}\n   Jawaban: ${e.jawaban}`).join('\n\n');
+  alert('Jawaban Essay:\n\n' + text);
+}
+</script>
+<script>
+/* ==========================================================
+ * STUDENT: DASHBOARD
+ * ========================================================*/
+async function loadStudentDashboard(){
+  try {
+    const p = await callServer('getProgressByStudent', CURRENT_USER.username);
+    document.getElementById('progressPercentText').innerText = p.persen + '%';
+    document.getElementById('progressBar').style.width = p.persen + '%';
+    document.getElementById('progressSubtext').innerText = `${p.selesai} dari ${p.total} materi diselesaikan`;
+  } catch (err) { onServerError(err); }
+
+  try {
+    const list = (await callServer('getHasilByStudent', CURRENT_USER.username)) || [];
+    document.getElementById('stuTotalLatihan').innerText = list.length;
+    const avg = list.length ? Math.round(list.reduce((s,h)=>s+Number(h.skor||0),0)/list.length) : 0;
+    document.getElementById('stuRataRata').innerText = avg;
+  } catch (err) { onServerError(err); }
+
+  const cont = document.getElementById('studentDashboardMateri');
+  cont.innerHTML = '<div class="spinner-wrap w-100"><div class="spinner-border text-success"></div></div>';
+  try {
+    const list = (await callServer('getMateriList')) || [];
+    CACHE.materi = list;
+    if (!list.length) { cont.innerHTML = '<div class="empty-state w-100"><i class="bi bi-journal-x"></i>Belum ada materi tersedia.</div>'; return; }
+    cont.innerHTML = list.slice(0,3).map(m => materiCardHtml(m)).join('');
+  } catch (err) {
+    cont.innerHTML = errorStateHtml(err.message || err, 'loadStudentDashboard()');
+  }
+}
+
+function materiCardHtml(m){
+  return `
+    <div class="col-sm-6 col-lg-4">
+      <div class="materi-card fade-item" onclick="openMateriRead('${m.id}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter')openMateriRead('${m.id}')">
+        <div class="top"></div>
+        <div class="body">
+          <div class="d-flex justify-content-between align-items-start gap-2">
+            <span class="badge-kategori">${escapeHtml(m.kategori||'-')}</span>
+            ${fileTypeBadge(m.fileType)}
+          </div>
+          <h6 class="font-display mt-3 mb-1 text-truncate-2">${escapeHtml(m.judul)}</h6>
+          <div class="text-muted mb-0" style="font-size:.8rem"><i class="bi bi-file-earmark me-1"></i>${escapeHtml(m.fileName||'-')}</div>
+          <div class="mt-3 text-emerald fw-semibold" style="font-size:.85rem">Baca materi <i class="bi bi-arrow-right"></i></div>
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ==========================================================
+ * STUDENT: MATERI LIST
+ * ========================================================*/
+async function loadStudentMateriListScreen(){
+  const cont = document.getElementById('studentMateriList');
+  cont.innerHTML = '<div class="spinner-wrap w-100"><div class="spinner-border text-success"></div></div>';
+  try {
+    const list = (await callServer('getMateriList')) || [];
+    CACHE.materi = list;
+    renderStudentMateriList();
+  } catch (err) {
+    cont.innerHTML = errorStateHtml(err.message || err, 'loadStudentMateriListScreen()');
+  }
+
+  try {
+    const cats = (await callServer('getKategoriList')) || [];
+    const sel = document.getElementById('studentKategoriFilter');
+    sel.innerHTML = '<option value="">Semua Kategori</option>' + cats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+  } catch (err) { /* non-kritis */ }
+}
+
+function renderStudentMateriList(){
+  const filter = document.getElementById('studentKategoriFilter').value;
+  const list = filter ? CACHE.materi.filter(m => m.kategori === filter) : CACHE.materi;
+  const cont = document.getElementById('studentMateriList');
+  if (!list.length) { cont.innerHTML = '<div class="empty-state w-100"><i class="bi bi-journal-x"></i>Tidak ada materi ditemukan.</div>'; return; }
+  cont.innerHTML = list.map(m => materiCardHtml(m)).join('');
+}
+
+/* ==========================================================
+ * STUDENT: BACA MATERI
+ * ========================================================*/
+async function openMateriRead(id){
+  CACHE.activeMateriId = id;
+  navTo('student-read');
+  const area = document.getElementById('studentReadArea');
+  area.innerHTML = '<div class="spinner-wrap"><div class="spinner-border text-success"></div></div>';
+  try {
+    const m = await callServer('getMateriById', id);
+    if (!m) { area.innerHTML = errorStateHtml('Materi tidak ditemukan.'); return; }
+    area.innerHTML = `
+      <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+        <div style="min-width:0; flex:1">
+          <span class="badge-kategori">${escapeHtml(m.kategori)}</span>
+          <h3 class="font-display mt-2 mb-1" style="font-size:clamp(1.15rem, 4vw, 1.5rem)">${escapeHtml(m.judul)}</h3>
+          <div class="text-muted" style="font-size:.85rem">${fileTypeBadge(m.fileType)} <span class="ms-1">${escapeHtml(m.fileName||'')}</span></div>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+          <a class="btn btn-gold-outline btn-sm px-3" href="${m.downloadUrl}" target="_blank" rel="noopener"><i class="bi bi-download me-1"></i>Unduh</a>
+          <button class="btn btn-premium btn-sm px-3" onclick="goToLatihanForKategori('${escapeHtml(m.kategori).replace(/'/g,"&apos;")}')"><i class="bi bi-patch-question me-1"></i>Latihan</button>
+        </div>
+      </div>
+      <div class="reader-frame-wrap fade-item">
+        <iframe src="${m.previewUrl}" allow="autoplay" title="Preview materi"></iframe>
+      </div>
+      <div class="text-muted mt-2" style="font-size:.78rem">Jika pratinjau tidak muncul, gunakan tombol "Unduh". Latihan soal tersedia di menu "Latihan Soal".</div>
+    `;
+  } catch (err) {
+    area.innerHTML = errorStateHtml(err.message || err);
+  }
+}
+
+function goToLatihanForKategori(kategori){
+  navTo('student-latihan');
+  setTimeout(() => {
+    const sel = document.getElementById('latihanKategoriFilter');
+    if (sel && [...sel.options].some(o => o.value === kategori)) {
+      sel.value = kategori;
+      renderStudentLatihanList();
+    }
+  }, 300);
+}
+</script>
+<script>
+/* ==========================================================
+ * STUDENT: LATIHAN SOAL
+ * ========================================================*/
+async function loadStudentLatihanScreen(){
+  const cont = document.getElementById('studentLatihanList');
+  cont.innerHTML = '<div class="spinner-wrap w-100"><div class="spinner-border text-success"></div></div>';
+  try {
+    const list = (await callServer('getMateriForLatihan')) || [];
+    CACHE.latihan = list;
+    renderStudentLatihanList();
+  } catch (err) {
+    cont.innerHTML = errorStateHtml(err.message || err, 'loadStudentLatihanScreen()');
+  }
+
+  try {
+    const cats = (await callServer('getKategoriList')) || [];
+    const sel = document.getElementById('latihanKategoriFilter');
+    sel.innerHTML = '<option value="">Semua Kategori</option>' + cats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+  } catch (err) { /* non-kritis */ }
+}
+
+function renderStudentLatihanList(){
+  const filter = document.getElementById('latihanKategoriFilter').value;
+  const list = filter ? (CACHE.latihan||[]).filter(m => m.kategori === filter) : (CACHE.latihan||[]);
+  const cont = document.getElementById('studentLatihanList');
+  if (!list.length) { cont.innerHTML = '<div class="empty-state w-100"><i class="bi bi-patch-question"></i>Tidak ada materi ditemukan.</div>'; return; }
+
+  const groups = {};
+  list.forEach(m => { (groups[m.kategori] = groups[m.kategori] || []).push(m); });
+
+  let html = '';
+  Object.keys(groups).sort().forEach(kategori => {
+    html += `<div class="col-12 mt-2 mb-1"><h6 class="font-display text-muted" style="font-size:.82rem; letter-spacing:.04em">${escapeHtml(kategori.toUpperCase())}</h6></div>`;
+    html += groups[kategori].map(m => latihanCardHtml(m)).join('');
+  });
+  cont.innerHTML = html;
+}
+
+function latihanCardHtml(m){
+  const hasSoal = m.soalCount > 0;
+  return `
+    <div class="col-sm-6 col-lg-4">
+      <div class="materi-card fade-item" style="${hasSoal ? 'cursor:pointer' : 'cursor:default; opacity:.75'}" ${hasSoal ? `onclick="startQuiz('${m.id}', '${escapeHtml(m.judul).replace(/'/g,"&apos;")}')" role="button" tabindex="0"` : ''}>
+        <div class="top"></div>
+        <div class="body">
+          <div class="d-flex justify-content-between align-items-start gap-2">
+            <span class="badge-kategori">${escapeHtml(m.kategori||'-')}</span>
+            <span class="file-type-badge ${hasSoal ? 'ft-excel' : 'ft-file'}"><i class="bi bi-patch-question"></i>${m.soalCount} Soal</span>
+          </div>
+          <h6 class="font-display mt-3 mb-1 text-truncate-2">${escapeHtml(m.judul)}</h6>
+          <div class="mt-3 fw-semibold" style="font-size:.85rem; color:${hasSoal ? 'var(--emerald)' : 'var(--muted-dark)'}">
+            ${hasSoal ? 'Kerjakan Soal <i class="bi bi-arrow-right"></i>' : 'Belum ada soal'}
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+</script>
+<script>
+/* ==========================================================
+ * STUDENT: QUIZ
+ * ========================================================*/
+async function startQuiz(materiId, judul){
+  navTo('student-quiz');
+  const area = document.getElementById('studentQuizArea');
+  area.innerHTML = '<div class="spinner-wrap"><div class="spinner-border text-success"></div></div>';
+  try {
+    const list = (await callServer('getSoalByMateriStudent', materiId)) || [];
+    if (!list.length) {
+      area.innerHTML = '<div class="empty-state"><i class="bi bi-patch-question"></i>Belum ada soal untuk materi ini.</div>';
+      return;
+    }
+    CACHE.quiz = list;
+    const jumlahTerkunci = list.filter(s => s.status === 'Terkunci').length;
+    let html = `<h5 class="font-display mb-3" style="font-size:clamp(1.05rem, 3.5vw, 1.25rem)">Latihan Soal — ${escapeHtml(judul)}</h5>`;
+    if (jumlahTerkunci > 0) {
+      html += `<div class="alert alert-warning py-2 mb-3" style="border-radius:12px; font-size:.9rem"><i class="bi bi-lock-fill me-1"></i>${jumlahTerkunci} soal dikunci oleh admin dan tidak dapat dijawab saat ini.</div>`;
+    }
+    html += `<form id="quizForm">`;
+    list.forEach((s, i) => {
+      const terkunci = s.status === 'Terkunci';
+      html += `<div class="quiz-q-card" style="${terkunci ? 'opacity:.7; border-left-color:#b42323' : ''}"><div class="fw-semibold mb-1">${i+1}. ${escapeHtml(s.pertanyaan)} ${terkunci ? '<span class="file-type-badge ft-pdf ms-1"><i class="bi bi-lock-fill"></i>Terkunci</span>' : ''}</div>`;
+      if (terkunci) {
+        html += `<div class="alert alert-danger py-2 mt-2 mb-0" style="border-radius:10px; font-size:.85rem"><i class="bi bi-exclamation-triangle-fill me-1"></i>Soal ini sedang dikunci admin. Hubungi admin jika ini seharusnya bisa dikerjakan.</div>`;
+      } else if (s.tipe === 'PG') {
+        ['a','b','c','d'].forEach(opt => {
+          if (!s[opt]) return;
+          const letter = opt.toUpperCase();
+          html += `<label class="d-block">
+            <input type="radio" name="q_${s.id}" value="${letter}" class="d-none" onchange="markSelected(this)">
+            <span class="quiz-option">${letter}. ${escapeHtml(s[opt])}</span>
+          </label>`;
+        });
+      } else {
+        html += `<textarea class="form-control form-control-premium mt-2" name="q_${s.id}" rows="3" placeholder="Tulis jawaban essay kamu..."></textarea>`;
+      }
+      html += `</div>`;
+    });
+    html += `<button type="button" class="btn btn-premium px-4 mt-2 w-100 w-md-auto" onclick="submitQuiz('${materiId}','${escapeHtml(judul).replace(/'/g,"&apos;")}')"><i class="bi bi-send-check me-2"></i>Kumpulkan Jawaban</button></form>`;
+    area.innerHTML = html;
+  } catch (err) {
+    area.innerHTML = errorStateHtml(err.message || err, `startQuiz('${materiId}','${escapeHtml(judul).replace(/'/g,"\\'")}')`);
+  }
+}
+
+function markSelected(radio){
+  const container = radio.closest('.quiz-q-card');
+  container.querySelectorAll('.quiz-option').forEach(el => el.classList.remove('selected'));
+  radio.nextElementSibling.classList.add('selected');
+}
+
+async function submitQuiz(materiId, judul){
+  const answers = CACHE.quiz
+    .filter(s => s.status !== 'Terkunci')
+    .map(s => {
+      if (s.tipe === 'PG') {
+        const el = document.querySelector(`input[name="q_${s.id}"]:checked`);
+        return { soalId: s.id, tipe: 'PG', jawaban: el ? el.value : '' };
+      } else {
+        const el = document.querySelector(`textarea[name="q_${s.id}"]`);
+        return { soalId: s.id, tipe: 'Essay', jawaban: el ? el.value.trim() : '' };
+      }
+    });
+
+  try {
+    const res = await callServer('submitJawaban', {
+      username: CURRENT_USER.username,
+      materiId: materiId,
+      judulMateri: judul,
+      answers: answers
+    });
+    document.getElementById('hasilSkorText').innerText = res.totalPG > 0 ? res.skor : '-';
+    let detail = res.totalPG > 0
+      ? `Kamu menjawab benar ${res.benar} dari ${res.totalPG} soal pilihan ganda (KKM: ${res.kkm}%).` + (res.essayCount ? ` ${res.essayCount} soal essay telah dikumpulkan untuk dinilai admin.` : '')
+      : `${res.essayCount} soal essay telah dikumpulkan untuk dinilai admin.`;
+    document.getElementById('hasilDetailText').innerText = detail;
+
+    const lulusBadge = document.getElementById('hasilLulusBadge');
+    if (res.lulus) {
+      lulusBadge.style.display = 'inline-flex';
+      lulusBadge.className = 'file-type-badge ' + (res.lulus === 'Lulus' ? 'ft-excel' : 'ft-pdf');
+      lulusBadge.innerHTML = `<i class="bi ${res.lulus === 'Lulus' ? 'bi-check-circle-fill' : 'bi-x-circle-fill'}"></i>${res.lulus}`;
+    } else {
+      lulusBadge.style.display = 'none';
+    }
+    new bootstrap.Modal(document.getElementById('hasilModal')).show();
+  } catch (err) {
+    showToast('Gagal mengumpulkan jawaban: ' + (err.message || err), 'error');
+  }
+}
+
+function closeHasilModal(){
+  bootstrap.Modal.getInstance(document.getElementById('hasilModal')).hide();
+  navTo('student-latihan');
+}
+</script>
+<script>
+/* ==========================================================
+ * STUDENT: RIWAYAT
+ * ========================================================*/
+async function loadStudentRiwayat(){
+  const cont = document.getElementById('studentRiwayatList');
+  cont.innerHTML = '<div class="spinner-wrap"><div class="spinner-border text-success"></div></div>';
+  try {
+    const list = (await callServer('getHasilByStudent', CURRENT_USER.username)) || [];
+    if (!list.length) { cont.innerHTML = '<div class="empty-state"><i class="bi bi-clock-history"></i>Belum ada riwayat latihan.</div>'; return; }
+    cont.innerHTML = list.map(h => `
+      <div class="card-premium mb-3 fade-item d-flex flex-row justify-content-between align-items-center flex-wrap gap-2">
+        <div style="min-width:0; flex:1">
+          <div class="fw-semibold text-truncate-2">${escapeHtml(h.judulMateri)}</div>
+          <div class="text-muted" style="font-size:.8rem">${formatDate(h.tanggal)} • ${h.benarPG}/${h.totalPG} benar</div>
+        </div>
+        <div class="d-flex align-items-center gap-2 flex-shrink-0">
+          ${lulusBadgeHtml(h.lulus)}
+          ${scorePill(h.skor)}
+        </div>
+      </div>`).join('');
+  } catch (err) {
+    cont.innerHTML = errorStateHtml(err.message || err, 'loadStudentRiwayat()');
+  }
+}
+
+/* ==========================================================
+ * UTIL
+ * ========================================================*/
+function escapeHtml(str){
+  if (str === null || str === undefined) return '';
+  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function formatDate(d){
+  try { const dt = new Date(d); return dt.toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' }); } catch(e){ return d || ''; }
+}
+function scorePill(score){
+  score = Number(score) || 0;
+  const cls = score >= 80 ? 'high' : (score >= 60 ? 'mid' : 'low');
+  return `<span class="pill-score ${cls}">${score}</span>`;
+}
+function lulusBadgeHtml(lulus){
+  if (!lulus) return '';
+  const cls = lulus === 'Lulus' ? 'ft-excel' : 'ft-pdf';
+  const icon = lulus === 'Lulus' ? 'bi-check-circle-fill' : 'bi-x-circle-fill';
+  return `<span class="file-type-badge ${cls}"><i class="bi ${icon}"></i>${escapeHtml(lulus)}</span>`;
+}
+
+/* ==========================================================
+ * PWA — Manifest + Install Prompt (optimized for Android)
+ * ========================================================*/
+(function setupPWA(){
+  // Dynamic Web App Manifest
+  try {
+    const manifest = {
+      name: 'EduFSR E-Learning',
+      short_name: 'EduFSR',
+      description: 'Platform e-learning dengan materi, latihan soal otomatis, dan progres belajar real-time.',
+      start_url: '.',
+      scope: '.',
+      display: 'standalone',
+      orientation: 'portrait-primary',
+      background_color: '#0b1730',
+      theme_color: '#0b1730',
+      categories: ['education', 'productivity'],
+      lang: 'id',
+      dir: 'ltr',
+      icons: [
+        {
+          src: 'https://api.iconify.design/mdi/school.svg?color=%23d4af37&width=192&height=192',
+          sizes: '192x192',
+          type: 'image/svg+xml',
+          purpose: 'any'
+        },
+        {
+          src: 'https://api.iconify.design/mdi/school.svg?color=%23d4af37&width=512&height=512',
+          sizes: '512x512',
+          type: 'image/svg+xml',
+          purpose: 'any'
+        },
+        {
+          src: 'https://api.iconify.design/mdi/school.svg?color=%23d4af37&width=192&height=192',
+          sizes: '192x192',
+          type: 'image/svg+xml',
+          purpose: 'maskable'
+        },
+        {
+          src: 'https://api.iconify.design/mdi/school.svg?color=%23d4af37&width=512&height=512',
+          sizes: '512x512',
+          type: 'image/svg+xml',
+          purpose: 'maskable'
+        }
+      ]
+    };
+    const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    let link = document.querySelector('link[rel="manifest"]');
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'manifest';
+      document.head.appendChild(link);
+    }
+    link.href = url;
+  } catch(e){ console.warn('Manifest setup gagal:', e); }
+
+  // beforeinstallprompt — Chrome / Android
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    // Show install buttons
+    const btn = document.getElementById('installBtn');
+    if (btn) btn.style.display = 'flex';
+    const fab = document.getElementById('fabInstall');
+    if (fab && window.innerWidth <= 991) fab.classList.add('show');
+  });
+
+  // Track successful install
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    const btn = document.getElementById('installBtn');
+    if (btn) btn.style.display = 'none';
+    const fab = document.getElementById('fabInstall');
+    if (fab) fab.classList.remove('show');
+    showToast('Aplikasi berhasil diinstal! Buka dari layar utama.', 'success');
+  });
+
+  // Detect if already running as standalone (installed)
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+    || window.navigator.standalone === true
+    || document.referrer.includes('android-app://');
+  if (isStandalone) {
+    document.documentElement.classList.add('pwa-standalone');
+  }
+})();
+
+function triggerInstall(){
+  if (!deferredInstallPrompt) {
+    // Fallback instructions for browsers that don't fire beforeinstallprompt
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (isIOS) {
+      showToast('Di iOS: ketuk ikon Bagikan → "Tambah ke Layar Utama".', 'warn');
+    } else {
+      showToast('Gunakan menu browser (⋮) → "Instal aplikasi" atau "Tambahkan ke layar utama".', 'warn');
+    }
+    return;
+  }
+  deferredInstallPrompt.prompt();
+  deferredInstallPrompt.userChoice.finally(() => {
+    deferredInstallPrompt = null;
+    const btn = document.getElementById('installBtn');
+    if (btn) btn.style.display = 'none';
+    const fab = document.getElementById('fabInstall');
+    if (fab) fab.classList.remove('show');
+  });
+}
+
+// Close sidebar on orientation change / resize to desktop
+window.addEventListener('resize', () => {
+  if (window.innerWidth > 991) {
+    toggleSidebar(false);
+    const fab = document.getElementById('fabInstall');
+    if (fab) fab.classList.remove('show');
+  } else if (deferredInstallPrompt) {
+    const fab = document.getElementById('fabInstall');
+    if (fab) fab.classList.add('show');
+  }
+});
+</script>
+</body>
+</html>
