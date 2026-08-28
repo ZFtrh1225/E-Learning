@@ -378,6 +378,18 @@ html.dark .answer-chip.correct-ans { color: #6ee7b7; }
   position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
   color: var(--muted-dark); pointer-events: none;
 }
+
+.badge-dibaca{background:var(--emerald-soft);color:var(--emerald-dark);font-size:.7rem;font-weight:700;padding:3px 8px;border-radius:20px}
+.badge-bookmark{color:#eab308}
+.ringkasan-box{
+  border-radius:14px;padding:14px 16px;margin-bottom:14px;
+  background:linear-gradient(135deg, rgba(16,185,129,.08), rgba(212,175,55,.08));
+  border:1px solid var(--border-light);
+}
+html.dark .ringkasan-box{background:rgba(16,185,129,.1)}
+.catatan-box textarea{min-height:100px}
+.learn-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+
 .folder-card {
   border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--border-light);
   background: var(--card-bg); box-shadow: var(--shadow-sm); transition: .25s; cursor: pointer;
@@ -1149,12 +1161,21 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
               <h5 class="font-display mb-0">Materi Belajar</h5>
               <div class="text-muted" style="font-size:.82rem">Pilih kategori (folder) untuk melihat materi di dalamnya.</div>
             </div>
-            <div class="admin-search-wrap">
-              <i class="bi bi-search"></i>
-              <input type="search" class="form-control form-control-premium" id="studentKategoriSearch" placeholder="Cari kategori..." oninput="filterStudentKategori()" style="min-height:42px;padding-top:10px;padding-bottom:10px">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <select class="form-select form-control-premium" id="studentMateriFilterMode" onchange="onStudentMateriFilterMode()" style="max-width:160px;min-height:42px">
+                <option value="all">Semua</option>
+                <option value="bookmark">Favorit</option>
+                <option value="belum">Belum dibaca</option>
+                <option value="dibaca">Sudah dibaca</option>
+              </select>
+              <div class="admin-search-wrap">
+                <i class="bi bi-search"></i>
+                <input type="search" class="form-control form-control-premium" id="studentKategoriSearch" placeholder="Cari kategori..." oninput="filterStudentKategori()" style="min-height:42px;padding-top:10px;padding-bottom:10px">
+              </div>
             </div>
           </div>
           <div id="studentKategoriList" class="row g-3"></div>
+          <div id="studentBookmarkFlatList" class="row g-3 mt-1" style="display:none"></div>
         </div>
         <div id="studentMateriInsideView" style="display:none">
           <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
@@ -1267,6 +1288,15 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
           <label class="small-caps mb-1 d-block" for="materiKkm">Standar Kelulusan / KKM (%)</label>
           <input type="number" class="form-control form-control-premium" id="materiKkm" min="0" max="100" step="1" placeholder="70" value="70" inputmode="numeric">
           <div class="text-muted mt-1" style="font-size:.78rem">Siswa dinyatakan <b>Lulus</b> jika skor pilihan ganda mencapai persentase ini. Default 70% jika dikosongkan.</div>
+        </div>
+        <div class="mb-3">
+          <label class="small-caps mb-1 d-block" for="materiUrutan">Urutan dalam folder</label>
+          <input type="number" class="form-control form-control-premium" id="materiUrutan" min="0" step="1" placeholder="0" value="0" inputmode="numeric">
+          <div class="text-muted mt-1" style="font-size:.75rem">Angka lebih kecil tampil lebih dulu (0, 1, 2, …).</div>
+        </div>
+        <div class="mb-3">
+          <label class="small-caps mb-1 d-block" for="materiRingkasan">Ringkasan / poin penting (opsional)</label>
+          <textarea class="form-control form-control-premium" id="materiRingkasan" rows="3" placeholder="Contoh:&#10;• Definisi …&#10;• Rumus utama …&#10;• Hal yang sering keluar di latihan …"></textarea>
         </div>
         <div class="mb-1">
           <label class="small-caps mb-1 d-block">File Materi (Word / Excel / PowerPoint / PDF)</label>
@@ -1440,7 +1470,7 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
  * CONFIG — ganti URL ini dengan URL Web App Google Apps Script
  * Setelah deploy Code.gs sebagai Web App, salin URL (.../exec)
  * ========================================================*/
-const API_URL = 'https://script.google.com/macros/s/AKfycbwpGjumfQX6EDmqw9aPqMrQJgGmG3qjnWnuubpFts03LCKR3ZHeZ4PSETl6BjrCGw4/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxAyq0anWSb4VpLMcHZQaOlj1x6vJHij810t6mI5ZCWtubMOpTAjScvXj8eFnIy-IA/exec';
 // Contoh: 'https://script.google.com/macros/s/AKfycbx.../exec'
 
 /* ==========================================================
@@ -1448,7 +1478,8 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbwpGjumfQX6EDmqw9aPqMrQ
  * ========================================================*/
 let CURRENT_USER = null;
 let CURRENT_ROLE = null;
-let CACHE = { materi: [], kategori: [], kategoriFull: [], quiz: [], latihan: [], activeMateriId: null, adminSiswa: [], adminHasil: [] };
+let CACHE = { materi: [], kategori: [], kategoriFull: [], quiz: [], latihan: [], activeMateriId: null, adminSiswa: [], adminHasil: [], belajar: {} };
+let ACTIVE_MATERI_OBJ = null;
 let ADMIN_ACTIVE_KATEGORI = null; // nama folder yang dibuka di admin
 let STUDENT_ACTIVE_KATEGORI = null;
 let deferredInstallPrompt = null;
@@ -1705,7 +1736,16 @@ function buildPayload(action, args) {
       break;
     case 'getHasilByStudent':
     case 'getProgressByStudent':
+    case 'getBelajarMeta':
       payload.username = args[0];
+      break;
+    case 'markMateriDibaca':
+    case 'toggleBookmark':
+    case 'saveCatatanMateri':
+      payload.data = args[0];
+      break;
+    case 'getCekPemahaman':
+      payload.materiId = args[0];
       break;
     case 'setSpreadsheetId':
       payload.id = args[0];
@@ -2253,12 +2293,16 @@ function openMateriModal(id){
     sel.value = m ? m.kategori : '';
     document.getElementById('materiJudul').value = m ? m.judul : '';
     document.getElementById('materiKkm').value = (m && m.kkm !== undefined && m.kkm !== null) ? m.kkm : 70;
+    document.getElementById('materiUrutan').value = (m && m.urutan !== undefined) ? m.urutan : 0;
+    document.getElementById('materiRingkasan').value = (m && m.ringkasan) ? m.ringkasan : '';
     document.getElementById('materiFileEditHint').innerText = 'File saat ini: ' + ((m && m.fileName) || '-') + ' — kosongkan jika tidak ingin mengganti file.';
   } else {
     // Prefill kategori = folder yang sedang dibuka
     sel.value = ADMIN_ACTIVE_KATEGORI || '';
     document.getElementById('materiJudul').value = '';
     document.getElementById('materiKkm').value = 70;
+    document.getElementById('materiUrutan').value = 0;
+    document.getElementById('materiRingkasan').value = '';
     document.getElementById('materiFileEditHint').innerText = '';
   }
   new bootstrap.Modal(document.getElementById('materiModal')).show();
@@ -2278,7 +2322,12 @@ async function submitMateriForm(){
   btn.disabled = true;
 
   try {
-    const data = { id: id, kategori: kategori, judul: judul, kkm: document.getElementById('materiKkm').value };
+    const data = {
+      id: id, kategori: kategori, judul: judul,
+      kkm: document.getElementById('materiKkm').value,
+      urutan: document.getElementById('materiUrutan').value,
+      ringkasan: document.getElementById('materiRingkasan').value.trim()
+    };
 
     if (pendingMateriFile) {
       if (pendingMateriFile.useChunked && pendingMateriFile.file) {
@@ -2944,11 +2993,12 @@ function showEssayReview(essayArr){
  * STUDENT: DASHBOARD
  * ========================================================*/
 async function loadStudentDashboard(){
+  await loadBelajarMeta();
   try {
     const p = await callServer('getProgressByStudent', CURRENT_USER.username);
     document.getElementById('progressPercentText').innerText = p.persen + '%';
     document.getElementById('progressBar').style.width = p.persen + '%';
-    document.getElementById('progressSubtext').innerText = `${p.selesai} dari ${p.total} materi diselesaikan`;
+    document.getElementById('progressSubtext').innerText = `${p.selesai} dari ${p.total} materi dibaca/diselesaikan` + (p.bookmark ? ` · ${p.bookmark} favorit` : '');
   } catch (err) { onServerError(err); }
 
   try {
@@ -2970,7 +3020,26 @@ async function loadStudentDashboard(){
   }
 }
 
+function getBelajarFor(materiId){
+  return (CACHE.belajar && CACHE.belajar[materiId]) || { dibaca:false, bookmark:false, catatan:'' };
+}
+
+async function loadBelajarMeta(){
+  if (!CURRENT_USER) return;
+  try {
+    const list = (await callServer('getBelajarMeta', CURRENT_USER.username)) || [];
+    const map = {};
+    list.forEach(b => { map[b.materiId] = b; });
+    CACHE.belajar = map;
+  } catch (e) { CACHE.belajar = CACHE.belajar || {}; }
+}
+
 function materiCardHtml(m){
+  const meta = getBelajarFor(m.id);
+  const flags = [
+    meta.bookmark ? '<i class="bi bi-star-fill badge-bookmark" title="Favorit"></i>' : '',
+    meta.dibaca ? '<span class="badge-dibaca">Dibaca</span>' : ''
+  ].filter(Boolean).join(' ');
   return `
     <div class="col-sm-6 col-lg-4">
       <div class="materi-card glass fade-item" onclick="openMateriRead('${m.id}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter')openMateriRead('${m.id}')">
@@ -2978,10 +3047,11 @@ function materiCardHtml(m){
         <div class="body">
           <div class="d-flex justify-content-between align-items-start gap-2">
             <span class="badge-kategori">${escapeHtml(m.kategori||'-')}</span>
-            ${fileTypeBadge(m.fileType)}
+            <div class="d-flex align-items-center gap-1">${flags} ${fileTypeBadge(m.fileType)}</div>
           </div>
           <h6 class="font-display mt-3 mb-1 text-truncate-2">${escapeHtml(m.judul)}</h6>
           <div class="text-muted mb-0" style="font-size:.8rem"><i class="bi bi-file-earmark me-1"></i>${escapeHtml(m.fileName||'-')}</div>
+          ${m.ringkasan ? `<div class="text-muted mt-1 text-truncate-2" style="font-size:.75rem">${escapeHtml(m.ringkasan)}</div>` : ''}
           <div class="mt-3 text-emerald fw-semibold" style="font-size:.85rem">Baca materi <i class="bi bi-arrow-right"></i></div>
         </div>
       </div>
@@ -2993,8 +3063,13 @@ function materiCardHtml(m){
  * ========================================================*/
 async function loadStudentMateriListScreen(){
   studentBackToFolders();
+  await loadBelajarMeta();
+  const modeEl = document.getElementById('studentMateriFilterMode');
+  if (modeEl) modeEl.value = 'all';
   const cont = document.getElementById('studentKategoriList');
   cont.innerHTML = skeletonCards(6);
+  const flat = document.getElementById('studentBookmarkFlatList');
+  if (flat) { flat.style.display = 'none'; flat.innerHTML = ''; }
   const searchEl = document.getElementById('studentKategoriSearch');
   if (searchEl) searchEl.value = '';
 
@@ -3010,6 +3085,44 @@ async function loadStudentMateriListScreen(){
     renderStudentKategoriList(list);
   } catch (err) {
     cont.innerHTML = errorStateHtml(err.message || err, 'loadStudentMateriListScreen()');
+  }
+}
+
+async function onStudentMateriFilterMode(){
+  const mode = (document.getElementById('studentMateriFilterMode') || {}).value || 'all';
+  const folders = document.getElementById('studentKategoriList');
+  const flat = document.getElementById('studentBookmarkFlatList');
+  const inside = document.getElementById('studentMateriInsideView');
+  if (inside) inside.style.display = 'none';
+  document.getElementById('studentMateriFoldersView').style.display = 'block';
+
+  if (mode === 'all') {
+    if (folders) folders.style.display = '';
+    if (flat) { flat.style.display = 'none'; flat.innerHTML = ''; }
+    filterStudentKategori();
+    return;
+  }
+
+  // Flat list of materi by filter
+  if (folders) folders.style.display = 'none';
+  if (flat) {
+    flat.style.display = '';
+    flat.innerHTML = skeletonCards(6);
+  }
+  try {
+    const all = (await callServer('getMateriList')) || [];
+    CACHE.materi = all;
+    let list = all;
+    if (mode === 'bookmark') list = all.filter(m => getBelajarFor(m.id).bookmark);
+    if (mode === 'dibaca') list = all.filter(m => getBelajarFor(m.id).dibaca);
+    if (mode === 'belum') list = all.filter(m => !getBelajarFor(m.id).dibaca);
+    if (!list.length) {
+      flat.innerHTML = '<div class="empty-state w-100"><i class="bi bi-journal-x"></i>Tidak ada materi pada filter ini.</div>';
+      return;
+    }
+    flat.innerHTML = list.map(m => materiCardHtml(m)).join('');
+  } catch (err) {
+    if (flat) flat.innerHTML = errorStateHtml(err.message || err);
   }
 }
 
@@ -3056,6 +3169,7 @@ async function openStudentKategoriFolder(nama){
   document.getElementById('studentActiveKategoriTitle').innerText = nama;
   const cont = document.getElementById('studentMateriList');
   cont.innerHTML = skeletonCards(6);
+  await loadBelajarMeta();
 
   try {
     let list;
@@ -3097,22 +3211,33 @@ async function openMateriRead(id){
   const area = document.getElementById('studentReadArea');
   area.innerHTML = '<div class="spinner-wrap"><div class="spinner-border text-success"></div><span>Memuat materi...</span></div>';
   try {
+    if (!CACHE.belajar || !Object.keys(CACHE.belajar).length) await loadBelajarMeta();
     const m = await callServer('getMateriById', id);
     if (!m) { area.innerHTML = errorStateHtml('Materi tidak ditemukan.'); return; }
+    ACTIVE_MATERI_OBJ = m;
+    const meta = getBelajarFor(m.id);
     const preview = m.previewUrl || '';
     const driveOpen = m.fileId ? ('https://drive.google.com/file/d/' + m.fileId + '/view') : (m.fileUrl || '#');
+    const ringkasanHtml = m.ringkasan
+      ? `<div class="ringkasan-box"><div class="small-caps mb-1"><i class="bi bi-lightbulb me-1 text-gold"></i>Ringkasan / poin penting</div><div style="font-size:.9rem;white-space:pre-wrap;line-height:1.5">${escapeHtml(m.ringkasan)}</div></div>`
+      : '';
     area.innerHTML = `
       <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
         <div style="min-width:0; flex:1">
           <span class="badge-kategori">${escapeHtml(m.kategori)}</span>
+          ${meta.dibaca ? '<span class="badge-dibaca ms-1">Sudah dibaca</span>' : ''}
           <h3 class="font-display mt-2 mb-1" style="font-size:clamp(1.15rem, 4vw, 1.5rem)">${escapeHtml(m.judul)}</h3>
           <div class="text-muted" style="font-size:.85rem">${fileTypeBadge(m.fileType)} <span class="ms-1">${escapeHtml(m.fileName||'')}</span></div>
         </div>
         <div class="d-flex gap-2 flex-wrap">
+          <button type="button" class="btn btn-icon-sm" id="btnBookmarkMateri" onclick="toggleBookmarkMateri('${m.id}')" title="Favorit" aria-label="Favorit">
+            <i class="bi ${meta.bookmark ? 'bi-star-fill badge-bookmark' : 'bi-star'}" id="iconBookmarkMateri"></i>
+          </button>
           <a class="btn btn-gold-outline btn-sm px-3" href="${m.downloadUrl}" target="_blank" rel="noopener"><i class="bi bi-download me-1"></i>Unduh</a>
           <button class="btn btn-premium btn-sm px-3" onclick="goToLatihanForMateri('${m.id}','${escapeHtml(m.kategori).replace(/'/g,"&apos;")}')"><i class="bi bi-patch-question me-1"></i>Latihan</button>
         </div>
       </div>
+      ${ringkasanHtml}
       <div class="reader-frame-wrap glass fade-item" id="readerFrameWrap">
         <div class="reader-toolbar">
           <div class="text-muted" style="font-size:.78rem"><i class="bi bi-eye me-1"></i>Pratinjau materi</div>
@@ -3124,10 +3249,144 @@ async function openMateriRead(id){
         </div>
         <iframe id="materiReaderIframe" src="${preview}" allow="autoplay" title="Preview materi" style="height:min(72vh, 680px)"></iframe>
       </div>
+      <div class="learn-actions">
+        <button type="button" class="btn btn-premium btn-sm px-3" id="btnMarkDibaca" onclick="markMateriDibaca('${m.id}', ${meta.dibaca ? 'false' : 'true'})">
+          <i class="bi ${meta.dibaca ? 'bi-arrow-counterclockwise' : 'bi-check2-circle'} me-1"></i>
+          ${meta.dibaca ? 'Batalkan status dibaca' : 'Tandai sudah dibaca'}
+        </button>
+        <button type="button" class="btn btn-gold-outline btn-sm px-3" onclick="startCekPemahaman('${m.id}')">
+          <i class="bi bi-lightning-charge me-1"></i>Cek pemahaman
+        </button>
+      </div>
+      <div class="card-premium glass mt-3 catatan-box">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="small-caps mb-0"><i class="bi bi-journal-text me-1"></i>Catatan pribadi</div>
+          <button type="button" class="btn btn-sm btn-premium px-3" onclick="saveCatatanMateri('${m.id}')">Simpan catatan</button>
+        </div>
+        <textarea class="form-control form-control-premium" id="materiCatatanInput" placeholder="Tulis ringkasan, pertanyaan, atau poin yang ingin kamu ingat...">${escapeHtml(meta.catatan || '')}</textarea>
+        <div class="text-muted mt-1" style="font-size:.75rem">Hanya kamu yang bisa melihat catatan ini.</div>
+      </div>
       <div class="text-muted mt-2" style="font-size:.78rem">
-        Tips: gunakan <b>layar penuh</b> untuk membaca lebih nyaman. Jika pratinjau kosong (kebijakan Drive), buka di tab baru atau unduh file.
+        Tips: tandai <b>sudah dibaca</b> setelah selesai, lalu kerjakan <b>cek pemahaman</b> (3–5 soal singkat).
       </div>
     `;
+  } catch (err) {
+    area.innerHTML = errorStateHtml(err.message || err);
+  }
+}
+
+async function markMateriDibaca(materiId, dibaca){
+  try {
+    const res = await callServer('markMateriDibaca', {
+      username: CURRENT_USER.username,
+      materiId: materiId,
+      dibaca: dibaca
+    });
+    if (!CACHE.belajar[materiId]) CACHE.belajar[materiId] = { materiId: materiId };
+    CACHE.belajar[materiId].dibaca = res.dibaca;
+    showToast(res.dibaca ? 'Materi ditandai sudah dibaca.' : 'Status dibaca dibatalkan.', 'success');
+    openMateriRead(materiId);
+  } catch (err) {
+    showToast(err.message || err, 'error');
+  }
+}
+
+async function toggleBookmarkMateri(materiId){
+  try {
+    const res = await callServer('toggleBookmark', {
+      username: CURRENT_USER.username,
+      materiId: materiId
+    });
+    if (!CACHE.belajar[materiId]) CACHE.belajar[materiId] = { materiId: materiId };
+    CACHE.belajar[materiId].bookmark = res.bookmark;
+    const icon = document.getElementById('iconBookmarkMateri');
+    if (icon) icon.className = res.bookmark ? 'bi bi-star-fill badge-bookmark' : 'bi bi-star';
+    showToast(res.bookmark ? 'Ditambahkan ke favorit.' : 'Dihapus dari favorit.', 'success');
+  } catch (err) {
+    showToast(err.message || err, 'error');
+  }
+}
+
+async function saveCatatanMateri(materiId){
+  const catatan = (document.getElementById('materiCatatanInput') || {}).value || '';
+  try {
+    await callServer('saveCatatanMateri', {
+      username: CURRENT_USER.username,
+      materiId: materiId,
+      catatan: catatan
+    });
+    if (!CACHE.belajar[materiId]) CACHE.belajar[materiId] = { materiId: materiId };
+    CACHE.belajar[materiId].catatan = catatan;
+    showToast('Catatan disimpan.', 'success');
+  } catch (err) {
+    showToast(err.message || err, 'error');
+  }
+}
+
+async function startCekPemahaman(materiId){
+  navTo('student-quiz');
+  const area = document.getElementById('studentQuizArea');
+  area.innerHTML = '<div class="spinner-wrap"><div class="spinner-border text-success"></div><span>Menyiapkan cek pemahaman...</span></div>';
+  try {
+    const res = await callServer('getCekPemahaman', materiId);
+    if (!res.soal || !res.soal.length) {
+      area.innerHTML = '<div class="empty-state"><i class="bi bi-patch-question"></i>Belum ada soal untuk cek pemahaman materi ini.<br><span class="text-muted" style="font-size:.85rem">Admin perlu menambahkan soal per materi atau per kategori.</span></div>';
+      return;
+    }
+    ACTIVE_QUIZ_META = {
+      type: 'materi',
+      materiId: materiId,
+      kategori: res.kategori || '',
+      judul: 'Cek pemahaman: ' + (res.judul || ''),
+      cekPemahaman: true
+    };
+    // Reuse quiz renderer via CACHE + startQuiz path
+    CACHE.quiz = res.soal;
+    // Build quiz UI similar to startQuiz but without long timer (use half default or 10 min)
+    let minutes = Math.min(10, QUIZ_DEFAULT_MINUTES);
+    try {
+      const settings = await callServer('getSettings');
+      if (settings && settings.quizMinutes) minutes = Math.min(10, settings.quizMinutes);
+    } catch(e){}
+
+    const list = res.soal;
+    let html = `
+      <div class="quiz-timer-bar glass" id="quizTimerBar">
+        <div>
+          <div class="timer-label"><i class="bi bi-stopwatch me-1"></i>Sisa Waktu</div>
+          <div class="timer-value" id="quizTimerValue">--:--</div>
+        </div>
+        <div class="timer-progress"><div class="fill" id="quizTimerFill" style="width:100%"></div></div>
+        <div class="text-end" style="font-size:.78rem;color:var(--muted-dark)">
+          <div class="fw-semibold">${list.length} soal</div>
+          <div>Cek pemahaman · ${minutes} mnt</div>
+        </div>
+      </div>
+      <h5 class="font-display mb-1">Cek pemahaman</h5>
+      <div class="text-muted mb-3" style="font-size:.85rem">${escapeHtml(res.judul || '')} · ${list.length} soal singkat</div>
+      <form id="quizForm">`;
+    list.forEach((s, i) => {
+      html += `<div class="quiz-q-card glass"><div class="fw-semibold mb-1">${i+1}. ${escapeHtml(s.pertanyaan || '')}</div>`;
+      if (s.tipe === 'PG') {
+        ['a','b','c','d'].forEach(opt => {
+          if (!s[opt]) return;
+          const letter = opt.toUpperCase();
+          html += `<label class="d-block">
+            <input type="radio" name="q_${s.id}" value="${letter}" class="d-none" onchange="markSelected(this)">
+            <span class="quiz-option">${letter}. ${escapeHtml(s[opt])}</span>
+          </label>`;
+        });
+      } else {
+        html += `<textarea class="form-control form-control-premium mt-2" name="q_${s.id}" rows="3" placeholder="Jawaban singkat..."></textarea>`;
+      }
+      html += `</div>`;
+    });
+    html += `<button type="button" class="btn btn-premium px-4 mt-2 w-100 w-md-auto" id="quizSubmitBtn" onclick="submitQuiz()"><i class="bi bi-send-check me-2"></i>Kumpulkan</button></form>`;
+    area.innerHTML = html;
+    startQuizTimer(minutes, () => {
+      const btn = document.getElementById('quizSubmitBtn');
+      if (btn && !btn.disabled) btn.click();
+    });
   } catch (err) {
     area.innerHTML = errorStateHtml(err.message || err);
   }
