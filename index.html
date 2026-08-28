@@ -319,6 +319,35 @@ html.dark .skeleton {
 .quiz-timer-bar.urgent .timer-progress .fill { background: #ef4444; }
 .quiz-timer-bar.warn .timer-progress .fill { background: #f59e0b; }
 
+/* Floating remaining-time pill (always visible while quiz active) */
+.quiz-float-timer {
+  position: fixed;
+  top: calc(12px + var(--safe-top));
+  right: 12px;
+  z-index: 1080;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 50px;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-md);
+  font-family: 'Sora', system-ui, sans-serif;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  font-size: 1rem;
+  color: var(--ink);
+}
+.quiz-float-timer.show { display: inline-flex; }
+.quiz-float-timer.urgent { color: #ef4444; border-color: rgba(239,68,68,.4); animation: pulse-urgent 1s ease-in-out infinite; }
+.quiz-float-timer.warn { color: #f59e0b; }
+.quiz-float-timer i { font-size: 1.1rem; }
+
+.quiz-timer-bar.warn .timer-progress .fill { background: #f59e0b; }
+
 /* Pembahasan styles */
 .pembahasan-item {
   border-radius: var(--radius-md);
@@ -904,9 +933,28 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
           <div class="col-6 col-lg-3"><div class="stat-card stat-gold"><div class="icon-badge"><i class="bi bi-people-fill"></i></div><div class="num" id="statStudent">0</div><div class="lbl">Total Siswa</div></div></div>
           <div class="col-6 col-lg-3"><div class="stat-card stat-slate"><div class="icon-badge"><i class="bi bi-bar-chart-fill"></i></div><div class="num" id="statLatihan">0</div><div class="lbl">Latihan Dikerjakan</div></div></div>
         </div>
-        <div class="card-premium">
+        <div class="card-premium glass mb-3">
           <h5 class="mb-1">Selamat datang, Administrator 👋</h5>
-          <p class="text-muted mb-0" style="font-size:.9rem">Kelola materi pembelajaran, soal latihan, serta pantau perkembangan seluruh siswa dari satu tempat.</p>
+          <p class="text-muted mb-0" style="font-size:.9rem">Kelola materi pembelajaran, soal latihan, serta pantau perkembangan seluruh siswa dari satu tempat. Satu kategori dapat memuat banyak materi — cukup pilih kategori saat unggah.</p>
+        </div>
+        <div class="card-premium glass">
+          <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div style="min-width:0;flex:1">
+              <div class="small-caps mb-1"><i class="bi bi-stopwatch me-1"></i>Pengaturan Waktu Kuis</div>
+              <h6 class="font-display mb-1">Durasi Latihan Soal</h6>
+              <p class="text-muted mb-0" style="font-size:.85rem">Waktu yang diberikan siswa untuk mengerjakan setiap sesi latihan. Berlaku untuk kuis kategori maupun per materi.</p>
+            </div>
+            <div class="d-flex align-items-end gap-2 flex-wrap">
+              <div>
+                <label class="small-caps mb-1 d-block" for="settingQuizMinutes">Menit</label>
+                <input type="number" class="form-control form-control-premium" id="settingQuizMinutes" min="1" max="180" step="1" value="20" style="width:110px" inputmode="numeric">
+              </div>
+              <button class="btn btn-premium px-3" id="btnSaveSettings" onclick="saveQuizSettings()">
+                <i class="bi bi-check-lg me-1"></i>Simpan
+              </button>
+            </div>
+          </div>
+          <div class="text-muted mt-2" style="font-size:.78rem" id="settingsHint">Durasi saat ini: 20 menit</div>
         </div>
       </div>
 
@@ -929,11 +977,19 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
       <div class="screen" id="admin-soal">
         <h5 class="font-display mb-3">Manajemen Soal</h5>
         <div class="card-premium mb-3 glass">
-          <label class="small-caps mb-2 d-block" for="soalMateriSelect">Pilih Kategori</label>
+          <label class="small-caps mb-2 d-block">Scope Soal</label>
+          <div class="role-toggle mb-3" style="max-width:360px">
+            <button type="button" class="active" id="scopeKategoriBtn" onclick="setSoalScopeMode('kategori')"><i class="bi bi-folder me-1"></i>Per Kategori</button>
+            <button type="button" id="scopeMateriBtn" onclick="setSoalScopeMode('materi')"><i class="bi bi-journal-text me-1"></i>Per Materi</button>
+          </div>
+          <div class="text-muted mb-3" style="font-size:.8rem" id="soalScopeHint">
+            Soal <b>per kategori</b> berlaku untuk seluruh materi dalam kategori itu. Soal <b>per materi</b> hanya muncul di latihan materi tersebut.
+          </div>
+          <label class="small-caps mb-2 d-block" for="soalMateriSelect" id="soalScopeLabel">Pilih Kategori</label>
           <div class="d-flex gap-2 flex-wrap align-items-end">
             <div class="flex-grow-1" style="min-width:180px">
-              <select class="form-select form-control-premium" id="soalMateriSelect" onchange="loadSoalForMateri()">
-                <option value="">Memuat daftar kategori...</option>
+              <select class="form-select form-control-premium" id="soalMateriSelect" onchange="loadSoalForScope()">
+                <option value="">Memuat...</option>
               </select>
             </div>
             <div class="admin-search-wrap">
@@ -1204,13 +1260,19 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
   </div>
 </div>
 
+<!-- Floating quiz timer indicator -->
+<div class="quiz-float-timer" id="quizFloatTimer" aria-live="polite">
+  <i class="bi bi-stopwatch-fill"></i>
+  <span id="quizFloatTimerValue">20:00</span>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 /* ==========================================================
  * CONFIG — ganti URL ini dengan URL Web App Google Apps Script
  * Setelah deploy Code.gs sebagai Web App, salin URL (.../exec)
  * ========================================================*/
-const API_URL = 'https://script.google.com/macros/s/AKfycbwLghNWQQEliBxXWA16Gm58F9qvuftOEVYo_8-DjVhR8h571HPnp0S0Ud1DKaLDMIk/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzMYeAHH131qVfoKKTt6qkUZVLBQMkzuxlzbu0UMSYuPG6CBwmzjmCTGVCMS0GMsRg/exec';
 // Contoh: 'https://script.google.com/macros/s/AKfycbx.../exec'
 
 /* ==========================================================
@@ -1232,6 +1294,10 @@ let quizTimerTotal = 0;
 let QUIZ_DEFAULT_MINUTES = 20;
 let lastQuizDetails = null;
 let pembahasanVisible = false;
+let SOAL_SCOPE_MODE = 'kategori'; // 'kategori' | 'materi'
+let SOAL_ACTIVE_SCOPE = ''; // kategori name or materiId
+let ACTIVE_QUIZ_META = null; // { type, kategori, materiId, judul }
+
 
 /* ==========================================================
  * TOAST + generic server error helper
@@ -1320,29 +1386,41 @@ function stopQuizTimer(){
     clearInterval(quizTimerInterval);
     quizTimerInterval = null;
   }
+  const ft = document.getElementById('quizFloatTimer');
+  if (ft) ft.classList.remove('show', 'urgent', 'warn');
+}
+function updateTimerUI(){
+  const t = formatTimer(Math.max(0, quizTimerRemaining));
+  const valEl = document.getElementById('quizTimerValue');
+  const fillEl = document.getElementById('quizTimerFill');
+  const bar = document.getElementById('quizTimerBar');
+  const floatEl = document.getElementById('quizFloatTimer');
+  const floatVal = document.getElementById('quizFloatTimerValue');
+  if (valEl) valEl.innerText = t;
+  if (floatVal) floatVal.innerText = t;
+  if (fillEl) fillEl.style.width = Math.max(0, (quizTimerRemaining / quizTimerTotal) * 100) + '%';
+  const urgent = quizTimerRemaining <= 60;
+  const warn = !urgent && quizTimerRemaining <= 180;
+  if (bar) {
+    bar.classList.toggle('urgent', urgent);
+    bar.classList.toggle('warn', warn);
+  }
+  if (floatEl) {
+    floatEl.classList.toggle('urgent', urgent);
+    floatEl.classList.toggle('warn', warn);
+  }
 }
 function startQuizTimer(minutes, onExpire){
   stopQuizTimer();
   quizTimerTotal = Math.max(1, Math.round(minutes * 60));
   quizTimerRemaining = quizTimerTotal;
-  const bar = document.getElementById('quizTimerBar');
-  const valEl = document.getElementById('quizTimerValue');
-  const fillEl = document.getElementById('quizTimerFill');
-  if (!bar || !valEl) return;
-  bar.classList.remove('urgent', 'warn');
-  valEl.innerText = formatTimer(quizTimerRemaining);
-  if (fillEl) fillEl.style.width = '100%';
+  const floatEl = document.getElementById('quizFloatTimer');
+  if (floatEl) floatEl.classList.add('show');
+  updateTimerUI();
 
   quizTimerInterval = setInterval(() => {
     quizTimerRemaining--;
-    if (valEl) valEl.innerText = formatTimer(Math.max(0, quizTimerRemaining));
-    if (fillEl) fillEl.style.width = Math.max(0, (quizTimerRemaining / quizTimerTotal) * 100) + '%';
-    if (quizTimerRemaining <= 60) {
-      bar.classList.add('urgent');
-      bar.classList.remove('warn');
-    } else if (quizTimerRemaining <= 180) {
-      bar.classList.add('warn');
-    }
+    updateTimerUI();
     if (quizTimerRemaining <= 0) {
       stopQuizTimer();
       showToast('Waktu habis! Jawaban dikumpulkan otomatis.', 'warn');
@@ -1418,8 +1496,13 @@ function buildPayload(action, args) {
     case 'getSoalByKategoriStudent':
       payload.kategori = args[0];
       break;
+    case 'getSoalByMateriAdmin':
+    case 'getSoalByMateriStudent':
+      payload.materiId = args[0];
+      break;
     case 'saveMateri':
     case 'saveSoal':
+    case 'saveSettings':
       payload.data = args[0];
       break;
     case 'submitJawaban':
@@ -1668,7 +1751,34 @@ async function loadAdminStats(){
     document.getElementById('statSoal').innerText = s.totalSoal;
     document.getElementById('statStudent').innerText = s.totalStudent;
     document.getElementById('statLatihan').innerText = s.totalLatihan;
+    if (s.quizMinutes) {
+      QUIZ_DEFAULT_MINUTES = s.quizMinutes;
+      const inp = document.getElementById('settingQuizMinutes');
+      if (inp) inp.value = s.quizMinutes;
+      const hint = document.getElementById('settingsHint');
+      if (hint) hint.innerText = 'Durasi saat ini: ' + s.quizMinutes + ' menit';
+    }
   } catch (err) { onServerError(err); }
+}
+
+async function saveQuizSettings(){
+  const inp = document.getElementById('settingQuizMinutes');
+  let mins = Number(inp && inp.value);
+  if (isNaN(mins) || mins < 1) { showToast('Masukkan durasi minimal 1 menit.', 'warn'); return; }
+  if (mins > 180) { showToast('Maksimal 180 menit.', 'warn'); return; }
+  const btn = document.getElementById('btnSaveSettings');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await callServer('saveSettings', { quizMinutes: mins });
+    QUIZ_DEFAULT_MINUTES = res.quizMinutes || mins;
+    const hint = document.getElementById('settingsHint');
+    if (hint) hint.innerText = 'Durasi saat ini: ' + QUIZ_DEFAULT_MINUTES + ' menit';
+    showToast('Pengaturan waktu kuis disimpan.', 'success');
+  } catch (err) {
+    showToast('Gagal menyimpan: ' + (err.message || err), 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 /* ==========================================================
@@ -1687,7 +1797,18 @@ function renderAdminMateriList(list){
     cont.innerHTML = '<div class="empty-state w-100"><i class="bi bi-journal-x"></i>Tidak ada materi ditemukan.</div>';
     return;
   }
-  cont.innerHTML = list.map(m => `
+  // Group by kategori
+  const byCat = {};
+  list.forEach(m => {
+    const c = m.kategori || 'Tanpa Kategori';
+    if (!byCat[c]) byCat[c] = [];
+    byCat[c].push(m);
+  });
+  const cats = Object.keys(byCat).sort();
+  let html = '';
+  cats.forEach(cat => {
+    html += `<div class="col-12 mt-1 mb-1"><div class="d-flex align-items-center gap-2"><span class="badge-kategori" style="font-size:.8rem">${escapeHtml(cat)}</span><span class="text-muted" style="font-size:.78rem">${byCat[cat].length} materi</span></div></div>`;
+    html += byCat[cat].map(m => `
     <div class="col-sm-6 col-lg-4">
       <div class="materi-card glass fade-item">
         <div class="top"></div>
@@ -1707,6 +1828,8 @@ function renderAdminMateriList(list){
         </div>
       </div>
     </div>`).join('');
+  });
+  cont.innerHTML = html;
 }
 
 async function loadAdminMateri(){
@@ -1835,63 +1958,115 @@ function deleteMateriConfirm(id){
 /* ==========================================================
  * ADMIN: SOAL
  * ========================================================*/
+function setSoalScopeMode(mode){
+  SOAL_SCOPE_MODE = mode === 'materi' ? 'materi' : 'kategori';
+  document.getElementById('scopeKategoriBtn').classList.toggle('active', SOAL_SCOPE_MODE === 'kategori');
+  document.getElementById('scopeMateriBtn').classList.toggle('active', SOAL_SCOPE_MODE === 'materi');
+  document.getElementById('soalScopeLabel').innerText = SOAL_SCOPE_MODE === 'materi' ? 'Pilih Materi' : 'Pilih Kategori';
+  document.getElementById('soalScopeHint').innerHTML = SOAL_SCOPE_MODE === 'materi'
+    ? 'Soal <b>per materi</b> hanya muncul saat siswa mengerjakan latihan materi tersebut.'
+    : 'Soal <b>per kategori</b> berlaku untuk seluruh materi dalam kategori itu (tidak terikat materi spesifik).';
+  document.getElementById('soalManageArea').innerHTML = '';
+  const searchEl = document.getElementById('adminSoalSearch');
+  if (searchEl) { searchEl.value = ''; searchEl.disabled = true; }
+  loadSoalScopeSelect();
+}
+
 async function loadSoalMateriSelect(){
+  // entry point from nav — default kategori mode
+  if (!SOAL_SCOPE_MODE) SOAL_SCOPE_MODE = 'kategori';
+  setSoalScopeMode(SOAL_SCOPE_MODE);
+}
+
+async function loadSoalScopeSelect(){
   const sel = document.getElementById('soalMateriSelect');
   sel.innerHTML = '<option value="">Memuat...</option>';
   try {
-    const list = (await callServer('getKategoriList')) || [];
-    CACHE.kategori = list;
-    if (!list.length) {
-      sel.innerHTML = '<option value="">Belum ada kategori — unggah materi dulu</option>';
-      document.getElementById('soalManageArea').innerHTML='';
-      return;
+    if (SOAL_SCOPE_MODE === 'materi') {
+      const list = (await callServer('getMateriList')) || [];
+      CACHE.materi = list;
+      if (!list.length) {
+        sel.innerHTML = '<option value="">Belum ada materi — unggah materi dulu</option>';
+        return;
+      }
+      // Group options by kategori
+      const byCat = {};
+      list.forEach(m => {
+        const c = m.kategori || 'Lainnya';
+        if (!byCat[c]) byCat[c] = [];
+        byCat[c].push(m);
+      });
+      let html = '<option value="">— Pilih materi —</option>';
+      Object.keys(byCat).sort().forEach(cat => {
+        html += `<optgroup label="${escapeHtml(cat)}">`;
+        byCat[cat].forEach(m => {
+          html += `<option value="${escapeHtml(m.id)}">${escapeHtml(m.judul)}</option>`;
+        });
+        html += '</optgroup>';
+      });
+      sel.innerHTML = html;
+    } else {
+      const list = (await callServer('getKategoriList')) || [];
+      CACHE.kategori = list;
+      if (!list.length) {
+        sel.innerHTML = '<option value="">Belum ada kategori — unggah materi dulu</option>';
+        return;
+      }
+      sel.innerHTML = '<option value="">— Pilih kategori —</option>' + list.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
     }
-    sel.innerHTML = '<option value="">— Pilih kategori —</option>' + list.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
-    document.getElementById('soalManageArea').innerHTML = '';
   } catch (err) {
-    sel.innerHTML = '<option value="">Gagal memuat kategori</option>';
-    document.getElementById('soalManageArea').innerHTML = errorStateHtml(err.message || err, 'loadSoalMateriSelect()');
+    sel.innerHTML = '<option value="">Gagal memuat</option>';
+    document.getElementById('soalManageArea').innerHTML = errorStateHtml(err.message || err, 'loadSoalScopeSelect()');
   }
 }
 
-async function loadSoalForMateri(){
-  const kategori = document.getElementById('soalMateriSelect').value;
+async function loadSoalForScope(){
+  const val = document.getElementById('soalMateriSelect').value;
   const area = document.getElementById('soalManageArea');
   const searchEl = document.getElementById('adminSoalSearch');
-  if (!kategori) {
-    area.innerHTML='';
-    if (searchEl) { searchEl.value=''; searchEl.disabled = true; }
+  SOAL_ACTIVE_SCOPE = val;
+  if (!val) {
+    area.innerHTML = '';
+    if (searchEl) { searchEl.value = ''; searchEl.disabled = true; }
     return;
   }
-  if (searchEl) { searchEl.value=''; searchEl.disabled = false; }
+  if (searchEl) { searchEl.value = ''; searchEl.disabled = false; }
   area.innerHTML = '<div class="row g-3">' + skeletonCards(3).replace(/col-sm-6 col-lg-4/g, 'col-12') + '</div>';
 
   try {
-    const list = (await callServer('getSoalByKategoriAdmin', kategori)) || [];
+    let list;
+    if (SOAL_SCOPE_MODE === 'materi') {
+      list = (await callServer('getSoalByMateriAdmin', val)) || [];
+    } else {
+      list = (await callServer('getSoalByKategoriAdmin', val)) || [];
+    }
     CACHE.quiz = list;
     renderAdminSoalList(list);
   } catch (err) {
-    area.innerHTML = errorStateHtml(err.message || err, 'loadSoalForMateri()');
+    area.innerHTML = errorStateHtml(err.message || err, 'loadSoalForScope()');
   }
 }
 
+// backward-compatible alias
+async function loadSoalForScope(){ return loadSoalForScope(); }
+
 function renderAdminSoalList(list){
   const area = document.getElementById('soalManageArea');
+  const scopeLabel = SOAL_SCOPE_MODE === 'materi' ? 'materi ini' : 'kategori ini';
   let html = `<div class="d-flex justify-content-end mb-3"><button class="btn btn-premium btn-sm px-3" onclick="openSoalModal()"><i class="bi bi-plus-lg me-1"></i>Tambah Soal</button></div>`;
   if (!list.length) {
-    html += '<div class="empty-state"><i class="bi bi-patch-question"></i>Belum ada soal untuk kategori ini.</div>';
+    html += `<div class="empty-state"><i class="bi bi-patch-question"></i>Belum ada soal untuk ${scopeLabel}.</div>`;
   } else {
     html += list.map((s,i) => `
       <div class="quiz-q-card glass fade-item" style="${s.status==='Terkunci' ? 'border-left-color:#b42323' : ''}">
         <div class="d-flex justify-content-between align-items-start gap-2">
-          <div class="fw-semibold" style="flex:1; min-width:0">${i+1}. ${escapeHtml(s.pertanyaan || '(gambar)')} <span class="badge-kategori ms-1">${s.tipe}</span> ${s.status==='Terkunci' ? '<span class="file-type-badge ft-pdf ms-1"><i class="bi bi-lock-fill"></i>Terkunci</span>' : '<span class="file-type-badge ft-excel ms-1"><i class="bi bi-unlock-fill"></i>Aktif</span>'}${s.gambarUrl ? ' <span class="file-type-badge ft-file ms-1"><i class="bi bi-image"></i>Gambar</span>' : ''}</div>
+          <div class="fw-semibold" style="flex:1; min-width:0">${i+1}. ${escapeHtml(s.pertanyaan || '(gambar)')} <span class="badge-kategori ms-1">${s.tipe}</span> ${s.materiId ? '<span class="file-type-badge ft-word ms-1"><i class="bi bi-journal-text"></i>Per Materi</span>' : '<span class="file-type-badge ft-file ms-1"><i class="bi bi-folder"></i>Per Kategori</span>'} ${s.status==='Terkunci' ? '<span class="file-type-badge ft-pdf ms-1"><i class="bi bi-lock-fill"></i>Terkunci</span>' : '<span class="file-type-badge ft-excel ms-1"><i class="bi bi-unlock-fill"></i>Aktif</span>'}</div>
           <div class="d-flex gap-1 flex-shrink-0">
             <button class="btn btn-icon-sm" onclick="toggleSoalStatusQuick('${s.id}')" title="${s.status==='Terkunci' ? 'Buka kunci' : 'Kunci soal'}" aria-label="Toggle status"><i class="bi ${s.status==='Terkunci' ? 'bi-unlock' : 'bi-lock'}"></i></button>
             <button class="btn btn-icon-sm" onclick="openSoalModal('${s.id}')" title="Edit" aria-label="Edit soal"><i class="bi bi-pencil"></i></button>
             <button class="btn btn-icon-sm text-danger" onclick="deleteSoalConfirm('${s.id}')" title="Hapus" aria-label="Hapus soal"><i class="bi bi-trash"></i></button>
           </div>
         </div>
-        ${s.gambarUrl ? `<div class="mt-2"><img src="${s.gambarUrl}" alt="Gambar soal" style="max-width:100%;max-height:200px;border-radius:10px;object-fit:contain;border:1px solid var(--border-light)"></div>` : ''}
         ${s.tipe === 'PG' ? `
         <div class="mt-2 text-muted" style="font-size:.85rem">
           A. ${escapeHtml(s.a||'')} &nbsp; B. ${escapeHtml(s.b||'')} &nbsp; C. ${escapeHtml(s.c||'')} &nbsp; D. ${escapeHtml(s.d||'')}
@@ -1906,7 +2081,7 @@ function toggleSoalStatusQuick(id){
   callServer('toggleSoalStatus', id)
     .then(res => {
       showToast(res.status === 'Terkunci' ? 'Soal dikunci.' : 'Soal dibuka kembali.', 'success');
-      loadSoalForMateri();
+      loadSoalForScope();
     })
     .catch(onServerError);
 }
@@ -2107,9 +2282,21 @@ function openSoalModal(id){
 function submitSoalForm(){
   const tipe = document.getElementById('soalModal').dataset.tipe || 'PG';
   const status = document.getElementById('soalModal').dataset.status || 'Aktif';
-  const kategori = document.getElementById('soalMateriSelect').value;
+  const scopeVal = document.getElementById('soalMateriSelect').value;
+  if (!scopeVal) { showToast('Pilih kategori atau materi terlebih dahulu.', 'warn'); return; }
+
+  let kategori = '';
+  let materiId = '';
+  if (SOAL_SCOPE_MODE === 'materi') {
+    materiId = scopeVal;
+    const m = (CACHE.materi || []).find(x => x.id === materiId);
+    kategori = m ? m.kategori : '';
+  } else {
+    kategori = scopeVal;
+    materiId = '';
+  }
+
   const pertanyaan = document.getElementById('soalPertanyaan').value.trim();
-  // Pertanyaan teks boleh kosong jika ada gambar
   if (!pertanyaan && !pendingSoalGambar && !soalGambarExistingUrl) {
     showToast('Isi pertanyaan teks atau unggah gambar.', 'warn');
     return;
@@ -2121,7 +2308,11 @@ function submitSoalForm(){
 
   const data = {
     id: document.getElementById('soalIdInput').value,
-    kategori: kategori, tipe: tipe, pertanyaan: pertanyaan, status: status
+    kategori: kategori,
+    materiId: materiId,
+    tipe: tipe,
+    pertanyaan: pertanyaan,
+    status: status
   };
   if (tipe === 'PG') {
     data.a = document.getElementById('soalA').value.trim();
@@ -2144,7 +2335,7 @@ function submitSoalForm(){
     .then(() => {
       bootstrap.Modal.getInstance(document.getElementById('soalModal')).hide();
       showToast('Soal berhasil disimpan.', 'success');
-      loadSoalForMateri();
+      loadSoalForScope();
     })
     .catch(err => showToast('Gagal menyimpan: ' + (err.message || err), 'error'));
 }
@@ -2152,7 +2343,7 @@ function submitSoalForm(){
 function deleteSoalConfirm(id){
   if (!confirm('Hapus soal ini?')) return;
   callServer('deleteSoal', id)
-    .then(() => { showToast('Soal dihapus.', 'success'); loadSoalForMateri(); })
+    .then(() => { showToast('Soal dihapus.', 'success'); loadSoalForScope(); })
     .catch(onServerError);
 }
 
@@ -2348,7 +2539,7 @@ async function openMateriRead(id){
         </div>
         <div class="d-flex gap-2 flex-wrap">
           <a class="btn btn-gold-outline btn-sm px-3" href="${m.downloadUrl}" target="_blank" rel="noopener"><i class="bi bi-download me-1"></i>Unduh</a>
-          <button class="btn btn-premium btn-sm px-3" onclick="goToLatihanForKategori('${escapeHtml(m.kategori).replace(/'/g,"&apos;")}')"><i class="bi bi-patch-question me-1"></i>Latihan</button>
+          <button class="btn btn-premium btn-sm px-3" onclick="goToLatihanForMateri('${m.id}','${escapeHtml(m.kategori).replace(/'/g,"&apos;")}')"><i class="bi bi-patch-question me-1"></i>Latihan</button>
         </div>
       </div>
       <div class="reader-frame-wrap fade-item">
@@ -2371,6 +2562,24 @@ function goToLatihanForKategori(kategori){
     }
   }, 300);
 }
+
+/** Dari halaman baca materi: mulai kuis per-materi jika ada, else filter kategori */
+async function goToLatihanForMateri(materiId, kategori){
+  try {
+    const list = (await callServer('getSoalByMateriStudent', materiId)) || [];
+    const aktif = list.filter(s => s.status !== 'Terkunci');
+    if (aktif.length) {
+      startQuizFromItem({
+        type: 'materi',
+        materiId: materiId,
+        kategori: kategori || '',
+        judul: 'Latihan Materi'
+      });
+      return;
+    }
+  } catch (e) { /* fallback */ }
+  goToLatihanForKategori(kategori);
+}
 </script>
 <script>
 /* ==========================================================
@@ -2380,8 +2589,25 @@ async function loadStudentLatihanScreen(){
   const cont = document.getElementById('studentLatihanList');
   cont.innerHTML = skeletonCards(6);
   try {
-    const list = (await callServer('getKategoriForLatihan')) || [];
-    CACHE.latihan = list;
+    // Prefer new API; fallback to kategori-only
+    let items = [];
+    try {
+      const res = await callServer('getLatihanList');
+      if (res && res.items) {
+        items = res.items;
+        if (res.quizMinutes) QUIZ_DEFAULT_MINUTES = res.quizMinutes;
+      } else if (Array.isArray(res)) {
+        items = res;
+      }
+    } catch (e) {
+      const list = (await callServer('getKategoriForLatihan')) || [];
+      items = list.map(c => ({
+        type: 'kategori', id: c.kategori, label: c.kategori, kategori: c.kategori,
+        materiId: '', materiCount: c.materiCount || 0, soalCount: c.soalCount || 0,
+        judul: 'Latihan ' + c.kategori
+      }));
+    }
+    CACHE.latihan = items;
     renderStudentLatihanList();
   } catch (err) {
     cont.innerHTML = errorStateHtml(err.message || err, 'loadStudentLatihanScreen()');
@@ -2398,23 +2624,34 @@ function renderStudentLatihanList(){
   const filter = document.getElementById('latihanKategoriFilter').value;
   const list = filter ? (CACHE.latihan||[]).filter(c => c.kategori === filter) : (CACHE.latihan||[]);
   const cont = document.getElementById('studentLatihanList');
-  if (!list.length) { cont.innerHTML = '<div class="empty-state w-100"><i class="bi bi-patch-question"></i>Tidak ada kategori soal ditemukan.</div>'; return; }
-
+  if (!list.length) { cont.innerHTML = '<div class="empty-state w-100"><i class="bi bi-patch-question"></i>Tidak ada latihan ditemukan.</div>'; return; }
   cont.innerHTML = list.map(c => latihanCardHtml(c)).join('');
 }
 
-function latihanCardHtml(catObj){
-  const hasSoal = catObj.soalCount > 0;
+function latihanCardHtml(item){
+  const hasSoal = (item.soalCount || 0) > 0;
+  const isMateri = item.type === 'materi';
+  const title = isMateri ? item.judul : ('Latihan Kategori: ' + (item.kategori || item.label));
+  const meta = isMateri
+    ? `<span class="file-type-badge ft-word"><i class="bi bi-journal-text"></i>Per Materi</span>`
+    : `<span class="file-type-badge ft-file"><i class="bi bi-folder"></i>${item.materiCount || 0} Materi</span>`;
+  const payload = JSON.stringify({
+    type: item.type || 'kategori',
+    kategori: item.kategori || '',
+    materiId: item.materiId || '',
+    judul: title
+  }).replace(/'/g, '&#39;');
   return `
     <div class="col-sm-6 col-lg-4">
-      <div class="materi-card glass fade-item" style="${hasSoal ? 'cursor:pointer' : 'cursor:default; opacity:.75'}" ${hasSoal ? `onclick="startQuiz('${escapeHtml(catObj.kategori).replace(/'/g,"&apos;")}')" role="button" tabindex="0"` : ''}>
+      <div class="materi-card glass fade-item" style="${hasSoal ? 'cursor:pointer' : 'cursor:default; opacity:.75'}" ${hasSoal ? `onclick='startQuizFromItem(${payload})' role="button" tabindex="0"` : ''}>
         <div class="top"></div>
         <div class="body">
           <div class="d-flex justify-content-between align-items-start gap-2">
-            <span class="badge-kategori">${escapeHtml(catObj.kategori||'-')}</span>
-            <span class="file-type-badge ${hasSoal ? 'ft-excel' : 'ft-file'}"><i class="bi bi-patch-question"></i>${catObj.soalCount} Soal</span>
+            <span class="badge-kategori">${escapeHtml(item.kategori||'-')}</span>
+            <span class="file-type-badge ${hasSoal ? 'ft-excel' : 'ft-file'}"><i class="bi bi-patch-question"></i>${item.soalCount || 0} Soal</span>
           </div>
-          <h6 class="font-display mt-3 mb-1 text-truncate-2">Latihan ${escapeHtml(catObj.kategori)}</h6>
+          <h6 class="font-display mt-3 mb-1 text-truncate-2">${escapeHtml(title)}</h6>
+          <div class="mt-2">${meta}</div>
           <div class="mt-3 fw-semibold" style="font-size:.85rem; color:${hasSoal ? 'var(--emerald)' : 'var(--muted-dark)'}">
             ${hasSoal ? 'Kerjakan Soal <i class="bi bi-arrow-right"></i>' : 'Belum ada soal'}
           </div>
@@ -2422,37 +2659,70 @@ function latihanCardHtml(catObj){
       </div>
     </div>`;
 }
-</script>
-<script>
+
+function startQuizFromItem(meta){
+  ACTIVE_QUIZ_META = meta;
+  startQuiz(meta);
+}
+
 /* ==========================================================
  * STUDENT: QUIZ
  * ========================================================*/
-async function startQuiz(kategori){
+async function startQuiz(metaOrKategori){
   stopQuizTimer();
+  // Support legacy string kategori or meta object
+  let meta = ACTIVE_QUIZ_META;
+  if (typeof metaOrKategori === 'string') {
+    meta = { type: 'kategori', kategori: metaOrKategori, materiId: '', judul: 'Latihan ' + metaOrKategori };
+  } else if (metaOrKategori && typeof metaOrKategori === 'object') {
+    meta = metaOrKategori;
+  }
+  ACTIVE_QUIZ_META = meta;
+  const kategori = meta.kategori || '';
+  const materiId = meta.materiId || '';
+  const isMateri = meta.type === 'materi' && materiId;
+
   navTo('student-quiz');
   const area = document.getElementById('studentQuizArea');
   area.innerHTML = '<div class="spinner-wrap"><div class="spinner-border text-success"></div><span>Memuat soal...</span></div>';
+
+  // Load timer setting
   try {
-    const list = (await callServer('getSoalByKategoriStudent', kategori)) || [];
+    const settings = await callServer('getSettings');
+    if (settings && settings.quizMinutes) QUIZ_DEFAULT_MINUTES = settings.quizMinutes;
+  } catch (e) { /* gunakan default */ }
+
+  try {
+    let list;
+    if (isMateri) {
+      list = (await callServer('getSoalByMateriStudent', materiId)) || [];
+    } else {
+      list = (await callServer('getSoalByKategoriStudent', kategori)) || [];
+    }
     if (!list.length) {
-      area.innerHTML = '<div class="empty-state"><i class="bi bi-patch-question"></i>Belum ada soal untuk materi ini.</div>';
+      area.innerHTML = '<div class="empty-state"><i class="bi bi-patch-question"></i>Belum ada soal untuk latihan ini.</div>';
       return;
     }
     CACHE.quiz = list;
     const jumlahTerkunci = list.filter(s => s.status === 'Terkunci').length;
+    const title = meta.judul || (isMateri ? 'Latihan Materi' : ('Latihan — ' + kategori));
     let html = `
       <div class="quiz-timer-bar glass" id="quizTimerBar">
         <div>
-          <div class="timer-label">Sisa Waktu</div>
+          <div class="timer-label"><i class="bi bi-stopwatch me-1"></i>Sisa Waktu</div>
           <div class="timer-value" id="quizTimerValue">--:--</div>
         </div>
         <div class="timer-progress"><div class="fill" id="quizTimerFill" style="width:100%"></div></div>
         <div class="text-end" style="font-size:.78rem;color:var(--muted-dark)">
           <div class="fw-semibold">${list.length - jumlahTerkunci} soal aktif</div>
-          <div>${QUIZ_DEFAULT_MINUTES} menit</div>
+          <div id="quizTimerDurationLabel">${QUIZ_DEFAULT_MINUTES} menit</div>
         </div>
       </div>
-      <h5 class="font-display mb-3" style="font-size:clamp(1.05rem, 3.5vw, 1.25rem)">Latihan Soal — ${escapeHtml(kategori)}</h5>`;
+      <h5 class="font-display mb-1" style="font-size:clamp(1.05rem, 3.5vw, 1.25rem)">${escapeHtml(title)}</h5>
+      <div class="text-muted mb-3" style="font-size:.82rem">
+        ${isMateri ? '<span class="file-type-badge ft-word"><i class="bi bi-journal-text"></i>Per Materi</span>' : '<span class="file-type-badge ft-file"><i class="bi bi-folder"></i>Per Kategori</span>'}
+        <span class="ms-2">${escapeHtml(kategori)}</span>
+      </div>`;
     if (jumlahTerkunci > 0) {
       html += `<div class="alert alert-warning py-2 mb-3" style="border-radius:12px; font-size:.9rem"><i class="bi bi-lock-fill me-1"></i>${jumlahTerkunci} soal dikunci oleh admin dan tidak dapat dijawab saat ini.</div>`;
     }
@@ -2479,16 +2749,15 @@ async function startQuiz(kategori){
       }
       html += `</div>`;
     });
-    html += `<button type="button" class="btn btn-premium px-4 mt-2 w-100 w-md-auto" id="quizSubmitBtn" onclick="submitQuiz('${escapeHtml(kategori).replace(/'/g,"&apos;")}')"><i class="bi bi-send-check me-2"></i>Kumpulkan Jawaban</button></form>`;
+    html += `<button type="button" class="btn btn-premium px-4 mt-2 w-100 w-md-auto" id="quizSubmitBtn" onclick="submitQuiz()"><i class="bi bi-send-check me-2"></i>Kumpulkan Jawaban</button></form>`;
     area.innerHTML = html;
 
-    // Start timer — auto submit on expire
     startQuizTimer(QUIZ_DEFAULT_MINUTES, () => {
       const btn = document.getElementById('quizSubmitBtn');
-      if (btn) btn.click();
+      if (btn && !btn.disabled) btn.click();
     });
   } catch (err) {
-    area.innerHTML = errorStateHtml(err.message || err, `startQuiz('${escapeHtml(kategori).replace(/'/g,"\\'")}')`);
+    area.innerHTML = errorStateHtml(err.message || err, 'startQuiz()');
   }
 }
 
@@ -2498,8 +2767,9 @@ function markSelected(radio){
   radio.nextElementSibling.classList.add('selected');
 }
 
-async function submitQuiz(kategori){
+async function submitQuiz(){
   stopQuizTimer();
+  const meta = ACTIVE_QUIZ_META || { type: 'kategori', kategori: '', materiId: '' };
   const submitBtn = document.getElementById('quizSubmitBtn');
   if (submitBtn) {
     submitBtn.disabled = true;
@@ -2521,7 +2791,9 @@ async function submitQuiz(kategori){
   try {
     const res = await callServer('submitJawaban', {
       username: CURRENT_USER.username,
-      kategori: kategori,
+      kategori: meta.kategori || '',
+      materiId: meta.materiId || '',
+      judul: meta.judul || '',
       answers: answers
     });
     lastQuizDetails = res.details || [];
