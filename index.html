@@ -739,7 +739,34 @@ select.form-control-premium option, select.form-select option{
 .empty-state{text-align:center; padding:48px 16px; color:var(--muted-dark)}
 .empty-state i{font-size:2.4rem; color:#cfd8ea; margin-bottom:12px; display:block}
 
-.reader-frame-wrap{background:#fff; border-radius:var(--radius-lg); box-shadow:var(--shadow-sm); overflow:hidden}
+.reader-toolbar{
+  display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;
+  padding:10px 12px; border-bottom:1px solid var(--border-light);
+  background:var(--glass-bg); backdrop-filter:var(--glass-blur);
+}
+.reader-toolbar .btn-group-reader{display:flex; gap:6px; flex-wrap:wrap}
+.reader-frame-wrap{background:#fff; border-radius:var(--radius-lg); box-shadow:var(--shadow-sm); overflow:hidden; display:flex; flex-direction:column}
+.reader-frame-wrap.fullscreen-reader{
+  position:fixed; inset:0; z-index:2000; border-radius:0; height:100dvh !important;
+  background:var(--off-white);
+}
+.reader-frame-wrap.fullscreen-reader iframe{height:calc(100dvh - 56px) !important; max-height:none !important}
+.essay-grade-item{
+  border:1px solid var(--border-light); border-radius:14px; padding:16px; margin-bottom:12px;
+  background:var(--card-bg);
+}
+.essay-grade-item .q{font-weight:600; margin-bottom:8px}
+.essay-grade-item .ans{
+  background:var(--off-white); border-radius:10px; padding:12px; font-size:.9rem;
+  white-space:pre-wrap; line-height:1.5; margin-bottom:12px;
+  border:1px solid var(--border-light);
+}
+html.dark .essay-grade-item .ans{background:rgba(255,255,255,.04)}
+.pill-essay-wait{background:#fff4d6; color:#8a6d1e; padding:4px 10px; border-radius:20px; font-size:.75rem; font-weight:700}
+.pill-essay-done{background:var(--emerald-soft); color:var(--emerald-dark); padding:4px 10px; border-radius:20px; font-size:.75rem; font-weight:700}
+html.dark .pill-essay-wait{background:rgba(212,175,55,.2); color:#f0d878}
+html.dark .pill-essay-done{color:#6ee7b7}
+
 .reader-frame-wrap iframe{width:100%; height:min(75vh, 640px); border:none; display:block; background:#f5f7fb}
 @media(max-width:767px){
   .reader-frame-wrap iframe{height:min(65vh, 480px)}
@@ -1077,7 +1104,7 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
         </div>
         <div class="table-responsive">
           <table class="table table-premium">
-            <thead><tr><th>Siswa</th><th>Materi</th><th>Skor PG</th><th>Status</th><th>Essay</th><th>Tanggal</th></tr></thead>
+            <thead><tr><th>Siswa</th><th>Materi</th><th>Skor PG</th><th>Skor Akhir</th><th>Status</th><th>Essay</th><th>Tanggal</th></tr></thead>
             <tbody id="adminHasilTable"></tbody>
           </table>
         </div>
@@ -1246,7 +1273,7 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
           <div class="dropzone" onclick="document.getElementById('materiFileInput').click()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')document.getElementById('materiFileInput').click()">
             <i class="bi bi-cloud-arrow-up-fill"></i>
             <div class="fw-semibold mt-2" style="font-size:.9rem">Klik untuk pilih file</div>
-            <div class="text-muted" style="font-size:.78rem">.docx .doc .xlsx .xls .pptx .ppt .pdf — maks 90MB</div>
+            <div class="text-muted" style="font-size:.78rem">.docx .doc .xlsx .xls .pptx .ppt .pdf — maks 20MB</div>
             <div id="materiFileChip"></div>
           </div>
           <input type="file" id="materiFileInput" class="d-none" accept=".doc,.docx,.xls,.xlsx,.ppt,.pptx,.pdf" onchange="onMateriFileChosen(this)">
@@ -1332,6 +1359,51 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
   </div>
 </div>
 
+
+<!-- ===================== MODAL: NILAI ESSAY ===================== -->
+<div class="modal fade" id="essayGradeModal" tabindex="-1" aria-labelledby="essayGradeModalTitle" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title font-display" id="essayGradeModalTitle">Nilai Jawaban Essay</h5>
+          <div class="text-muted" style="font-size:.82rem" id="essayGradeSubtitle">—</div>
+        </div>
+        <button class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="essayGradeHasilId">
+        <div class="d-flex flex-wrap gap-3 mb-3">
+          <div class="card-premium glass py-2 px-3 mb-0" style="flex:1;min-width:120px">
+            <div class="small-caps">Skor PG</div>
+            <div class="font-display" id="essayGradeSkorPG">—</div>
+          </div>
+          <div class="card-premium glass py-2 px-3 mb-0" style="flex:1;min-width:120px">
+            <div class="small-caps">Skor Essay</div>
+            <div class="font-display" id="essayGradeSkorEssay">—</div>
+          </div>
+          <div class="card-premium glass py-2 px-3 mb-0" style="flex:1;min-width:120px">
+            <div class="small-caps">Skor Akhir*</div>
+            <div class="font-display text-emerald" id="essayGradeSkorAkhir">—</div>
+          </div>
+        </div>
+        <div class="text-muted mb-3" style="font-size:.75rem">*Skor akhir = 60% PG + 40% Essay (jika keduanya ada). Hanya essay = 100% essay.</div>
+        <div id="essayGradeList"></div>
+        <div class="mt-3">
+          <label class="small-caps mb-1 d-block" for="essayGradeCatatan">Catatan untuk siswa (opsional)</label>
+          <textarea class="form-control form-control-premium" id="essayGradeCatatan" rows="2" placeholder="Umpan balik singkat..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+        <button class="btn btn-premium px-4" id="essayGradeSubmitBtn" onclick="submitEssayGrade()">
+          <span id="essayGradeSubmitText">Simpan Nilai</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ===================== MODAL: HASIL QUIZ ===================== -->
 <div class="modal fade" id="hasilModal" tabindex="-1" data-bs-backdrop="static" aria-labelledby="hasilSkorText" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
@@ -1368,7 +1440,7 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
  * CONFIG — ganti URL ini dengan URL Web App Google Apps Script
  * Setelah deploy Code.gs sebagai Web App, salin URL (.../exec)
  * ========================================================*/
-const API_URL = 'https://script.google.com/macros/s/AKfycbwVb3taawYaRn7rSCzhxt4vkwPOs6wb2QIPQzvu0QbKHgp3n6Z5PoQHMsydImy6vO4/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzYLCUZ-ZP6dwh9ABIn9d9_QrprULZ2oZ5xacc2cYp370LwzixFdRFuw3tk_vqwvEc/exec';
 // Contoh: 'https://script.google.com/macros/s/AKfycbx.../exec'
 
 /* ==========================================================
@@ -1610,7 +1682,11 @@ function buildPayload(action, args) {
       payload.kategori = args[0];
       break;
     case 'deleteKategori':
+    case 'getHasilById':
       payload.id = args[0];
+      break;
+    case 'gradeEssay':
+      payload.data = args[0];
       break;
     case 'saveMateri':
     case 'saveSoal':
@@ -1814,6 +1890,11 @@ const TITLE_MAP = {
 
 function navTo(screenId){
   if (screenId !== 'student-quiz') stopQuizTimer();
+  // tutup reader fullscreen jika pindah halaman
+  const rw = document.getElementById('readerFrameWrap');
+  if (rw) rw.classList.remove('fullscreen-reader');
+  if (screenId !== 'student-read') document.body.style.overflow = '';
+
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const target = document.getElementById(screenId);
   if (target) target.classList.add('active');
@@ -2050,8 +2131,8 @@ function onMateriFileChosen(input){
   const chip = document.getElementById('materiFileChip');
   if (!file) { chip.innerHTML=''; pendingMateriFile = null; return; }
 
-  if (file.size > 90 * 1024 * 1024) {
-    showToast('Ukuran file maksimal 90MB.', 'warn');
+  if (file.size > 20 * 1024 * 1024) {
+    showToast('Ukuran file maksimal 20MB.', 'warn');
     input.value = '';
     chip.innerHTML=''; pendingMateriFile = null;
     return;
@@ -2597,7 +2678,7 @@ function renderAdminSiswaTable(list){
  * ========================================================*/
 async function loadAdminHasil(){
   const tb = document.getElementById('adminHasilTable');
-  tb.innerHTML = skeletonTableRows(6, 5);
+  tb.innerHTML = skeletonTableRows(7, 5);
   const searchEl = document.getElementById('adminHasilSearch');
   if (searchEl) searchEl.value = '';
   try {
@@ -2625,24 +2706,143 @@ function renderAdminHasilTable(list){
   }
   document.getElementById('adminHasilEmpty').innerHTML='';
   tb.innerHTML = list.map(h => {
-    let essay = [];
-    try { essay = JSON.parse(h.jawabanEssay || '[]'); } catch(e){}
+    const essayCount = h.essayCount || 0;
+    const waiting = h.essayStatus === 'Menunggu';
+    const graded = h.essayStatus === 'Dinilai';
+    let essayBtn = '<span class="text-muted">-</span>';
+    if (essayCount > 0) {
+      if (waiting) {
+        essayBtn = `<button class="btn btn-sm btn-premium px-2 py-1" onclick="openEssayGradeModal('${h.id}')" style="font-size:.78rem"><i class="bi bi-pencil-square me-1"></i>Nilai (${essayCount})</button>`;
+      } else {
+        essayBtn = `<button class="btn btn-icon-sm" onclick="openEssayGradeModal('${h.id}')" title="Lihat / edit nilai essay" aria-label="Essay"><i class="bi bi-journal-check"></i></button>
+          <span class="pill-essay-done ms-1">Dinilai</span>`;
+      }
+    }
+    const skorAkhir = h.skorAkhir !== null && h.skorAkhir !== undefined ? scorePill(h.skorAkhir) : '<span class="text-muted">—</span>';
+    const essayBadge = waiting ? '<span class="pill-essay-wait">Menunggu</span>' : '';
     return `
     <tr class="fade-item">
       <td>${escapeHtml(h.username)}</td>
       <td><span class="text-truncate d-inline-block" style="max-width:140px">${escapeHtml(h.judulMateri)}</span></td>
       <td>${scorePill(h.skor)} <span class="text-muted" style="font-size:.75rem">(${h.benarPG}/${h.totalPG})</span></td>
-      <td>${lulusBadgeHtml(h.lulus) || '<span class="text-muted">-</span>'}</td>
-      <td>${essay.length ? `<button class="btn btn-icon-sm" onclick='showEssayReview(${JSON.stringify(essay).replace(/'/g,"&apos;")})' aria-label="Lihat essay"><i class="bi bi-eye"></i> ${essay.length}</button>` : '<span class="text-muted">-</span>'}</td>
+      <td>${skorAkhir}</td>
+      <td>${lulusBadgeHtml(h.lulus) || '<span class="text-muted">-</span>'} ${essayBadge}</td>
+      <td>${essayBtn}</td>
       <td class="text-muted" style="font-size:.82rem">${formatDate(h.tanggal)}</td>
     </tr>`;
   }).join('');
 }
 
-function showEssayReview(essayArr){
-  const text = essayArr.map((e,i) => `${i+1}. ${e.pertanyaan}\n   Jawaban: ${e.jawaban}`).join('\n\n');
-  alert('Jawaban Essay:\n\n' + text);
+let ESSAY_GRADE_CACHE = null;
+
+async function openEssayGradeModal(hasilId){
+  const modalEl = document.getElementById('essayGradeModal');
+  document.getElementById('essayGradeList').innerHTML = '<div class="spinner-wrap py-4"><div class="spinner-border text-success"></div></div>';
+  document.getElementById('essayGradeHasilId').value = hasilId;
+  new bootstrap.Modal(modalEl).show();
+
+  try {
+    let h = (CACHE.adminHasil || []).find(x => x.id === hasilId);
+    if (!h) h = await callServer('getHasilById', hasilId);
+    if (!h) throw new Error('Data hasil tidak ditemukan.');
+    ESSAY_GRADE_CACHE = h;
+
+    document.getElementById('essayGradeSubtitle').innerText =
+      (h.username || '') + ' · ' + (h.judulMateri || '') + ' · ' + formatDate(h.tanggal);
+    document.getElementById('essayGradeSkorPG').innerText = (h.totalPG > 0 ? h.skor : '—') + (h.totalPG > 0 ? '' : '');
+    document.getElementById('essayGradeCatatan').value = h.catatanAdmin || '';
+
+    let essay = [];
+    try { essay = JSON.parse(h.jawabanEssay || '[]'); } catch(e){}
+    if (!essay.length) {
+      document.getElementById('essayGradeList').innerHTML = '<div class="empty-state py-3">Tidak ada jawaban essay.</div>';
+      return;
+    }
+
+    document.getElementById('essayGradeList').innerHTML = essay.map((e, i) => `
+      <div class="essay-grade-item" data-idx="${i}" data-soal-id="${escapeHtml(e.soalId || '')}">
+        <div class="q">${i+1}. ${escapeHtml(e.pertanyaan || '(tanpa pertanyaan)')}</div>
+        <div class="ans">${escapeHtml(e.jawaban || '—')}</div>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <label class="small-caps mb-0" for="essaySkor_${i}">Nilai (0–100)</label>
+          <input type="number" class="form-control form-control-premium essay-skor-input" id="essaySkor_${i}"
+            min="0" max="100" step="1" inputmode="numeric" style="width:110px"
+            value="${e.skor !== null && e.skor !== undefined && e.skor !== '' ? e.skor : ''}"
+            oninput="previewEssayFinalScore()">
+        </div>
+      </div>`).join('');
+
+    previewEssayFinalScore();
+  } catch (err) {
+    document.getElementById('essayGradeList').innerHTML = errorStateHtml(err.message || err);
+  }
 }
+
+function previewEssayFinalScore(){
+  const h = ESSAY_GRADE_CACHE;
+  if (!h) return;
+  const inputs = [...document.querySelectorAll('.essay-skor-input')];
+  const scores = inputs.map(inp => {
+    const v = Number(inp.value);
+    return isNaN(v) ? null : Math.max(0, Math.min(100, v));
+  });
+  if (scores.some(s => s === null)) {
+    document.getElementById('essayGradeSkorEssay').innerText = '—';
+    document.getElementById('essayGradeSkorAkhir').innerText = '—';
+    return;
+  }
+  const essaySkor = Math.round(scores.reduce((a,b)=>a+b,0) / scores.length);
+  document.getElementById('essayGradeSkorEssay').innerText = essaySkor;
+  const skorPG = Number(h.skor || 0);
+  const totalPG = Number(h.totalPG || 0);
+  let skorAkhir;
+  if (totalPG > 0) skorAkhir = Math.round(skorPG * 0.6 + essaySkor * 0.4);
+  else skorAkhir = essaySkor;
+  document.getElementById('essayGradeSkorAkhir').innerText = skorAkhir;
+}
+
+async function submitEssayGrade(){
+  const id = document.getElementById('essayGradeHasilId').value;
+  const items = [...document.querySelectorAll('.essay-grade-item')];
+  const essays = [];
+  for (const el of items) {
+    const idx = Number(el.dataset.idx);
+    const soalId = el.dataset.soalId || '';
+    const inp = el.querySelector('.essay-skor-input');
+    const skor = Number(inp && inp.value);
+    if (inp.value === '' || isNaN(skor)) {
+      showToast('Semua soal essay harus diberi nilai 0–100.', 'warn');
+      return;
+    }
+    essays.push({ index: idx, soalId: soalId, skor: Math.max(0, Math.min(100, skor)) });
+  }
+
+  const btn = document.getElementById('essayGradeSubmitBtn');
+  const txt = document.getElementById('essayGradeSubmitText');
+  btn.disabled = true;
+  txt.innerText = 'Menyimpan...';
+  try {
+    const res = await callServer('gradeEssay', {
+      id: id,
+      essays: essays,
+      catatanAdmin: document.getElementById('essayGradeCatatan').value.trim()
+    });
+    showToast('Nilai essay disimpan. Skor akhir: ' + res.skorAkhir + ' (' + res.lulus + ')', 'success');
+    bootstrap.Modal.getInstance(document.getElementById('essayGradeModal')).hide();
+    loadAdminHasil();
+  } catch (err) {
+    showToast('Gagal menyimpan: ' + (err.message || err), 'error');
+  } finally {
+    btn.disabled = false;
+    txt.innerText = 'Simpan Nilai';
+  }
+}
+
+function showEssayReview(essayArr){
+  // legacy fallback
+  openEssayGradeModal && console.log(essayArr);
+}
+
 </script>
 <script>
 /* ==========================================================
@@ -2800,10 +3000,12 @@ async function openMateriRead(id){
   CACHE.activeMateriId = id;
   navTo('student-read');
   const area = document.getElementById('studentReadArea');
-  area.innerHTML = '<div class="spinner-wrap"><div class="spinner-border text-success"></div></div>';
+  area.innerHTML = '<div class="spinner-wrap"><div class="spinner-border text-success"></div><span>Memuat materi...</span></div>';
   try {
     const m = await callServer('getMateriById', id);
     if (!m) { area.innerHTML = errorStateHtml('Materi tidak ditemukan.'); return; }
+    const preview = m.previewUrl || '';
+    const driveOpen = m.fileId ? ('https://drive.google.com/file/d/' + m.fileId + '/view') : (m.fileUrl || '#');
     area.innerHTML = `
       <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
         <div style="min-width:0; flex:1">
@@ -2816,13 +3018,54 @@ async function openMateriRead(id){
           <button class="btn btn-premium btn-sm px-3" onclick="goToLatihanForMateri('${m.id}','${escapeHtml(m.kategori).replace(/'/g,"&apos;")}')"><i class="bi bi-patch-question me-1"></i>Latihan</button>
         </div>
       </div>
-      <div class="reader-frame-wrap fade-item">
-        <iframe src="${m.previewUrl}" allow="autoplay" title="Preview materi"></iframe>
+      <div class="reader-frame-wrap glass fade-item" id="readerFrameWrap">
+        <div class="reader-toolbar">
+          <div class="text-muted" style="font-size:.78rem"><i class="bi bi-eye me-1"></i>Pratinjau materi</div>
+          <div class="btn-group-reader">
+            <button type="button" class="btn btn-icon-sm" onclick="toggleReaderHeight()" title="Perbesar tinggi" aria-label="Perbesar"><i class="bi bi-arrows-vertical" id="readerHeightIcon"></i></button>
+            <button type="button" class="btn btn-icon-sm" onclick="toggleReaderFullscreen()" title="Layar penuh" aria-label="Fullscreen"><i class="bi bi-fullscreen" id="readerFsIcon"></i></button>
+            <a class="btn btn-icon-sm" href="${driveOpen}" target="_blank" rel="noopener" title="Buka di tab baru" aria-label="Tab baru"><i class="bi bi-box-arrow-up-right"></i></a>
+          </div>
+        </div>
+        <iframe id="materiReaderIframe" src="${preview}" allow="autoplay" title="Preview materi" style="height:min(72vh, 680px)"></iframe>
       </div>
-      <div class="text-muted mt-2" style="font-size:.78rem">Jika pratinjau tidak muncul, gunakan tombol "Unduh". Latihan soal tersedia di menu "Latihan Soal".</div>
+      <div class="text-muted mt-2" style="font-size:.78rem">
+        Tips: gunakan <b>layar penuh</b> untuk membaca lebih nyaman. Jika pratinjau kosong (kebijakan Drive), buka di tab baru atau unduh file.
+      </div>
     `;
   } catch (err) {
     area.innerHTML = errorStateHtml(err.message || err);
+  }
+}
+
+let readerTall = false;
+function toggleReaderHeight(){
+  const iframe = document.getElementById('materiReaderIframe');
+  const icon = document.getElementById('readerHeightIcon');
+  if (!iframe) return;
+  readerTall = !readerTall;
+  iframe.style.height = readerTall ? 'min(90vh, 900px)' : 'min(72vh, 680px)';
+  if (icon) icon.className = readerTall ? 'bi bi-arrows-collapse' : 'bi bi-arrows-vertical';
+}
+
+function toggleReaderFullscreen(){
+  const wrap = document.getElementById('readerFrameWrap');
+  const icon = document.getElementById('readerFsIcon');
+  if (!wrap) return;
+  const on = wrap.classList.toggle('fullscreen-reader');
+  if (icon) icon.className = on ? 'bi bi-fullscreen-exit' : 'bi bi-fullscreen';
+  document.body.style.overflow = on ? 'hidden' : '';
+  // Escape to exit
+  if (on) {
+    const esc = (e) => {
+      if (e.key === 'Escape') {
+        wrap.classList.remove('fullscreen-reader');
+        document.body.style.overflow = '';
+        if (icon) icon.className = 'bi bi-fullscreen';
+        document.removeEventListener('keydown', esc);
+      }
+    };
+    document.addEventListener('keydown', esc);
   }
 }
 
@@ -3173,17 +3416,25 @@ async function loadStudentRiwayat(){
   try {
     const list = (await callServer('getHasilByStudent', CURRENT_USER.username)) || [];
     if (!list.length) { cont.innerHTML = '<div class="empty-state"><i class="bi bi-clock-history"></i>Belum ada riwayat latihan.</div>'; return; }
-    cont.innerHTML = list.map(h => `
-      <div class="card-premium mb-3 fade-item d-flex flex-row justify-content-between align-items-center flex-wrap gap-2">
+    cont.innerHTML = list.map(h => {
+      const finalScore = (h.skorAkhir !== null && h.skorAkhir !== undefined) ? h.skorAkhir : h.skor;
+      const essayNote = h.essayStatus === 'Menunggu'
+        ? '<span class="pill-essay-wait">Essay menunggu nilai</span>'
+        : (h.essayStatus === 'Dinilai' ? '<span class="pill-essay-done">Essay dinilai</span>' : '');
+      return `
+      <div class="card-premium glass mb-3 fade-item d-flex flex-row justify-content-between align-items-center flex-wrap gap-2">
         <div style="min-width:0; flex:1">
           <div class="fw-semibold text-truncate-2">${escapeHtml(h.judulMateri)}</div>
-          <div class="text-muted" style="font-size:.8rem">${formatDate(h.tanggal)} • ${h.benarPG}/${h.totalPG} benar</div>
+          <div class="text-muted" style="font-size:.8rem">${formatDate(h.tanggal)} • PG ${h.benarPG}/${h.totalPG}${h.essayCount ? ' • Essay ' + h.essayCount : ''}</div>
+          ${h.catatanAdmin ? `<div class="text-muted mt-1" style="font-size:.78rem"><i class="bi bi-chat-left-quote me-1"></i>${escapeHtml(h.catatanAdmin)}</div>` : ''}
+          <div class="mt-1">${essayNote}</div>
         </div>
         <div class="d-flex align-items-center gap-2 flex-shrink-0">
           ${lulusBadgeHtml(h.lulus)}
-          ${scorePill(h.skor)}
+          ${scorePill(finalScore)}
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   } catch (err) {
     cont.innerHTML = errorStateHtml(err.message || err, 'loadStudentRiwayat()');
   }
