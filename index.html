@@ -1246,7 +1246,7 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
           <div class="dropzone" onclick="document.getElementById('materiFileInput').click()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')document.getElementById('materiFileInput').click()">
             <i class="bi bi-cloud-arrow-up-fill"></i>
             <div class="fw-semibold mt-2" style="font-size:.9rem">Klik untuk pilih file</div>
-            <div class="text-muted" style="font-size:.78rem">.docx .doc .xlsx .xls .pptx .ppt .pdf — maks 20MB</div>
+            <div class="text-muted" style="font-size:.78rem">.docx .doc .xlsx .xls .pptx .ppt .pdf — maks 90MB</div>
             <div id="materiFileChip"></div>
           </div>
           <input type="file" id="materiFileInput" class="d-none" accept=".doc,.docx,.xls,.xlsx,.ppt,.pptx,.pdf" onchange="onMateriFileChosen(this)">
@@ -2050,8 +2050,8 @@ function onMateriFileChosen(input){
   const chip = document.getElementById('materiFileChip');
   if (!file) { chip.innerHTML=''; pendingMateriFile = null; return; }
 
-  if (file.size > 20 * 1024 * 1024) {
-    showToast('Ukuran file maksimal 20MB.', 'warn');
+  if (file.size > 90 * 1024 * 1024) {
+    showToast('Ukuran file maksimal 90MB.', 'warn');
     input.value = '';
     chip.innerHTML=''; pendingMateriFile = null;
     return;
