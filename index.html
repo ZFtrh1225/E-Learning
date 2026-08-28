@@ -1273,7 +1273,7 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
           <div class="dropzone" onclick="document.getElementById('materiFileInput').click()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')document.getElementById('materiFileInput').click()">
             <i class="bi bi-cloud-arrow-up-fill"></i>
             <div class="fw-semibold mt-2" style="font-size:.9rem">Klik untuk pilih file</div>
-            <div class="text-muted" style="font-size:.78rem">.docx .doc .xlsx .xls .pptx .ppt .pdf — maks 20MB</div>
+            <div class="text-muted" style="font-size:.78rem">.docx .doc .xlsx .xls .pptx .ppt .pdf — maks 35MB (unggah bertahap otomatis)</div>
             <div id="materiFileChip"></div>
           </div>
           <input type="file" id="materiFileInput" class="d-none" accept=".doc,.docx,.xls,.xlsx,.ppt,.pptx,.pdf" onchange="onMateriFileChosen(this)">
@@ -1440,7 +1440,7 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
  * CONFIG — ganti URL ini dengan URL Web App Google Apps Script
  * Setelah deploy Code.gs sebagai Web App, salin URL (.../exec)
  * ========================================================*/
-const API_URL = 'https://script.google.com/macros/s/AKfycbzYLCUZ-ZP6dwh9ABIn9d9_QrprULZ2oZ5xacc2cYp370LwzixFdRFuw3tk_vqwvEc/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwpGjumfQX6EDmqw9aPqMrQJgGmG3qjnWnuubpFts03LCKR3ZHeZ4PSETl6BjrCGw4/exec';
 // Contoh: 'https://script.google.com/macros/s/AKfycbx.../exec'
 
 /* ==========================================================
@@ -1692,7 +1692,13 @@ function buildPayload(action, args) {
     case 'saveSoal':
     case 'saveSettings':
     case 'saveKategori':
+    case 'initChunkUpload':
+    case 'uploadChunk':
+    case 'finalizeChunkUpload':
       payload.data = args[0];
+      break;
+    case 'abortChunkUpload':
+      payload.sessionId = args[0];
       break;
     case 'submitJawaban':
       payload.payload = args[0];
@@ -1720,8 +1726,12 @@ async function callServer(name, ...args) {
     throw new Error('API_URL belum diatur. Buka index.html, ganti konstanta API_URL dengan URL Web App Google Apps Script Anda (yang berakhiran /exec).');
   }
 
+  // Timeout lebih panjang untuk upload chunk / finalize
+  const longActions = { initChunkUpload:1, uploadChunk:1, finalizeChunkUpload:1, saveMateri:1 };
+  const timeoutMs = longActions[name] ? 120000 : 30000;
+
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 30000);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const body = buildPayload(name, args);
@@ -2126,35 +2136,101 @@ function deleteKategoriConfirm(idOrNama, namaLabel){
     .catch(err => showToast(err.message || err, 'error'));
 }
 
+/* Upload limits — file besar memakai chunked upload ke GAS */
+const MATERI_MAX_BYTES = 35 * 1024 * 1024;      // 35MB
+const MATERI_DIRECT_MAX = 1.5 * 1024 * 1024;    // <1.5MB: kirim sekali (base64)
+const MATERI_CHUNK_BYTES = 512 * 1024;          // 512KB per chunk (binary)
+
 function onMateriFileChosen(input){
   const file = input.files[0];
   const chip = document.getElementById('materiFileChip');
   if (!file) { chip.innerHTML=''; pendingMateriFile = null; return; }
 
-  if (file.size > 20 * 1024 * 1024) {
-    showToast('Ukuran file maksimal 20MB.', 'warn');
+  if (file.size > MATERI_MAX_BYTES) {
+    showToast('Ukuran file maksimal 35MB.', 'warn');
     input.value = '';
     chip.innerHTML=''; pendingMateriFile = null;
     return;
   }
 
-  chip.innerHTML = `<div class="file-chip"><i class="bi bi-file-earmark-check-fill"></i>${escapeHtml(file.name)} <span class="spinner-border spinner-border-sm ms-1"></span></div>`;
+  const sizeLabel = formatBytes(file.size);
+  const mode = file.size > MATERI_DIRECT_MAX ? 'bertahap (aman untuk file besar)' : 'langsung';
+  chip.innerHTML = `<div class="file-chip"><i class="bi bi-file-earmark-check-fill"></i>${escapeHtml(file.name)} · ${sizeLabel} <span class="spinner-border spinner-border-sm ms-1"></span></div>`;
 
-  const reader = new FileReader();
-  reader.onload = () => {
-    pendingMateriFile = {
-      fileName: file.name,
-      mimeType: file.type || 'application/octet-stream',
-      base64: reader.result.split(',')[1]
-    };
-    chip.innerHTML = `<div class="file-chip"><i class="bi bi-check-circle-fill"></i>${escapeHtml(file.name)} siap diunggah</div>`;
+  // Simpan File object — base64 dibuat saat submit (hemat memori)
+  pendingMateriFile = {
+    file: file,
+    fileName: file.name,
+    mimeType: file.type || 'application/octet-stream',
+    size: file.size,
+    useChunked: file.size > MATERI_DIRECT_MAX
   };
-  reader.onerror = () => {
-    showToast('Gagal membaca file.', 'error');
-    pendingMateriFile = null;
-    chip.innerHTML = '';
-  };
-  reader.readAsDataURL(file);
+  chip.innerHTML = `<div class="file-chip"><i class="bi bi-check-circle-fill"></i>${escapeHtml(file.name)} · ${sizeLabel} · ${mode}</div>
+    <div class="progress-premium mt-2" id="materiUploadProgressWrap" style="display:none"><div class="bar" id="materiUploadProgressBar" style="width:0%"></div></div>
+    <div class="text-muted mt-1" id="materiUploadProgressText" style="font-size:.75rem;display:none"></div>`;
+}
+
+function readFileAsBase64(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
+    reader.onerror = () => reject(new Error('Gagal membaca file.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function readBlobAsBase64(blob){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
+    reader.onerror = () => reject(new Error('Gagal membaca chunk.'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function setMateriUploadProgress(pct, msg){
+  const wrap = document.getElementById('materiUploadProgressWrap');
+  const bar = document.getElementById('materiUploadProgressBar');
+  const txt = document.getElementById('materiUploadProgressText');
+  if (wrap) wrap.style.display = 'block';
+  if (txt) { txt.style.display = 'block'; txt.innerText = msg || ''; }
+  if (bar) bar.style.width = Math.max(0, Math.min(100, pct)) + '%';
+}
+
+/**
+ * Upload file besar: pecah → init → chunk demi chunk → finalize → dapat fileId Drive
+ */
+async function uploadMateriChunked(file, onProgress){
+  const totalChunks = Math.ceil(file.size / MATERI_CHUNK_BYTES);
+  const init = await callServer('initChunkUpload', {
+    fileName: file.name,
+    mimeType: file.type || 'application/octet-stream',
+    totalChunks: totalChunks,
+    totalBytes: file.size
+  });
+  const sessionId = init.sessionId;
+  try {
+    for (let i = 0; i < totalChunks; i++) {
+      const start = i * MATERI_CHUNK_BYTES;
+      const end = Math.min(file.size, start + MATERI_CHUNK_BYTES);
+      const slice = file.slice(start, end);
+      const b64 = await readBlobAsBase64(slice);
+      await callServer('uploadChunk', {
+        sessionId: sessionId,
+        index: i,
+        base64: b64
+      });
+      const pct = Math.round(((i + 1) / totalChunks) * 90); // 90% untuk chunks
+      if (onProgress) onProgress(pct, `Mengunggah bagian ${i + 1}/${totalChunks}...`);
+    }
+    if (onProgress) onProgress(95, 'Menggabungkan file di server...');
+    const fin = await callServer('finalizeChunkUpload', { sessionId: sessionId });
+    if (onProgress) onProgress(100, 'Upload selesai');
+    return fin;
+  } catch (err) {
+    try { await callServer('abortChunkUpload', sessionId); } catch (e) {}
+    throw err;
+  }
 }
 
 function openMateriModal(id){
@@ -2188,7 +2264,7 @@ function openMateriModal(id){
   new bootstrap.Modal(document.getElementById('materiModal')).show();
 }
 
-function submitMateriForm(){
+async function submitMateriForm(){
   const id = document.getElementById('materiIdInput').value;
   const kategori = document.getElementById('materiKategori').value.trim();
   const judul = document.getElementById('materiJudul').value.trim();
@@ -2196,19 +2272,41 @@ function submitMateriForm(){
   if (!kategori || !judul) { showToast('Kategori dan judul wajib diisi.', 'warn'); return; }
   if (!id && !pendingMateriFile) { showToast('File materi wajib diunggah.', 'warn'); return; }
 
-  const data = { id: id, kategori: kategori, judul: judul, kkm: document.getElementById('materiKkm').value };
-  if (pendingMateriFile) {
-    data.fileName = pendingMateriFile.fileName;
-    data.mimeType = pendingMateriFile.mimeType;
-    data.base64 = pendingMateriFile.base64;
-  }
-
   const btn = document.getElementById('materiSubmitBtn');
   document.getElementById('materiSubmitText').innerText = 'Mengunggah...';
   document.getElementById('materiSubmitSpinner').classList.remove('d-none');
   btn.disabled = true;
 
-  callServer('saveMateri', data).then(res => {
+  try {
+    const data = { id: id, kategori: kategori, judul: judul, kkm: document.getElementById('materiKkm').value };
+
+    if (pendingMateriFile) {
+      if (pendingMateriFile.useChunked && pendingMateriFile.file) {
+        setMateriUploadProgress(0, 'Memulai unggahan bertahap...');
+        const uploaded = await uploadMateriChunked(pendingMateriFile.file, setMateriUploadProgress);
+        data.fileId = uploaded.fileId;
+        data.fileName = uploaded.fileName;
+        data.mimeType = pendingMateriFile.mimeType;
+        data.fileUrl = uploaded.fileUrl;
+        data.sharingOk = uploaded.sharingOk;
+      } else if (pendingMateriFile.file) {
+        setMateriUploadProgress(20, 'Membaca file...');
+        const b64 = await readFileAsBase64(pendingMateriFile.file);
+        setMateriUploadProgress(60, 'Mengunggah ke server...');
+        data.fileName = pendingMateriFile.fileName;
+        data.mimeType = pendingMateriFile.mimeType;
+        data.base64 = b64;
+      } else if (pendingMateriFile.base64) {
+        // fallback lama
+        data.fileName = pendingMateriFile.fileName;
+        data.mimeType = pendingMateriFile.mimeType;
+        data.base64 = pendingMateriFile.base64;
+      }
+    }
+
+    setMateriUploadProgress(92, 'Menyimpan data materi...');
+    const res = await callServer('saveMateri', data);
+
     document.getElementById('materiSubmitText').innerText = 'Simpan Materi';
     document.getElementById('materiSubmitSpinner').classList.add('d-none');
     btn.disabled = false;
@@ -2218,17 +2316,14 @@ function submitMateriForm(){
     } else {
       showToast('Materi berhasil disimpan.', 'success');
     }
-    if (ADMIN_ACTIVE_KATEGORI) {
-      openAdminKategoriFolder(ADMIN_ACTIVE_KATEGORI);
-    } else {
-      loadAdminMateri();
-    }
-  }).catch(err => {
+    if (ADMIN_ACTIVE_KATEGORI) openAdminKategoriFolder(ADMIN_ACTIVE_KATEGORI);
+    else loadAdminMateri();
+  } catch (err) {
     document.getElementById('materiSubmitText').innerText = 'Simpan Materi';
     document.getElementById('materiSubmitSpinner').classList.add('d-none');
     btn.disabled = false;
     showToast('Gagal menyimpan: ' + (err.message || err), 'error');
-  });
+  }
 }
 
 function deleteMateriConfirm(id){
