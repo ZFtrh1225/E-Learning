@@ -68,7 +68,7 @@
 
 /* ===================== BASE ===================== */
 *,*::before,*::after{box-sizing:border-box}
-html{height:100%; -webkit-text-size-adjust:100%; scroll-behavior:smooth}
+html{height:100%; -webkit-text-size-adjust:100%; scroll-behavior:smooth; overscroll-behavior-y:none}
 body{
   font-family:'Inter',system-ui,-apple-system,sans-serif;
   font-weight:400;
@@ -85,6 +85,7 @@ body{
   padding-bottom:var(--safe-bottom);
   padding-left:var(--safe-left);
   padding-right:var(--safe-right);
+  overscroll-behavior-y:none;
 }
 h1,h2,h3,h4,h5,h6,.font-display{
   font-family:'Sora',system-ui,sans-serif;
@@ -478,7 +479,7 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
 }
 
 /* Prevent pull-to-refresh issues on some Android browsers when scrolling content */
-.content-area{-webkit-overflow-scrolling:touch}
+.content-area{-webkit-overflow-scrolling:touch; overscroll-behavior-y:auto}
 </style>
 </head>
 <body>
@@ -1344,29 +1345,29 @@ async function loadSoalMateriSelect(){
   const sel = document.getElementById('soalMateriSelect');
   sel.innerHTML = '<option value="">Memuat...</option>';
   try {
-    const list = (await callServer('getMateriList')) || [];
-    CACHE.materi = list;
+    const list = (await callServer('getKategoriList')) || [];
+    CACHE.kategori = list;
     if (!list.length) {
-      sel.innerHTML = '<option value="">Belum ada materi — unggah materi dulu</option>';
+      sel.innerHTML = '<option value="">Belum ada kategori — unggah materi dulu</option>';
       document.getElementById('soalManageArea').innerHTML='';
       return;
     }
-    sel.innerHTML = '<option value="">— Pilih materi —</option>' + list.map(m => `<option value="${m.id}">${escapeHtml(m.kategori)} — ${escapeHtml(m.judul)}</option>`).join('');
+    sel.innerHTML = '<option value="">— Pilih kategori —</option>' + list.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
     document.getElementById('soalManageArea').innerHTML = '';
   } catch (err) {
-    sel.innerHTML = '<option value="">Gagal memuat materi</option>';
+    sel.innerHTML = '<option value="">Gagal memuat kategori</option>';
     document.getElementById('soalManageArea').innerHTML = errorStateHtml(err.message || err, 'loadSoalMateriSelect()');
   }
 }
 
 async function loadSoalForMateri(){
-  const materiId = document.getElementById('soalMateriSelect').value;
+  const kategori = document.getElementById('soalMateriSelect').value;
   const area = document.getElementById('soalManageArea');
-  if (!materiId) { area.innerHTML=''; return; }
+  if (!kategori) { area.innerHTML=''; return; }
   area.innerHTML = '<div class="spinner-wrap"><div class="spinner-border text-success"></div><span>Memuat soal...</span></div>';
 
   try {
-    const list = (await callServer('getSoalByMateriAdmin', materiId)) || [];
+    const list = (await callServer('getSoalByKategoriAdmin', kategori)) || [];
     CACHE.quiz = list;
     let html = `<div class="d-flex justify-content-end mb-3"><button class="btn btn-premium btn-sm px-3" onclick="openSoalModal()"><i class="bi bi-plus-lg me-1"></i>Tambah Soal</button></div>`;
     if (!list.length) {
@@ -1601,7 +1602,7 @@ function openSoalModal(id){
 function submitSoalForm(){
   const tipe = document.getElementById('soalModal').dataset.tipe || 'PG';
   const status = document.getElementById('soalModal').dataset.status || 'Aktif';
-  const materiId = document.getElementById('soalMateriSelect').value;
+  const kategori = document.getElementById('soalMateriSelect').value;
   const pertanyaan = document.getElementById('soalPertanyaan').value.trim();
   // Pertanyaan teks boleh kosong jika ada gambar
   if (!pertanyaan && !pendingSoalGambar && !soalGambarExistingUrl) {
@@ -1615,7 +1616,7 @@ function submitSoalForm(){
 
   const data = {
     id: document.getElementById('soalIdInput').value,
-    materiId: materiId, tipe: tipe, pertanyaan: pertanyaan, status: status
+    kategori: kategori, tipe: tipe, pertanyaan: pertanyaan, status: status
   };
   if (tipe === 'PG') {
     data.a = document.getElementById('soalA').value.trim();
@@ -1838,7 +1839,7 @@ async function loadStudentLatihanScreen(){
   const cont = document.getElementById('studentLatihanList');
   cont.innerHTML = '<div class="spinner-wrap w-100"><div class="spinner-border text-success"></div></div>';
   try {
-    const list = (await callServer('getMateriForLatihan')) || [];
+    const list = (await callServer('getKategoriForLatihan')) || [];
     CACHE.latihan = list;
     renderStudentLatihanList();
   } catch (err) {
@@ -1854,33 +1855,25 @@ async function loadStudentLatihanScreen(){
 
 function renderStudentLatihanList(){
   const filter = document.getElementById('latihanKategoriFilter').value;
-  const list = filter ? (CACHE.latihan||[]).filter(m => m.kategori === filter) : (CACHE.latihan||[]);
+  const list = filter ? (CACHE.latihan||[]).filter(c => c.kategori === filter) : (CACHE.latihan||[]);
   const cont = document.getElementById('studentLatihanList');
-  if (!list.length) { cont.innerHTML = '<div class="empty-state w-100"><i class="bi bi-patch-question"></i>Tidak ada materi ditemukan.</div>'; return; }
+  if (!list.length) { cont.innerHTML = '<div class="empty-state w-100"><i class="bi bi-patch-question"></i>Tidak ada kategori soal ditemukan.</div>'; return; }
 
-  const groups = {};
-  list.forEach(m => { (groups[m.kategori] = groups[m.kategori] || []).push(m); });
-
-  let html = '';
-  Object.keys(groups).sort().forEach(kategori => {
-    html += `<div class="col-12 mt-2 mb-1"><h6 class="font-display text-muted" style="font-size:.82rem; letter-spacing:.04em">${escapeHtml(kategori.toUpperCase())}</h6></div>`;
-    html += groups[kategori].map(m => latihanCardHtml(m)).join('');
-  });
-  cont.innerHTML = html;
+  cont.innerHTML = list.map(c => latihanCardHtml(c)).join('');
 }
 
-function latihanCardHtml(m){
-  const hasSoal = m.soalCount > 0;
+function latihanCardHtml(catObj){
+  const hasSoal = catObj.soalCount > 0;
   return `
     <div class="col-sm-6 col-lg-4">
-      <div class="materi-card fade-item" style="${hasSoal ? 'cursor:pointer' : 'cursor:default; opacity:.75'}" ${hasSoal ? `onclick="startQuiz('${m.id}', '${escapeHtml(m.judul).replace(/'/g,"&apos;")}')" role="button" tabindex="0"` : ''}>
+      <div class="materi-card fade-item" style="${hasSoal ? 'cursor:pointer' : 'cursor:default; opacity:.75'}" ${hasSoal ? `onclick="startQuiz('${escapeHtml(catObj.kategori).replace(/'/g,"&apos;")}')" role="button" tabindex="0"` : ''}>
         <div class="top"></div>
         <div class="body">
           <div class="d-flex justify-content-between align-items-start gap-2">
-            <span class="badge-kategori">${escapeHtml(m.kategori||'-')}</span>
-            <span class="file-type-badge ${hasSoal ? 'ft-excel' : 'ft-file'}"><i class="bi bi-patch-question"></i>${m.soalCount} Soal</span>
+            <span class="badge-kategori">${escapeHtml(catObj.kategori||'-')}</span>
+            <span class="file-type-badge ${hasSoal ? 'ft-excel' : 'ft-file'}"><i class="bi bi-patch-question"></i>${catObj.soalCount} Soal</span>
           </div>
-          <h6 class="font-display mt-3 mb-1 text-truncate-2">${escapeHtml(m.judul)}</h6>
+          <h6 class="font-display mt-3 mb-1 text-truncate-2">Latihan ${escapeHtml(catObj.kategori)}</h6>
           <div class="mt-3 fw-semibold" style="font-size:.85rem; color:${hasSoal ? 'var(--emerald)' : 'var(--muted-dark)'}">
             ${hasSoal ? 'Kerjakan Soal <i class="bi bi-arrow-right"></i>' : 'Belum ada soal'}
           </div>
@@ -1893,19 +1886,19 @@ function latihanCardHtml(m){
 /* ==========================================================
  * STUDENT: QUIZ
  * ========================================================*/
-async function startQuiz(materiId, judul){
+async function startQuiz(kategori){
   navTo('student-quiz');
   const area = document.getElementById('studentQuizArea');
   area.innerHTML = '<div class="spinner-wrap"><div class="spinner-border text-success"></div></div>';
   try {
-    const list = (await callServer('getSoalByMateriStudent', materiId)) || [];
+    const list = (await callServer('getSoalByKategoriStudent', kategori)) || [];
     if (!list.length) {
       area.innerHTML = '<div class="empty-state"><i class="bi bi-patch-question"></i>Belum ada soal untuk materi ini.</div>';
       return;
     }
     CACHE.quiz = list;
     const jumlahTerkunci = list.filter(s => s.status === 'Terkunci').length;
-    let html = `<h5 class="font-display mb-3" style="font-size:clamp(1.05rem, 3.5vw, 1.25rem)">Latihan Soal — ${escapeHtml(judul)}</h5>`;
+    let html = `<h5 class="font-display mb-3" style="font-size:clamp(1.05rem, 3.5vw, 1.25rem)">Latihan Soal — ${escapeHtml(kategori)}</h5>`;
     if (jumlahTerkunci > 0) {
       html += `<div class="alert alert-warning py-2 mb-3" style="border-radius:12px; font-size:.9rem"><i class="bi bi-lock-fill me-1"></i>${jumlahTerkunci} soal dikunci oleh admin dan tidak dapat dijawab saat ini.</div>`;
     }
@@ -1932,10 +1925,10 @@ async function startQuiz(materiId, judul){
       }
       html += `</div>`;
     });
-    html += `<button type="button" class="btn btn-premium px-4 mt-2 w-100 w-md-auto" onclick="submitQuiz('${materiId}','${escapeHtml(judul).replace(/'/g,"&apos;")}')"><i class="bi bi-send-check me-2"></i>Kumpulkan Jawaban</button></form>`;
+    html += `<button type="button" class="btn btn-premium px-4 mt-2 w-100 w-md-auto" onclick="submitQuiz('${escapeHtml(kategori).replace(/'/g,"&apos;")}')"><i class="bi bi-send-check me-2"></i>Kumpulkan Jawaban</button></form>`;
     area.innerHTML = html;
   } catch (err) {
-    area.innerHTML = errorStateHtml(err.message || err, `startQuiz('${materiId}','${escapeHtml(judul).replace(/'/g,"\\'")}')`);
+    area.innerHTML = errorStateHtml(err.message || err, `startQuiz('${escapeHtml(kategori).replace(/'/g,"\\'")}')`);
   }
 }
 
@@ -1945,7 +1938,7 @@ function markSelected(radio){
   radio.nextElementSibling.classList.add('selected');
 }
 
-async function submitQuiz(materiId, judul){
+async function submitQuiz(kategori){
   const answers = CACHE.quiz
     .filter(s => s.status !== 'Terkunci')
     .map(s => {
@@ -1961,8 +1954,7 @@ async function submitQuiz(materiId, judul){
   try {
     const res = await callServer('submitJawaban', {
       username: CURRENT_USER.username,
-      materiId: materiId,
-      judulMateri: judul,
+      kategori: kategori,
       answers: answers
     });
     document.getElementById('hasilSkorText').innerText = res.totalPG > 0 ? res.skor : '-';
