@@ -378,6 +378,27 @@ html.dark .answer-chip.correct-ans { color: #6ee7b7; }
   position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
   color: var(--muted-dark); pointer-events: none;
 }
+.folder-card {
+  border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--border-light);
+  background: var(--card-bg); box-shadow: var(--shadow-sm); transition: .25s; cursor: pointer;
+  height: 100%; display: flex; flex-direction: column;
+}
+.folder-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+@media(max-width:767px){ .folder-card:hover { transform: none; } }
+.folder-card .folder-icon {
+  width: 52px; height: 52px; border-radius: 14px;
+  background: linear-gradient(135deg, rgba(212,175,55,.2), rgba(16,185,129,.15));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; color: var(--gold);
+  flex-shrink: 0;
+}
+html.dark .folder-card .folder-icon { color: var(--gold-soft); }
+.folder-card .body { padding: 18px; flex: 1; display: flex; flex-direction: column; }
+.breadcrumb-folder {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: .8rem; color: var(--muted-dark);
+}
+
 .admin-search-wrap input {
   padding-left: 40px !important;
 }
@@ -960,17 +981,43 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
 
       <!-- ============ ADMIN: MATERI ============ -->
       <div class="screen" id="admin-materi">
-        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-          <h5 class="font-display mb-0">Materi Pembelajaran</h5>
-          <div class="d-flex align-items-center gap-2 flex-wrap">
-            <div class="admin-search-wrap">
-              <i class="bi bi-search"></i>
-              <input type="search" class="form-control form-control-premium" id="adminMateriSearch" placeholder="Cari materi..." oninput="filterAdminMateri()" style="min-height:42px;padding-top:10px;padding-bottom:10px">
+        <!-- Level: daftar folder kategori -->
+        <div id="adminMateriFoldersView">
+          <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <div>
+              <h5 class="font-display mb-0">Kategori Materi</h5>
+              <div class="text-muted" style="font-size:.82rem">Kategori seperti folder — isi dengan beberapa materi di dalamnya.</div>
             </div>
-            <button class="btn btn-premium btn-sm px-3" onclick="openMateriModal()"><i class="bi bi-plus-lg me-1"></i>Unggah Materi</button>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <div class="admin-search-wrap">
+                <i class="bi bi-search"></i>
+                <input type="search" class="form-control form-control-premium" id="adminKategoriSearch" placeholder="Cari kategori..." oninput="filterAdminKategori()" style="min-height:42px;padding-top:10px;padding-bottom:10px">
+              </div>
+              <button class="btn btn-premium btn-sm px-3" onclick="openKategoriModal()"><i class="bi bi-folder-plus me-1"></i>Buat Kategori</button>
+            </div>
           </div>
+          <div id="adminKategoriList" class="row g-3"></div>
         </div>
-        <div id="adminMateriList" class="row g-3"></div>
+        <!-- Level: isi folder (materi dalam kategori) -->
+        <div id="adminMateriInsideView" style="display:none">
+          <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2" style="min-width:0;flex:1">
+              <button class="btn btn-icon-sm" onclick="adminBackToFolders()" aria-label="Kembali ke kategori"><i class="bi bi-arrow-left"></i></button>
+              <div style="min-width:0">
+                <div class="small-caps mb-0">Folder Kategori</div>
+                <h5 class="font-display mb-0 text-truncate" id="adminActiveKategoriTitle">—</h5>
+              </div>
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <div class="admin-search-wrap">
+                <i class="bi bi-search"></i>
+                <input type="search" class="form-control form-control-premium" id="adminMateriSearch" placeholder="Cari materi..." oninput="filterAdminMateri()" style="min-height:42px;padding-top:10px;padding-bottom:10px">
+              </div>
+              <button class="btn btn-premium btn-sm px-3" onclick="openMateriModal()"><i class="bi bi-plus-lg me-1"></i>Unggah Materi</button>
+            </div>
+          </div>
+          <div id="adminMateriList" class="row g-3"></div>
+        </div>
       </div>
 
       <!-- ============ ADMIN: SOAL ============ -->
@@ -1069,13 +1116,31 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
 
       <!-- ============ STUDENT: MATERI LIST ============ -->
       <div class="screen" id="student-materi">
-        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-          <h5 class="font-display mb-0">Materi Belajar</h5>
-          <select class="form-select form-control-premium" style="max-width:min(220px,100%)" id="studentKategoriFilter" onchange="renderStudentMateriList()">
-            <option value="">Semua Kategori</option>
-          </select>
+        <div id="studentMateriFoldersView">
+          <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <div>
+              <h5 class="font-display mb-0">Materi Belajar</h5>
+              <div class="text-muted" style="font-size:.82rem">Pilih kategori (folder) untuk melihat materi di dalamnya.</div>
+            </div>
+            <div class="admin-search-wrap">
+              <i class="bi bi-search"></i>
+              <input type="search" class="form-control form-control-premium" id="studentKategoriSearch" placeholder="Cari kategori..." oninput="filterStudentKategori()" style="min-height:42px;padding-top:10px;padding-bottom:10px">
+            </div>
+          </div>
+          <div id="studentKategoriList" class="row g-3"></div>
         </div>
-        <div id="studentMateriList" class="row g-3"></div>
+        <div id="studentMateriInsideView" style="display:none">
+          <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2" style="min-width:0;flex:1">
+              <button class="btn btn-icon-sm" onclick="studentBackToFolders()" aria-label="Kembali"><i class="bi bi-arrow-left"></i></button>
+              <div style="min-width:0">
+                <div class="small-caps mb-0">Kategori</div>
+                <h5 class="font-display mb-0 text-truncate" id="studentActiveKategoriTitle">—</h5>
+              </div>
+            </div>
+          </div>
+          <div id="studentMateriList" class="row g-3"></div>
+        </div>
       </div>
 
       <!-- ============ STUDENT: BACA MATERI ============ -->
@@ -1121,6 +1186,35 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
   </button>
 </div>
 
+
+<!-- ===================== MODAL: KATEGORI (FOLDER) ===================== -->
+<div class="modal fade" id="kategoriModal" tabindex="-1" aria-labelledby="kategoriModalTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title font-display" id="kategoriModalTitle">Buat Kategori</h5>
+        <button class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="kategoriIdInput">
+        <input type="hidden" id="kategoriOldNamaInput">
+        <div class="mb-3">
+          <label class="small-caps mb-1 d-block" for="kategoriNama">Nama Kategori (Folder)</label>
+          <input type="text" class="form-control form-control-premium" id="kategoriNama" placeholder="Contoh: Pendidikan Lanjutan Penilaian 1" enterkeyhint="next">
+        </div>
+        <div class="mb-1">
+          <label class="small-caps mb-1 d-block" for="kategoriDeskripsi">Deskripsi (opsional)</label>
+          <textarea class="form-control form-control-premium" id="kategoriDeskripsi" rows="2" placeholder="Ringkas isi folder kategori ini..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+        <button class="btn btn-premium px-4" onclick="submitKategoriForm()">Simpan Kategori</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ===================== MODAL: MATERI ===================== -->
 <div class="modal fade" id="materiModal" tabindex="-1" aria-labelledby="materiModalTitle" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
@@ -1132,9 +1226,11 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
       <div class="modal-body">
         <input type="hidden" id="materiIdInput">
         <div class="mb-3">
-          <label class="small-caps mb-1 d-block" for="materiKategori">Kategori</label>
-          <input type="text" class="form-control form-control-premium" id="materiKategori" list="kategoriList" placeholder="Contoh: Matematika, Bahasa Inggris, IPA..." enterkeyhint="next">
-          <datalist id="kategoriList"></datalist>
+          <label class="small-caps mb-1 d-block" for="materiKategori">Kategori (Folder)</label>
+          <select class="form-select form-control-premium" id="materiKategori">
+            <option value="">— Pilih kategori —</option>
+          </select>
+          <div class="text-muted mt-1" style="font-size:.75rem">Materi akan disimpan di dalam folder kategori ini. Buat kategori baru dari halaman Materi jika belum ada.</div>
         </div>
         <div class="mb-3">
           <label class="small-caps mb-1 d-block" for="materiJudul">Judul Materi</label>
@@ -1272,7 +1368,7 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
  * CONFIG — ganti URL ini dengan URL Web App Google Apps Script
  * Setelah deploy Code.gs sebagai Web App, salin URL (.../exec)
  * ========================================================*/
-const API_URL = 'https://script.google.com/macros/s/AKfycbzMYeAHH131qVfoKKTt6qkUZVLBQMkzuxlzbu0UMSYuPG6CBwmzjmCTGVCMS0GMsRg/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwVb3taawYaRn7rSCzhxt4vkwPOs6wb2QIPQzvu0QbKHgp3n6Z5PoQHMsydImy6vO4/exec';
 // Contoh: 'https://script.google.com/macros/s/AKfycbx.../exec'
 
 /* ==========================================================
@@ -1280,7 +1376,9 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbzMYeAHH131qVfoKKTt6qkU
  * ========================================================*/
 let CURRENT_USER = null;
 let CURRENT_ROLE = null;
-let CACHE = { materi: [], kategori: [], quiz: [], latihan: [], activeMateriId: null, adminSiswa: [], adminHasil: [] };
+let CACHE = { materi: [], kategori: [], kategoriFull: [], quiz: [], latihan: [], activeMateriId: null, adminSiswa: [], adminHasil: [] };
+let ADMIN_ACTIVE_KATEGORI = null; // nama folder yang dibuka di admin
+let STUDENT_ACTIVE_KATEGORI = null;
 let deferredInstallPrompt = null;
 let pendingMateriFile = null;
 let pendingSoalGambar = null; // { fileName, mimeType, base64 } | null
@@ -1433,14 +1531,22 @@ function startQuizTimer(minutes, onExpire){
  * ADMIN SEARCH FILTERS
  * ========================================================*/
 function filterAdminMateri(){
+  if (!ADMIN_ACTIVE_KATEGORI) return;
   const q = (document.getElementById('adminMateriSearch')?.value || '').trim().toLowerCase();
   const list = !q ? CACHE.materi : CACHE.materi.filter(m =>
     (m.judul||'').toLowerCase().includes(q) ||
-    (m.kategori||'').toLowerCase().includes(q) ||
     (m.fileName||'').toLowerCase().includes(q) ||
     (m.fileType||'').toLowerCase().includes(q)
   );
   renderAdminMateriList(list);
+}
+function filterAdminKategori(){
+  const q = (document.getElementById('adminKategoriSearch')?.value || '').trim().toLowerCase();
+  const list = !q ? (CACHE.kategoriFull||[]) : (CACHE.kategoriFull||[]).filter(c =>
+    (c.nama||'').toLowerCase().includes(q) ||
+    (c.deskripsi||'').toLowerCase().includes(q)
+  );
+  renderAdminKategoriList(list);
 }
 function filterAdminSiswa(){
   const q = (document.getElementById('adminSiswaSearch')?.value || '').trim().toLowerCase();
@@ -1500,9 +1606,16 @@ function buildPayload(action, args) {
     case 'getSoalByMateriStudent':
       payload.materiId = args[0];
       break;
+    case 'getMateriByKategori':
+      payload.kategori = args[0];
+      break;
+    case 'deleteKategori':
+      payload.id = args[0];
+      break;
     case 'saveMateri':
     case 'saveSoal':
     case 'saveSettings':
+    case 'saveKategori':
       payload.data = args[0];
       break;
     case 'submitJawaban':
@@ -1791,35 +1904,54 @@ function fileTypeBadge(type){
   return `<span class="file-type-badge ${cls}"><i class="bi ${icon}"></i>${escapeHtml(type||'File')}</span>`;
 }
 
+function renderAdminKategoriList(list){
+  const cont = document.getElementById('adminKategoriList');
+  if (!list.length) {
+    cont.innerHTML = '<div class="empty-state w-100"><i class="bi bi-folder-x"></i>Belum ada kategori. Klik "Buat Kategori" untuk membuat folder materi.</div>';
+    return;
+  }
+  cont.innerHTML = list.map(c => {
+    const safeNama = escapeHtml(c.nama).replace(/'/g, "\'");
+    return `
+    <div class="col-sm-6 col-lg-4">
+      <div class="folder-card glass fade-item" onclick="openAdminKategoriFolder('${safeNama}')">
+        <div class="body">
+          <div class="d-flex align-items-start gap-3">
+            <div class="folder-icon"><i class="bi bi-folder-fill"></i></div>
+            <div style="min-width:0;flex:1">
+              <h6 class="font-display mb-1 text-truncate-2">${escapeHtml(c.nama)}</h6>
+              <div class="text-muted" style="font-size:.8rem">${c.materiCount || 0} materi</div>
+              ${c.deskripsi ? `<div class="text-muted mt-1 text-truncate-2" style="font-size:.78rem">${escapeHtml(c.deskripsi)}</div>` : ''}
+            </div>
+          </div>
+          <div class="d-flex gap-2 flex-wrap mt-3" onclick="event.stopPropagation()">
+            <button class="btn btn-icon-sm" onclick="openKategoriModal('${escapeHtml(c.id)}','${safeNama}')" title="Edit kategori" aria-label="Edit"><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-icon-sm text-danger" onclick="deleteKategoriConfirm('${escapeHtml(c.id || c.nama)}','${safeNama}')" title="Hapus kategori" aria-label="Hapus"><i class="bi bi-trash"></i></button>
+            <button class="btn btn-sm btn-premium ms-auto px-3" onclick="openAdminKategoriFolder('${safeNama}')"><i class="bi bi-folder2-open me-1"></i>Buka</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 function renderAdminMateriList(list){
   const cont = document.getElementById('adminMateriList');
   if (!list.length) {
-    cont.innerHTML = '<div class="empty-state w-100"><i class="bi bi-journal-x"></i>Tidak ada materi ditemukan.</div>';
+    cont.innerHTML = '<div class="empty-state w-100"><i class="bi bi-journal-x"></i>Belum ada materi di folder ini. Klik "Unggah Materi" untuk menambah.</div>';
     return;
   }
-  // Group by kategori
-  const byCat = {};
-  list.forEach(m => {
-    const c = m.kategori || 'Tanpa Kategori';
-    if (!byCat[c]) byCat[c] = [];
-    byCat[c].push(m);
-  });
-  const cats = Object.keys(byCat).sort();
-  let html = '';
-  cats.forEach(cat => {
-    html += `<div class="col-12 mt-1 mb-1"><div class="d-flex align-items-center gap-2"><span class="badge-kategori" style="font-size:.8rem">${escapeHtml(cat)}</span><span class="text-muted" style="font-size:.78rem">${byCat[cat].length} materi</span></div></div>`;
-    html += byCat[cat].map(m => `
+  cont.innerHTML = list.map(m => `
     <div class="col-sm-6 col-lg-4">
       <div class="materi-card glass fade-item">
         <div class="top"></div>
         <div class="body">
           <div class="d-flex justify-content-between align-items-start gap-2">
-            <span class="badge-kategori">${escapeHtml(m.kategori||'-')}</span>
             ${fileTypeBadge(m.fileType)}
+            <span class="text-muted" style="font-size:.75rem">KKM ${m.kkm}%</span>
           </div>
           <h6 class="font-display mt-3 mb-1 text-truncate-2">${escapeHtml(m.judul)}</h6>
-          <div class="text-muted mb-1" style="font-size:.8rem"><i class="bi bi-file-earmark me-1"></i>${escapeHtml(m.fileName||'-')}</div>
-          <div class="text-muted mb-3" style="font-size:.78rem"><i class="bi bi-flag-fill me-1 text-emerald"></i>KKM: ${m.kkm}%</div>
+          <div class="text-muted mb-3" style="font-size:.8rem"><i class="bi bi-file-earmark me-1"></i>${escapeHtml(m.fileName||'-')}</div>
           <div class="d-flex gap-2 flex-wrap mt-auto">
             <a class="btn btn-icon-sm" href="${m.previewUrl}" target="_blank" rel="noopener" title="Lihat" aria-label="Lihat materi"><i class="bi bi-eye"></i></a>
             <button class="btn btn-icon-sm" onclick="openMateriModal('${m.id}')" title="Edit" aria-label="Edit materi"><i class="bi bi-pencil"></i></button>
@@ -1828,32 +1960,89 @@ function renderAdminMateriList(list){
         </div>
       </div>
     </div>`).join('');
-  });
-  cont.innerHTML = html;
 }
 
 async function loadAdminMateri(){
+  // Tampilkan level folder
+  adminBackToFolders();
+  const cont = document.getElementById('adminKategoriList');
+  cont.innerHTML = skeletonCards(6);
+  const searchEl = document.getElementById('adminKategoriSearch');
+  if (searchEl) searchEl.value = '';
+
+  try {
+    const list = (await callServer('getKategoriFull')) || [];
+    CACHE.kategoriFull = list;
+    CACHE.kategori = list.map(c => c.nama);
+    renderAdminKategoriList(list);
+  } catch (err) {
+    cont.innerHTML = errorStateHtml(err.message || err, 'loadAdminMateri()');
+  }
+}
+
+async function openAdminKategoriFolder(nama){
+  ADMIN_ACTIVE_KATEGORI = nama;
+  document.getElementById('adminMateriFoldersView').style.display = 'none';
+  document.getElementById('adminMateriInsideView').style.display = 'block';
+  document.getElementById('adminActiveKategoriTitle').innerText = nama;
   const cont = document.getElementById('adminMateriList');
   cont.innerHTML = skeletonCards(6);
   const searchEl = document.getElementById('adminMateriSearch');
   if (searchEl) searchEl.value = '';
 
   try {
-    const list = (await callServer('getMateriList')) || [];
+    const list = (await callServer('getMateriByKategori', nama)) || [];
     CACHE.materi = list;
-    if (!list.length) {
-      cont.innerHTML = '<div class="empty-state w-100"><i class="bi bi-journal-x"></i>Belum ada materi. Klik "Unggah Materi" untuk mulai.</div>';
-    } else {
-      renderAdminMateriList(list);
-    }
+    renderAdminMateriList(list);
   } catch (err) {
-    cont.innerHTML = errorStateHtml(err.message || err, 'loadAdminMateri()');
+    cont.innerHTML = errorStateHtml(err.message || err, `openAdminKategoriFolder('${escapeHtml(nama).replace(/'/g,"\\'")}')`);
   }
+}
 
-  try {
-    const cats = (await callServer('getKategoriList')) || [];
-    document.getElementById('kategoriList').innerHTML = cats.map(c => `<option value="${escapeHtml(c)}">`).join('');
-  } catch (err) { /* non-kritis */ }
+function adminBackToFolders(){
+  ADMIN_ACTIVE_KATEGORI = null;
+  document.getElementById('adminMateriFoldersView').style.display = 'block';
+  document.getElementById('adminMateriInsideView').style.display = 'none';
+}
+
+function openKategoriModal(id, nama){
+  document.getElementById('kategoriModalTitle').innerText = id || nama ? 'Edit Kategori' : 'Buat Kategori';
+  document.getElementById('kategoriIdInput').value = id || '';
+  document.getElementById('kategoriOldNamaInput').value = nama || '';
+  if (id || nama) {
+    const c = (CACHE.kategoriFull || []).find(x => (id && x.id === id) || (nama && x.nama === nama));
+    document.getElementById('kategoriNama').value = c ? c.nama : (nama || '');
+    document.getElementById('kategoriDeskripsi').value = c ? (c.deskripsi || '') : '';
+  } else {
+    document.getElementById('kategoriNama').value = '';
+    document.getElementById('kategoriDeskripsi').value = '';
+  }
+  new bootstrap.Modal(document.getElementById('kategoriModal')).show();
+}
+
+function submitKategoriForm(){
+  const nama = document.getElementById('kategoriNama').value.trim();
+  if (!nama) { showToast('Nama kategori wajib diisi.', 'warn'); return; }
+  const data = {
+    id: document.getElementById('kategoriIdInput').value,
+    oldNama: document.getElementById('kategoriOldNamaInput').value,
+    nama: nama,
+    deskripsi: document.getElementById('kategoriDeskripsi').value.trim()
+  };
+  callServer('saveKategori', data)
+    .then(() => {
+      bootstrap.Modal.getInstance(document.getElementById('kategoriModal')).hide();
+      showToast('Kategori disimpan.', 'success');
+      loadAdminMateri();
+    })
+    .catch(err => showToast('Gagal: ' + (err.message || err), 'error'));
+}
+
+function deleteKategoriConfirm(idOrNama, namaLabel){
+  if (!confirm('Hapus kategori "' + (namaLabel || idOrNama) + '"?\n\nKategori hanya bisa dihapus jika sudah tidak berisi materi.')) return;
+  callServer('deleteKategori', idOrNama)
+    .then(() => { showToast('Kategori dihapus.', 'success'); loadAdminMateri(); })
+    .catch(err => showToast(err.message || err, 'error'));
 }
 
 function onMateriFileChosen(input){
@@ -1894,14 +2083,23 @@ function openMateriModal(id){
   document.getElementById('materiModalTitle').innerText = id ? 'Edit Materi' : 'Unggah Materi';
   document.getElementById('materiIdInput').value = id || '';
 
+  // Isi dropdown kategori dari folder
+  const sel = document.getElementById('materiKategori');
+  const cats = CACHE.kategoriFull && CACHE.kategoriFull.length
+    ? CACHE.kategoriFull.map(c => c.nama)
+    : (CACHE.kategori || []);
+  sel.innerHTML = '<option value="">— Pilih kategori —</option>' +
+    cats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+
   if (id) {
     const m = CACHE.materi.find(x => x.id === id);
-    document.getElementById('materiKategori').value = m ? m.kategori : '';
+    sel.value = m ? m.kategori : '';
     document.getElementById('materiJudul').value = m ? m.judul : '';
     document.getElementById('materiKkm').value = (m && m.kkm !== undefined && m.kkm !== null) ? m.kkm : 70;
     document.getElementById('materiFileEditHint').innerText = 'File saat ini: ' + ((m && m.fileName) || '-') + ' — kosongkan jika tidak ingin mengganti file.';
   } else {
-    document.getElementById('materiKategori').value = '';
+    // Prefill kategori = folder yang sedang dibuka
+    sel.value = ADMIN_ACTIVE_KATEGORI || '';
     document.getElementById('materiJudul').value = '';
     document.getElementById('materiKkm').value = 70;
     document.getElementById('materiFileEditHint').innerText = '';
@@ -1939,7 +2137,11 @@ function submitMateriForm(){
     } else {
       showToast('Materi berhasil disimpan.', 'success');
     }
-    loadAdminMateri();
+    if (ADMIN_ACTIVE_KATEGORI) {
+      openAdminKategoriFolder(ADMIN_ACTIVE_KATEGORI);
+    } else {
+      loadAdminMateri();
+    }
   }).catch(err => {
     document.getElementById('materiSubmitText').innerText = 'Simpan Materi';
     document.getElementById('materiSubmitSpinner').classList.add('d-none');
@@ -1951,7 +2153,11 @@ function submitMateriForm(){
 function deleteMateriConfirm(id){
   if (!confirm('Hapus materi ini? File di Drive & semua soal terkait juga akan terhapus.')) return;
   callServer('deleteMateri', id)
-    .then(() => { showToast('Materi dihapus.', 'success'); loadAdminMateri(); })
+    .then(() => {
+      showToast('Materi dihapus.', 'success');
+      if (ADMIN_ACTIVE_KATEGORI) openAdminKategoriFolder(ADMIN_ACTIVE_KATEGORI);
+      else loadAdminMateri();
+    })
     .catch(onServerError);
 }
 
@@ -2046,9 +2252,6 @@ async function loadSoalForScope(){
     area.innerHTML = errorStateHtml(err.message || err, 'loadSoalForScope()');
   }
 }
-
-// backward-compatible alias
-async function loadSoalForScope(){ return loadSoalForScope(); }
 
 function renderAdminSoalList(list){
   const area = document.getElementById('soalManageArea');
@@ -2494,34 +2697,105 @@ function materiCardHtml(m){
  * STUDENT: MATERI LIST
  * ========================================================*/
 async function loadStudentMateriListScreen(){
-  const cont = document.getElementById('studentMateriList');
+  studentBackToFolders();
+  const cont = document.getElementById('studentKategoriList');
   cont.innerHTML = skeletonCards(6);
+  const searchEl = document.getElementById('studentKategoriSearch');
+  if (searchEl) searchEl.value = '';
+
   try {
-    const list = (await callServer('getMateriList')) || [];
-    CACHE.materi = list;
-    renderStudentMateriList();
+    let list = [];
+    try {
+      list = (await callServer('getKategoriFull')) || [];
+    } catch (e) {
+      const names = (await callServer('getKategoriList')) || [];
+      list = names.map(n => ({ nama: n, materiCount: 0, deskripsi: '' }));
+    }
+    CACHE.kategoriFull = list;
+    renderStudentKategoriList(list);
   } catch (err) {
     cont.innerHTML = errorStateHtml(err.message || err, 'loadStudentMateriListScreen()');
   }
+}
+
+function filterStudentKategori(){
+  const q = (document.getElementById('studentKategoriSearch')?.value || '').trim().toLowerCase();
+  const list = !q ? (CACHE.kategoriFull||[]) : (CACHE.kategoriFull||[]).filter(c =>
+    (c.nama||'').toLowerCase().includes(q) ||
+    (c.deskripsi||'').toLowerCase().includes(q)
+  );
+  renderStudentKategoriList(list);
+}
+
+function renderStudentKategoriList(list){
+  const cont = document.getElementById('studentKategoriList');
+  if (!list.length) {
+    cont.innerHTML = '<div class="empty-state w-100"><i class="bi bi-folder-x"></i>Belum ada kategori materi.</div>';
+    return;
+  }
+  cont.innerHTML = list.map(c => {
+    const safe = escapeHtml(c.nama).replace(/'/g, "\'");
+    return `
+    <div class="col-sm-6 col-lg-4">
+      <div class="folder-card glass fade-item" onclick="openStudentKategoriFolder('${safe}')" role="button" tabindex="0">
+        <div class="body">
+          <div class="d-flex align-items-start gap-3">
+            <div class="folder-icon"><i class="bi bi-folder-fill"></i></div>
+            <div style="min-width:0;flex:1">
+              <h6 class="font-display mb-1 text-truncate-2">${escapeHtml(c.nama)}</h6>
+              <div class="text-muted" style="font-size:.8rem">${c.materiCount || 0} materi</div>
+              ${c.deskripsi ? `<div class="text-muted mt-1 text-truncate-2" style="font-size:.78rem">${escapeHtml(c.deskripsi)}</div>` : ''}
+            </div>
+          </div>
+          <div class="mt-3 text-emerald fw-semibold" style="font-size:.85rem">Buka folder <i class="bi bi-arrow-right"></i></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function openStudentKategoriFolder(nama){
+  STUDENT_ACTIVE_KATEGORI = nama;
+  document.getElementById('studentMateriFoldersView').style.display = 'none';
+  document.getElementById('studentMateriInsideView').style.display = 'block';
+  document.getElementById('studentActiveKategoriTitle').innerText = nama;
+  const cont = document.getElementById('studentMateriList');
+  cont.innerHTML = skeletonCards(6);
 
   try {
-    const cats = (await callServer('getKategoriList')) || [];
-    const sel = document.getElementById('studentKategoriFilter');
-    sel.innerHTML = '<option value="">Semua Kategori</option>' + cats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
-  } catch (err) { /* non-kritis */ }
+    let list;
+    try {
+      list = (await callServer('getMateriByKategori', nama)) || [];
+    } catch (e) {
+      const all = (await callServer('getMateriList')) || [];
+      list = all.filter(m => m.kategori === nama);
+    }
+    CACHE.materi = list;
+    renderStudentMateriList();
+  } catch (err) {
+    cont.innerHTML = errorStateHtml(err.message || err);
+  }
+}
+
+function studentBackToFolders(){
+  STUDENT_ACTIVE_KATEGORI = null;
+  const folders = document.getElementById('studentMateriFoldersView');
+  const inside = document.getElementById('studentMateriInsideView');
+  if (folders) folders.style.display = 'block';
+  if (inside) inside.style.display = 'none';
 }
 
 function renderStudentMateriList(){
-  const filter = document.getElementById('studentKategoriFilter').value;
-  const list = filter ? CACHE.materi.filter(m => m.kategori === filter) : CACHE.materi;
+  const list = CACHE.materi || [];
   const cont = document.getElementById('studentMateriList');
-  if (!list.length) { cont.innerHTML = '<div class="empty-state w-100"><i class="bi bi-journal-x"></i>Tidak ada materi ditemukan.</div>'; return; }
+  if (!list.length) {
+    cont.innerHTML = '<div class="empty-state w-100"><i class="bi bi-journal-x"></i>Belum ada materi di kategori ini.</div>';
+    return;
+  }
   cont.innerHTML = list.map(m => materiCardHtml(m)).join('');
 }
 
-/* ==========================================================
- * STUDENT: BACA MATERI
- * ========================================================*/
+
 async function openMateriRead(id){
   CACHE.activeMateriId = id;
   navTo('student-read');
