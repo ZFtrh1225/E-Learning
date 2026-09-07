@@ -913,7 +913,7 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
           <input type="password" class="form-control form-control-premium" id="loginPassword" placeholder="Masukkan password" required autocomplete="current-password" enterkeyhint="go">
         </div>
         <div id="loginHint" class="mb-3" style="font-size:.8rem;color:var(--muted-dark)">
-          Akun siswa baru? Cukup isi username bebas &amp; password angka — akun otomatis dibuat.
+          Akun siswa hanya bisa dibuat oleh <b>admin</b>. Hubungi admin jika belum memiliki akun.
         </div>
         <div class="alert alert-danger py-2" id="loginError" role="alert"></div>
         <button type="submit" class="btn btn-premium w-100" id="loginSubmitBtn">
@@ -948,6 +948,7 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
       <button class="side-link" data-target="student-dashboard" onclick="navTo('student-dashboard')"><i class="bi bi-grid-1x2-fill"></i>Dashboard</button>
       <button class="side-link" data-target="student-materi" onclick="navTo('student-materi')"><i class="bi bi-journal-richtext"></i>Materi Belajar</button>
       <button class="side-link" data-target="student-latihan" onclick="navTo('student-latihan')"><i class="bi bi-patch-question"></i>Latihan Soal</button>
+      <button class="side-link" data-target="student-flashcard" onclick="navTo('student-flashcard')"><i class="bi bi-layers"></i>Flashcard</button>
       <button class="side-link" data-target="student-riwayat" onclick="navTo('student-riwayat')"><i class="bi bi-clock-history"></i>Riwayat Latihan</button>
     </div>
 
@@ -1090,19 +1091,61 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
       <!-- ============ ADMIN: SISWA ============ -->
       <div class="screen" id="admin-siswa">
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-          <h5 class="font-display mb-0">Daftar Siswa</h5>
-          <div class="admin-search-wrap">
-            <i class="bi bi-search"></i>
-            <input type="search" class="form-control form-control-premium" id="adminSiswaSearch" placeholder="Cari siswa..." oninput="filterAdminSiswa()" style="min-height:42px;padding-top:10px;padding-bottom:10px">
+          <div>
+            <h5 class="font-display mb-0">Manajemen Siswa</h5>
+            <div class="text-muted" style="font-size:.82rem">Hanya admin yang dapat menambah & menghapus akun siswa.</div>
+          </div>
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <div class="admin-search-wrap">
+              <i class="bi bi-search"></i>
+              <input type="search" class="form-control form-control-premium" id="adminSiswaSearch" placeholder="Cari siswa..." oninput="filterAdminSiswa()" style="min-height:42px;padding-top:10px;padding-bottom:10px">
+            </div>
+            <button class="btn btn-premium btn-sm px-3" onclick="openAddStudentModal()">
+              <i class="bi bi-person-plus me-1"></i>Tambah Siswa
+            </button>
           </div>
         </div>
         <div class="table-responsive">
           <table class="table table-premium">
-            <thead><tr><th>Siswa</th><th>Terdaftar</th><th>Latihan</th><th>Rata-rata</th><th>Progress Materi</th></tr></thead>
+            <thead><tr><th>Siswa</th><th>Username</th><th>Streak</th><th>Latihan</th><th>Rata-rata</th><th>Progress</th><th>Aksi</th></tr></thead>
             <tbody id="adminSiswaTable"></tbody>
           </table>
         </div>
         <div id="adminSiswaEmpty"></div>
+      </div>
+
+      <!-- Modal Tambah/Edit Siswa -->
+      <div class="modal fade" id="studentFormModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title font-display" id="studentFormTitle">Tambah Siswa</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body">
+              <input type="hidden" id="studentFormMode" value="add">
+              <div class="mb-3">
+                <label class="form-label small-caps">Username</label>
+                <input type="text" class="form-control form-control-premium" id="studentFormUsername" placeholder="contoh: budi01" autocomplete="off">
+              </div>
+              <div class="mb-3">
+                <label class="form-label small-caps">Nama Lengkap</label>
+                <input type="text" class="form-control form-control-premium" id="studentFormFullname" placeholder="Nama lengkap siswa">
+              </div>
+              <div class="mb-3">
+                <label class="form-label small-caps">Password</label>
+                <input type="text" class="form-control form-control-premium" id="studentFormPassword" placeholder="Password untuk login siswa">
+                <div class="text-muted mt-1" style="font-size:.75rem" id="studentFormPassHint">Password akan digunakan siswa untuk masuk.</div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+              <button type="button" class="btn btn-premium" id="studentFormSubmitBtn" onclick="submitStudentForm()">
+                <span id="studentFormSubmitText">Simpan</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- ============ ADMIN: HASIL ============ -->
@@ -1126,8 +1169,8 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
       <!-- ============ STUDENT: DASHBOARD ============ -->
       <div class="screen" id="student-dashboard">
         <div class="row g-3 mb-4">
-          <div class="col-12 col-lg-7">
-            <div class="card-premium h-100">
+          <div class="col-12 col-lg-6">
+            <div class="card-premium glass h-100">
               <div class="d-flex justify-content-between align-items-start">
                 <div>
                   <div class="small-caps mb-1">Progress Belajar</div>
@@ -1141,11 +1184,69 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
               <div class="text-muted" style="font-size:.84rem" id="progressSubtext">0 dari 0 materi diselesaikan</div>
             </div>
           </div>
-          <div class="col-6 col-lg" style="flex:1">
+          <div class="col-6 col-lg-3">
             <div class="stat-card stat-emerald h-100"><div class="icon-badge"><i class="bi bi-clipboard-check"></i></div><div class="num" id="stuTotalLatihan">0</div><div class="lbl">Latihan Selesai</div></div>
           </div>
-          <div class="col-6 col-lg" style="flex:1">
+          <div class="col-6 col-lg-3">
             <div class="stat-card stat-gold h-100"><div class="icon-badge"><i class="bi bi-star-fill"></i></div><div class="num" id="stuRataRata">0</div><div class="lbl">Rata-rata Nilai</div></div>
+          </div>
+        </div>
+
+        <!-- Streak + Weekly Goal + Badges -->
+        <div class="row g-3 mb-4">
+          <div class="col-md-4">
+            <div class="card-premium glass h-100">
+              <div class="d-flex align-items-center gap-3">
+                <div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,#f59e0b,#d97706);display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.4rem">
+                  <i class="bi bi-fire"></i>
+                </div>
+                <div>
+                  <div class="small-caps mb-0">Streak Harian</div>
+                  <div class="font-display" style="font-size:1.5rem" id="stuStreak">0</div>
+                  <div class="text-muted" style="font-size:.75rem">Terpanjang: <span id="stuLongestStreak">0</span> hari</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card-premium glass h-100">
+              <div class="small-caps mb-1">Tujuan Mingguan</div>
+              <div class="d-flex align-items-end gap-2 mb-2">
+                <div class="font-display" style="font-size:1.4rem"><span id="stuWeeklyProgress">0</span>/<span id="stuWeeklyGoal">0</span></div>
+                <div class="text-muted" style="font-size:.78rem;padding-bottom:4px">aktivitas</div>
+              </div>
+              <div class="progress-premium"><div class="bar" id="stuWeeklyBar" style="width:0%"></div></div>
+              <button class="btn btn-sm btn-gold-outline mt-2" onclick="promptWeeklyGoal()">Atur tujuan</button>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card-premium glass h-100">
+              <div class="small-caps mb-2">Badge</div>
+              <div id="stuBadgesList" class="d-flex flex-wrap gap-2" style="min-height:36px">
+                <span class="text-muted" style="font-size:.82rem">Belum ada badge</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Weakness + Wrong Queue -->
+        <div class="row g-3 mb-4">
+          <div class="col-md-6">
+            <div class="card-premium glass">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="font-display mb-0"><i class="bi bi-bar-chart-steps me-1 text-gold"></i>Analisis Kelemahan</h6>
+              </div>
+              <div id="stuWeaknessList" class="text-muted" style="font-size:.88rem">Memuat...</div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="card-premium glass">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="font-display mb-0"><i class="bi bi-arrow-repeat me-1 text-emerald"></i>Ulangi Soal Salah</h6>
+                <button class="btn btn-sm btn-premium" id="btnRetryWrong" onclick="startRetryQuiz()" style="display:none">Kerjakan</button>
+              </div>
+              <div id="stuWrongQueueInfo" class="text-muted" style="font-size:.88rem">Tidak ada soal yang perlu diulang.</div>
+            </div>
           </div>
         </div>
 
@@ -1212,6 +1313,24 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
       <div class="screen" id="student-quiz">
         <button class="btn btn-icon-sm mb-3" onclick="navTo('student-latihan')" aria-label="Kembali"><i class="bi bi-arrow-left"></i></button>
         <div id="studentQuizArea"></div>
+      </div>
+
+      <!-- ============ STUDENT: FLASHCARD ============ -->
+      <div class="screen" id="student-flashcard">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <div>
+            <h5 class="font-display mb-0">Flashcard</h5>
+            <div class="text-muted" style="font-size:.82rem">Kartu belajar untuk menghafal poin penting.</div>
+          </div>
+          <button class="btn btn-premium btn-sm px-3" onclick="openAddFlashcardModal()">
+            <i class="bi bi-plus-lg me-1"></i>Tambah Kartu
+          </button>
+        </div>
+        <div id="flashcardList" class="row g-3"></div>
+        <div id="flashcardEmpty" class="empty-state" style="display:none">
+          <i class="bi bi-layers"></i>
+          Belum ada flashcard. Buat dari ringkasan materi atau tambah manual.
+        </div>
       </div>
 
       <!-- ============ STUDENT: RIWAYAT ============ -->
@@ -1919,6 +2038,7 @@ function buildBottomNav(role){
       <button class="bnav-item" data-target="student-dashboard" onclick="navTo('student-dashboard')"><i class="bi bi-grid-1x2-fill"></i><span>Home</span></button>
       <button class="bnav-item" data-target="student-materi" onclick="navTo('student-materi')"><i class="bi bi-journal-richtext"></i><span>Materi</span></button>
       <button class="bnav-item" data-target="student-latihan" onclick="navTo('student-latihan')"><i class="bi bi-patch-question"></i><span>Latihan</span></button>
+      <button class="bnav-item" data-target="student-flashcard" onclick="navTo('student-flashcard')"><i class="bi bi-layers"></i><span>Kartu</span></button>
       <button class="bnav-item" data-target="student-riwayat" onclick="navTo('student-riwayat')"><i class="bi bi-clock-history"></i><span>Riwayat</span></button>
     `;
   }
@@ -1928,13 +2048,14 @@ const TITLE_MAP = {
   'admin-dashboard': 'Dashboard',
   'admin-materi': 'Manajemen Materi',
   'admin-soal': 'Manajemen Soal',
-  'admin-siswa': 'Daftar Siswa',
+  'admin-siswa': 'Manajemen Siswa',
   'admin-hasil': 'Hasil Latihan Siswa',
   'student-dashboard': 'Dashboard',
   'student-materi': 'Materi Belajar',
   'student-read': 'Baca Materi',
   'student-latihan': 'Latihan Soal',
   'student-quiz': 'Kerjakan Soal',
+  'student-flashcard': 'Flashcard',
   'student-riwayat': 'Riwayat Latihan'
 };
 
@@ -1976,6 +2097,7 @@ function navTo(screenId){
   if (screenId === 'student-latihan') loadStudentLatihanScreen();
   if (screenId === 'student-riwayat') loadStudentRiwayat();
   if (screenId === 'student-dashboard') loadStudentDashboard();
+  if (screenId === 'student-flashcard') loadStudentFlashcards();
 }
 
 function toggleSidebar(open){
@@ -2780,7 +2902,7 @@ function deleteSoalConfirm(id){
  * ========================================================*/
 async function loadAdminSiswa(){
   const tb = document.getElementById('adminSiswaTable');
-  tb.innerHTML = skeletonTableRows(5, 5);
+  tb.innerHTML = skeletonTableRows(7, 5);
   const searchEl = document.getElementById('adminSiswaSearch');
   if (searchEl) searchEl.value = '';
   try {
@@ -2788,7 +2910,7 @@ async function loadAdminSiswa(){
     CACHE.adminSiswa = list;
     if (!list.length) {
       tb.innerHTML='';
-      document.getElementById('adminSiswaEmpty').innerHTML = '<div class="empty-state"><i class="bi bi-people"></i>Belum ada siswa terdaftar.</div>';
+      document.getElementById('adminSiswaEmpty').innerHTML = '<div class="empty-state"><i class="bi bi-people"></i>Belum ada siswa. Klik <b>Tambah Siswa</b> untuk mendaftarkan.</div>';
       return;
     }
     document.getElementById('adminSiswaEmpty').innerHTML='';
@@ -2809,12 +2931,94 @@ function renderAdminSiswaTable(list){
   document.getElementById('adminSiswaEmpty').innerHTML='';
   tb.innerHTML = list.map(u => `
     <tr class="fade-item">
-      <td><div class="d-flex align-items-center gap-2"><div class="avatar-circle" style="width:32px;height:32px;font-size:.8rem;color:#fff;background:linear-gradient(135deg,var(--emerald),var(--emerald-dark))">${(u.username||'').charAt(0).toUpperCase()}</div><span class="text-truncate" style="max-width:120px">${escapeHtml(u.username)}</span></div></td>
-      <td class="text-muted" style="font-size:.85rem">${formatDate(u.tanggalDaftar)}</td>
+      <td>
+        <div class="d-flex align-items-center gap-2">
+          <div class="avatar-circle" style="width:32px;height:32px;font-size:.8rem;color:#fff;background:linear-gradient(135deg,var(--emerald),var(--emerald-dark))">${(u.fullname||u.username||'').charAt(0).toUpperCase()}</div>
+          <div>
+            <div class="fw-semibold text-truncate" style="max-width:140px">${escapeHtml(u.fullname||u.username)}</div>
+            <div class="text-muted" style="font-size:.72rem">${formatDate(u.tanggalDaftar)}</div>
+          </div>
+        </div>
+      </td>
+      <td><code style="font-size:.85rem">${escapeHtml(u.username)}</code></td>
+      <td><span class="badge rounded-pill" style="background:rgba(245,158,11,.15);color:#d97706"><i class="bi bi-fire me-1"></i>${u.streak||0}</span></td>
       <td>${u.totalLatihan}</td>
       <td>${scorePill(u.rataRata)}</td>
-      <td style="min-width:140px"><div class="progress-premium"><div class="bar" style="width:${u.progress}%"></div></div><div style="font-size:.72rem;color:var(--muted-dark)" class="mt-1">${u.progress}% selesai</div></td>
+      <td style="min-width:120px">
+        <div class="progress-premium"><div class="bar" style="width:${u.progress||0}%"></div></div>
+        <div style="font-size:.72rem;color:var(--muted-dark)" class="mt-1">${u.progress||0}%</div>
+      </td>
+      <td>
+        <div class="d-flex gap-1">
+          <button class="btn-icon-sm" title="Edit / Reset password" onclick="openEditStudentModal('${escapeHtml(u.username)}','${escapeHtml(u.fullname||'')}')"><i class="bi bi-pencil"></i></button>
+          <button class="btn-icon-sm" title="Hapus siswa" style="color:#ef4444" onclick="confirmDeleteStudent('${escapeHtml(u.username)}')"><i class="bi bi-trash"></i></button>
+        </div>
+      </td>
     </tr>`).join('');
+}
+
+function openAddStudentModal(){
+  document.getElementById('studentFormMode').value = 'add';
+  document.getElementById('studentFormTitle').innerText = 'Tambah Siswa';
+  document.getElementById('studentFormUsername').value = '';
+  document.getElementById('studentFormUsername').disabled = false;
+  document.getElementById('studentFormFullname').value = '';
+  document.getElementById('studentFormPassword').value = '';
+  document.getElementById('studentFormPassHint').innerText = 'Password akan digunakan siswa untuk masuk.';
+  document.getElementById('studentFormSubmitText').innerText = 'Tambah Siswa';
+  new bootstrap.Modal(document.getElementById('studentFormModal')).show();
+}
+
+function openEditStudentModal(username, fullname){
+  document.getElementById('studentFormMode').value = 'edit';
+  document.getElementById('studentFormTitle').innerText = 'Edit Siswa';
+  document.getElementById('studentFormUsername').value = username;
+  document.getElementById('studentFormUsername').disabled = true;
+  document.getElementById('studentFormFullname').value = fullname || '';
+  document.getElementById('studentFormPassword').value = '';
+  document.getElementById('studentFormPassHint').innerText = 'Kosongkan password jika tidak ingin mengubah.';
+  document.getElementById('studentFormSubmitText').innerText = 'Simpan Perubahan';
+  new bootstrap.Modal(document.getElementById('studentFormModal')).show();
+}
+
+async function submitStudentForm(){
+  const mode = document.getElementById('studentFormMode').value;
+  const username = document.getElementById('studentFormUsername').value.trim();
+  const fullname = document.getElementById('studentFormFullname').value.trim();
+  const password = document.getElementById('studentFormPassword').value.trim();
+  if (!username) { showToast('Username wajib diisi.', 'warn'); return; }
+  if (mode === 'add' && !password) { showToast('Password wajib diisi untuk siswa baru.', 'warn'); return; }
+
+  const btn = document.getElementById('studentFormSubmitBtn');
+  btn.disabled = true;
+  try {
+    if (mode === 'add') {
+      await callServer('addStudent', { username, password, fullname: fullname || username });
+      showToast('Siswa berhasil ditambahkan.', 'success');
+    } else {
+      const payload = { username, fullname: fullname || username };
+      if (password) payload.password = password;
+      await callServer('updateStudent', payload);
+      showToast('Data siswa diperbarui.', 'success');
+    }
+    bootstrap.Modal.getInstance(document.getElementById('studentFormModal')).hide();
+    loadAdminSiswa();
+  } catch (err) {
+    showToast(err.message || err, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function confirmDeleteStudent(username){
+  if (!confirm('Hapus siswa "' + username + '"? Data progres dan hasil latihan tetap ada, tetapi siswa tidak bisa login lagi.')) return;
+  try {
+    await callServer('deleteStudent', username);
+    showToast('Siswa dihapus.', 'success');
+    loadAdminSiswa();
+  } catch (err) {
+    showToast(err.message || err, 'error');
+  }
 }
 
 /* ==========================================================
@@ -2994,6 +3198,55 @@ function showEssayReview(essayArr){
  * ========================================================*/
 async function loadStudentDashboard(){
   await loadBelajarMeta();
+
+  // Profile (streak, badges, weekly, weakness, wrong)
+  try {
+    const profile = await callServer('getStudentProfile', CURRENT_USER.username);
+    if (profile) {
+      document.getElementById('stuStreak').innerText = profile.streak || 0;
+      document.getElementById('stuLongestStreak').innerText = profile.longestStreak || 0;
+      document.getElementById('stuWeeklyProgress').innerText = profile.weeklyProgress || 0;
+      document.getElementById('stuWeeklyGoal').innerText = profile.weeklyGoal || 0;
+      const wp = profile.weeklyGoal > 0 ? Math.min(100, Math.round((profile.weeklyProgress / profile.weeklyGoal) * 100)) : 0;
+      document.getElementById('stuWeeklyBar').style.width = wp + '%';
+
+      // Badges
+      const badgeEl = document.getElementById('stuBadgesList');
+      if (profile.badges && profile.badges.length) {
+        badgeEl.innerHTML = profile.badges.map(b =>
+          `<span class="badge rounded-pill" style="background:var(--emerald-soft);color:var(--emerald-dark);padding:6px 10px;font-size:.75rem"><i class="bi bi-award me-1"></i>${escapeHtml(b.name)}</span>`
+        ).join('');
+      } else {
+        badgeEl.innerHTML = '<span class="text-muted" style="font-size:.82rem">Belum ada badge — terus belajar!</span>';
+      }
+
+      // Weakness
+      const weakEl = document.getElementById('stuWeaknessList');
+      if (profile.weakness && profile.weakness.categories && profile.weakness.categories.length) {
+        weakEl.innerHTML = profile.weakness.categories.slice(0, 5).map(c => {
+          const color = c.level === 'lemah' ? '#ef4444' : (c.level === 'sedang' ? '#f59e0b' : 'var(--emerald)');
+          return `<div class="d-flex justify-content-between align-items-center mb-1">
+            <span>${escapeHtml(c.kategori)}</span>
+            <span style="color:${color};font-weight:600">${c.avgSkor} · ${c.level}</span>
+          </div>`;
+        }).join('');
+      } else {
+        weakEl.innerHTML = '<span class="text-muted">Belum ada data latihan untuk dianalisis.</span>';
+      }
+
+      // Wrong queue
+      const wrongInfo = document.getElementById('stuWrongQueueInfo');
+      const btnRetry = document.getElementById('btnRetryWrong');
+      if (profile.wrongCount > 0) {
+        wrongInfo.innerText = `${profile.wrongCount} soal yang pernah salah siap untuk diulang.`;
+        if (btnRetry) btnRetry.style.display = 'inline-flex';
+      } else {
+        wrongInfo.innerText = 'Tidak ada soal yang perlu diulang. Kerja bagus!';
+        if (btnRetry) btnRetry.style.display = 'none';
+      }
+    }
+  } catch (e) { /* non-critical */ }
+
   try {
     const p = await callServer('getProgressByStudent', CURRENT_USER.username);
     document.getElementById('progressPercentText').innerText = p.persen + '%';
@@ -3004,7 +3257,7 @@ async function loadStudentDashboard(){
   try {
     const list = (await callServer('getHasilByStudent', CURRENT_USER.username)) || [];
     document.getElementById('stuTotalLatihan').innerText = list.length;
-    const avg = list.length ? Math.round(list.reduce((s,h)=>s+Number(h.skor||0),0)/list.length) : 0;
+    const avg = list.length ? Math.round(list.reduce((s,h)=>s+Number(h.skorAkhir != null ? h.skorAkhir : h.skor||0),0)/list.length) : 0;
     document.getElementById('stuRataRata').innerText = avg;
   } catch (err) { onServerError(err); }
 
@@ -3017,6 +3270,59 @@ async function loadStudentDashboard(){
     cont.innerHTML = list.slice(0,3).map(m => materiCardHtml(m)).join('');
   } catch (err) {
     cont.innerHTML = errorStateHtml(err.message || err, 'loadStudentDashboard()');
+  }
+}
+
+async function promptWeeklyGoal(){
+  const current = document.getElementById('stuWeeklyGoal').innerText || '0';
+  const val = prompt('Atur tujuan aktivitas minggu ini (baca materi / latihan):', current);
+  if (val === null) return;
+  const goal = Math.max(0, parseInt(val, 10) || 0);
+  try {
+    await callServer('setWeeklyGoal', { username: CURRENT_USER.username, goal: goal });
+    showToast('Tujuan mingguan disimpan: ' + goal, 'success');
+    loadStudentDashboard();
+  } catch (err) {
+    showToast(err.message || err, 'error');
+  }
+}
+
+async function startRetryQuiz(){
+  navTo('student-quiz');
+  const area = document.getElementById('studentQuizArea');
+  area.innerHTML = '<div class="spinner-wrap"><div class="spinner-border text-success"></div><span>Memuat soal yang perlu diulang...</span></div>';
+  try {
+    const res = await callServer('getRetryQuiz', CURRENT_USER.username);
+    if (!res.soal || !res.soal.length) {
+      area.innerHTML = '<div class="empty-state"><i class="bi bi-check-circle"></i>Tidak ada soal yang perlu diulang.</div>';
+      return;
+    }
+    ACTIVE_QUIZ_META = { type: 'retry', kategori: '', materiId: '', judul: 'Ulangi Soal yang Salah', cekPemahaman: false };
+    CACHE.quiz = res.soal;
+    // reuse startQuiz renderer by building similar UI
+    let html = `<h5 class="font-display mb-1">Ulangi Soal yang Salah</h5>
+      <div class="text-muted mb-3" style="font-size:.85rem">${res.soal.length} soal dari antrian kesalahanmu</div>
+      <form id="quizForm">`;
+    res.soal.forEach((s, i) => {
+      html += `<div class="quiz-q-card glass"><div class="fw-semibold mb-1">${i+1}. ${escapeHtml(s.pertanyaan || '')}</div>`;
+      if (s.tipe === 'PG') {
+        ['a','b','c','d'].forEach(opt => {
+          if (!s[opt]) return;
+          const letter = opt.toUpperCase();
+          html += `<label class="d-block">
+            <input type="radio" name="q_${s.id}" value="${letter}" class="d-none" onchange="markSelected(this)">
+            <span class="quiz-option">${letter}. ${escapeHtml(s[opt])}</span>
+          </label>`;
+        });
+      } else {
+        html += `<textarea class="form-control form-control-premium mt-2" name="q_${s.id}" rows="3" placeholder="Jawaban..."></textarea>`;
+      }
+      html += `</div>`;
+    });
+    html += `<button type="button" class="btn btn-premium px-4 mt-2 w-100" id="quizSubmitBtn" onclick="submitQuiz()"><i class="bi bi-send-check me-2"></i>Kumpulkan</button></form>`;
+    area.innerHTML = html;
+  } catch (err) {
+    area.innerHTML = errorStateHtml(err.message || err);
   }
 }
 
@@ -3758,6 +4064,101 @@ function closeHasilModal(){
   lastQuizDetails = null;
   pembahasanVisible = false;
   navTo('student-latihan');
+}
+</script>
+<script>
+/* ==========================================================
+ * STUDENT: FLASHCARD
+ * ========================================================*/
+async function loadStudentFlashcards(){
+  const cont = document.getElementById('flashcardList');
+  const empty = document.getElementById('flashcardEmpty');
+  cont.innerHTML = skeletonCards(4);
+  empty.style.display = 'none';
+  try {
+    const list = (await callServer('getFlashcards', CURRENT_USER.username)) || [];
+    if (!list.length) {
+      cont.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    cont.innerHTML = list.map(f => `
+      <div class="col-sm-6 col-lg-4">
+        <div class="card-premium glass fade-item" style="cursor:pointer;min-height:140px" onclick="flipFlashcard(this)">
+          <div class="fc-front">
+            <div class="small-caps mb-1 text-muted">Depan</div>
+            <div class="fw-semibold">${escapeHtml(f.front)}</div>
+          </div>
+          <div class="fc-back" style="display:none">
+            <div class="small-caps mb-1 text-emerald">Belakang</div>
+            <div style="font-size:.92rem">${escapeHtml(f.back)}</div>
+          </div>
+          <div class="mt-3 d-flex justify-content-between align-items-center">
+            <span class="text-muted" style="font-size:.72rem">${escapeHtml(f.kategori||'')}</span>
+            <button class="btn-icon-sm" style="width:32px;height:32px" onclick="event.stopPropagation();deleteFlashcardItem('${f.id}')" title="Hapus"><i class="bi bi-trash" style="font-size:.85rem;color:#ef4444"></i></button>
+          </div>
+        </div>
+      </div>`).join('');
+  } catch (err) {
+    cont.innerHTML = errorStateHtml(err.message || err);
+  }
+}
+
+function flipFlashcard(el){
+  const front = el.querySelector('.fc-front');
+  const back = el.querySelector('.fc-back');
+  if (front.style.display === 'none') {
+    front.style.display = '';
+    back.style.display = 'none';
+  } else {
+    front.style.display = 'none';
+    back.style.display = '';
+  }
+}
+
+function openAddFlashcardModal(){
+  const front = prompt('Teks depan kartu (pertanyaan / istilah):');
+  if (!front) return;
+  const back = prompt('Teks belakang kartu (jawaban / penjelasan):');
+  if (!back) return;
+  saveNewFlashcard(front, back);
+}
+
+async function saveNewFlashcard(front, back){
+  try {
+    await callServer('saveFlashcard', {
+      username: CURRENT_USER.username,
+      front: front,
+      back: back
+    });
+    showToast('Flashcard ditambahkan.', 'success');
+    loadStudentFlashcards();
+  } catch (err) {
+    showToast(err.message || err, 'error');
+  }
+}
+
+async function deleteFlashcardItem(id){
+  if (!confirm('Hapus flashcard ini?')) return;
+  try {
+    await callServer('deleteFlashcard', id);
+    showToast('Flashcard dihapus.', 'success');
+    loadStudentFlashcards();
+  } catch (err) {
+    showToast(err.message || err, 'error');
+  }
+}
+
+async function generateFlashFromMateri(materiId){
+  try {
+    const res = await callServer('generateFlashcardsFromMateri', {
+      username: CURRENT_USER.username,
+      materiId: materiId
+    });
+    showToast(res.created ? `${res.created} flashcard dibuat dari ringkasan.` : (res.message || 'Tidak ada yang dibuat.'), res.created ? 'success' : 'warn');
+  } catch (err) {
+    showToast(err.message || err, 'error');
+  }
 }
 </script>
 <script>
