@@ -1317,19 +1317,46 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
 
       <!-- ============ STUDENT: FLASHCARD ============ -->
       <div class="screen" id="student-flashcard">
-        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-          <div>
-            <h5 class="font-display mb-0">Flashcard</h5>
-            <div class="text-muted" style="font-size:.82rem">Kartu belajar untuk menghafal poin penting.</div>
+        <!-- Level 1: daftar materi -->
+        <div id="flashcardMateriView">
+          <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <div>
+              <h5 class="font-display mb-0">Flashcard</h5>
+              <div class="text-muted" style="font-size:.82rem">Pilih materi untuk melihat atau membuat kartu belajar.</div>
+            </div>
           </div>
-          <button class="btn btn-premium btn-sm px-3" onclick="openAddFlashcardModal()">
-            <i class="bi bi-plus-lg me-1"></i>Tambah Kartu
-          </button>
+          <div id="flashcardMateriList" class="row g-3"></div>
+          <div id="flashcardMateriEmpty" class="empty-state" style="display:none">
+            <i class="bi bi-journal-x"></i>
+            Belum ada materi. Admin perlu mengunggah materi terlebih dahulu.
+          </div>
         </div>
-        <div id="flashcardList" class="row g-3"></div>
-        <div id="flashcardEmpty" class="empty-state" style="display:none">
-          <i class="bi bi-layers"></i>
-          Belum ada flashcard. Buat dari ringkasan materi atau tambah manual.
+        <!-- Level 2: kartu di dalam materi -->
+        <div id="flashcardInsideView" style="display:none">
+          <button type="button" class="btn btn-icon-sm mb-3" onclick="flashcardBackToMateri()" aria-label="Kembali">
+            <i class="bi bi-arrow-left"></i>
+          </button>
+          <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+            <div style="min-width:0;flex:1">
+              <span class="badge-kategori" id="flashActiveKategori">-</span>
+              <h5 class="font-display mb-0 mt-1" id="flashActiveJudul">Materi</h5>
+              <div class="text-muted" style="font-size:.82rem" id="flashActiveCount">0 kartu</div>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+              <button class="btn btn-gold-outline btn-sm px-3" id="btnGenerateFlash" onclick="generateFlashFromActiveMateri()">
+                <i class="bi bi-magic me-1"></i>Dari Ringkasan
+              </button>
+              <button class="btn btn-premium btn-sm px-3" onclick="openAddFlashcardModal()">
+                <i class="bi bi-plus-lg me-1"></i>Tambah Kartu
+              </button>
+            </div>
+          </div>
+          <div id="flashcardList" class="row g-3"></div>
+          <div id="flashcardEmpty" class="empty-state" style="display:none">
+            <i class="bi bi-layers"></i>
+            Belum ada flashcard untuk materi ini.<br>
+            <span class="text-muted" style="font-size:.85rem">Tambah manual atau buat otomatis dari ringkasan materi.</span>
+          </div>
         </div>
       </div>
 
@@ -1589,7 +1616,7 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
  * CONFIG — ganti URL ini dengan URL Web App Google Apps Script
  * Setelah deploy Code.gs sebagai Web App, salin URL (.../exec)
  * ========================================================*/
-const API_URL = 'https://script.google.com/macros/s/AKfycbxAyq0anWSb4VpLMcHZQaOlj1x6vJHij810t6mI5ZCWtubMOpTAjScvXj8eFnIy-IA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwR00KBQHy65mwM0iLOrOdcbz9aTxF5YbAOAT8lYfL_ywvZA1Bex1FcHNt7K4xdKW8/exec';
 // Contoh: 'https://script.google.com/macros/s/AKfycbx.../exec'
 
 /* ==========================================================
@@ -1803,7 +1830,7 @@ function filterAdminSoal(){
  * API CLIENT (fetch) — untuk hosting di GitHub Pages / Netlify
  * ========================================================*/
 function buildPayload(action, args) {
-  // Mapping pemanggilan lama google.script.run.xxx(...) ke body API
+  // Mapping pemanggilan ke body API
   const payload = { action };
   switch (action) {
     case 'login':
@@ -1814,30 +1841,29 @@ function buildPayload(action, args) {
     case 'deleteMateri':
     case 'deleteSoal':
     case 'toggleSoalStatus':
+    case 'deleteFlashcard':
+    case 'duplicateMateri':
+    case 'duplicateSoal':
+    case 'getHasilById':
+    case 'setSpreadsheetId':
       payload.id = args[0];
       break;
     case 'getSoalByMateriAdmin':
     case 'getSoalByMateriStudent':
+    case 'getCekPemahaman':
+    case 'getLearningPath':
       payload.materiId = args[0];
+      if (args[1] != null) payload.username = args[1];
       break;
     case 'getSoalByKategoriAdmin':
     case 'getSoalByKategoriStudent':
-      payload.kategori = args[0];
-      break;
-    case 'getSoalByMateriAdmin':
-    case 'getSoalByMateriStudent':
-      payload.materiId = args[0];
-      break;
     case 'getMateriByKategori':
       payload.kategori = args[0];
       break;
     case 'deleteKategori':
-    case 'getHasilById':
       payload.id = args[0];
       break;
     case 'gradeEssay':
-      payload.data = args[0];
-      break;
     case 'saveMateri':
     case 'saveSoal':
     case 'saveSettings':
@@ -1845,6 +1871,16 @@ function buildPayload(action, args) {
     case 'initChunkUpload':
     case 'uploadChunk':
     case 'finalizeChunkUpload':
+    case 'markMateriDibaca':
+    case 'toggleBookmark':
+    case 'saveCatatanMateri':
+    case 'saveFlashcard':
+    case 'generateFlashcardsFromMateri':
+    case 'addStudent':
+    case 'updateStudent':
+    case 'resetStudentPassword':
+    case 'setWeeklyGoal':
+    case 'recordActivity':
       payload.data = args[0];
       break;
     case 'abortChunkUpload':
@@ -1856,24 +1892,40 @@ function buildPayload(action, args) {
     case 'getHasilByStudent':
     case 'getProgressByStudent':
     case 'getBelajarMeta':
+    case 'getStudentProfile':
+    case 'getBadges':
+    case 'getWrongQueue':
+    case 'getRetryQuiz':
+    case 'getWeaknessAnalysis':
       payload.username = args[0];
       break;
-    case 'markMateriDibaca':
-    case 'toggleBookmark':
-    case 'saveCatatanMateri':
+    case 'getFlashcards':
+      payload.username = args[0];
+      if (args[1] != null) payload.materiId = args[1];
+      break;
+    case 'deleteStudent':
+      payload.username = args[0];
+      break;
+    case 'exportHasil':
+      payload.username = args[0] || '';
+      break;
+    case 'clearWrongItem':
       payload.data = args[0];
       break;
-    case 'getCekPemahaman':
-      payload.materiId = args[0];
-      break;
-    case 'setSpreadsheetId':
-      payload.id = args[0];
-      break;
     default:
-      // no-arg actions: getMateriList, getKategoriList, getAdminStats, dll
-      // pass first arg as value if present (fallback)
-      if (args.length === 1 && args[0] != null && typeof args[0] !== 'object') {
-        payload.value = args[0];
+      // Fallback: object → merge; scalar → value
+      if (args.length === 1 && args[0] != null) {
+        if (typeof args[0] === 'object' && !Array.isArray(args[0])) {
+          Object.keys(args[0]).forEach(k => {
+            if (payload[k] === undefined) payload[k] = args[0][k];
+          });
+          // Juga simpan sebagai data agar backend data.data || data tetap jalan
+          if (!payload.data) payload.data = args[0];
+        } else {
+          payload.value = args[0];
+        }
+      } else if (args.length > 1) {
+        payload.args = args;
       }
       break;
   }
@@ -1920,6 +1972,11 @@ async function callServer(name, ...args) {
         throw new Error('Server mengembalikan halaman HTML (bukan JSON). Deployment Web App harus "Who has access: Anyone".');
       }
       throw new Error('Respons server bukan JSON. Cek deployment Apps Script & pastikan API_URL benar (berakhiran /exec).');
+    }
+
+    // Backend error (success: false) → throw agar catch di caller jalan
+    if (data && data.success === false) {
+      throw new Error(data.message || 'Permintaan gagal.');
     }
 
     return data;
@@ -4068,34 +4125,126 @@ function closeHasilModal(){
 </script>
 <script>
 /* ==========================================================
- * STUDENT: FLASHCARD
+ * STUDENT: FLASHCARD (per materi)
  * ========================================================*/
+let FLASH_ACTIVE_MATERI = null; // { id, judul, kategori, ringkasan }
+
 async function loadStudentFlashcards(){
-  const cont = document.getElementById('flashcardList');
-  const empty = document.getElementById('flashcardEmpty');
-  cont.innerHTML = skeletonCards(4);
+  // Selalu mulai dari daftar materi
+  flashcardBackToMateri();
+  const cont = document.getElementById('flashcardMateriList');
+  const empty = document.getElementById('flashcardMateriEmpty');
+  cont.innerHTML = skeletonCards(6);
   empty.style.display = 'none';
+
   try {
-    const list = (await callServer('getFlashcards', CURRENT_USER.username)) || [];
+    const [materiList, allCards] = await Promise.all([
+      callServer('getMateriList'),
+      callServer('getFlashcards', CURRENT_USER.username)
+    ]);
+    const list = materiList || [];
+    const cards = Array.isArray(allCards) ? allCards : [];
+    CACHE.materi = list;
+    CACHE.flashcardsAll = cards;
+
+    // Hitung jumlah kartu per materi
+    const countMap = {};
+    cards.forEach(c => {
+      const mid = String(c.materiId || '');
+      if (mid) countMap[mid] = (countMap[mid] || 0) + 1;
+    });
+
     if (!list.length) {
       cont.innerHTML = '';
       empty.style.display = 'block';
       return;
     }
+
+    cont.innerHTML = list.map(m => {
+      const count = countMap[m.id] || 0;
+      return `
+      <div class="col-sm-6 col-lg-4">
+        <div class="folder-card glass fade-item" onclick="openFlashcardMateri('${m.id}')" role="button" tabindex="0">
+          <div class="body">
+            <div class="d-flex align-items-start gap-3">
+              <div class="folder-icon"><i class="bi bi-layers-fill"></i></div>
+              <div style="min-width:0;flex:1">
+                <span class="badge-kategori">${escapeHtml(m.kategori||'-')}</span>
+                <h6 class="font-display mb-1 mt-1 text-truncate-2">${escapeHtml(m.judul)}</h6>
+                <div class="text-muted" style="font-size:.8rem">
+                  <i class="bi bi-card-heading me-1"></i>${count} kartu
+                </div>
+              </div>
+            </div>
+            <div class="mt-3 text-emerald fw-semibold" style="font-size:.85rem">Buka flashcard <i class="bi bi-arrow-right"></i></div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch (err) {
+    cont.innerHTML = errorStateHtml(err.message || err);
+  }
+}
+
+function flashcardBackToMateri(){
+  FLASH_ACTIVE_MATERI = null;
+  document.getElementById('flashcardMateriView').style.display = 'block';
+  document.getElementById('flashcardInsideView').style.display = 'none';
+}
+
+async function openFlashcardMateri(materiId){
+  const m = (CACHE.materi || []).find(x => x.id === materiId);
+  if (!m) {
+    try {
+      const full = await callServer('getMateriById', materiId);
+      if (!full) { showToast('Materi tidak ditemukan.', 'error'); return; }
+      FLASH_ACTIVE_MATERI = full;
+    } catch (e) {
+      showToast(e.message || e, 'error');
+      return;
+    }
+  } else {
+    FLASH_ACTIVE_MATERI = m;
+  }
+
+  document.getElementById('flashcardMateriView').style.display = 'none';
+  document.getElementById('flashcardInsideView').style.display = 'block';
+  document.getElementById('flashActiveKategori').innerText = FLASH_ACTIVE_MATERI.kategori || '-';
+  document.getElementById('flashActiveJudul').innerText = FLASH_ACTIVE_MATERI.judul || 'Materi';
+  await renderFlashcardsForMateri(materiId);
+}
+
+async function renderFlashcardsForMateri(materiId){
+  const cont = document.getElementById('flashcardList');
+  const empty = document.getElementById('flashcardEmpty');
+  cont.innerHTML = skeletonCards(4);
+  empty.style.display = 'none';
+
+  try {
+    const list = (await callServer('getFlashcards', CURRENT_USER.username, materiId)) || [];
+    document.getElementById('flashActiveCount').innerText = list.length + ' kartu';
+
+    if (!list.length) {
+      cont.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+
     cont.innerHTML = list.map(f => `
       <div class="col-sm-6 col-lg-4">
-        <div class="card-premium glass fade-item" style="cursor:pointer;min-height:140px" onclick="flipFlashcard(this)">
+        <div class="card-premium glass fade-item" style="cursor:pointer;min-height:150px" onclick="flipFlashcard(this)">
           <div class="fc-front">
-            <div class="small-caps mb-1 text-muted">Depan</div>
+            <div class="small-caps mb-1 text-muted">Depan · ketuk untuk balik</div>
             <div class="fw-semibold">${escapeHtml(f.front)}</div>
           </div>
           <div class="fc-back" style="display:none">
             <div class="small-caps mb-1 text-emerald">Belakang</div>
-            <div style="font-size:.92rem">${escapeHtml(f.back)}</div>
+            <div style="font-size:.92rem;line-height:1.45">${escapeHtml(f.back)}</div>
           </div>
-          <div class="mt-3 d-flex justify-content-between align-items-center">
-            <span class="text-muted" style="font-size:.72rem">${escapeHtml(f.kategori||'')}</span>
-            <button class="btn-icon-sm" style="width:32px;height:32px" onclick="event.stopPropagation();deleteFlashcardItem('${f.id}')" title="Hapus"><i class="bi bi-trash" style="font-size:.85rem;color:#ef4444"></i></button>
+          <div class="mt-3 d-flex justify-content-end">
+            <button class="btn-icon-sm" style="width:32px;height:32px" onclick="event.stopPropagation();deleteFlashcardItem('${f.id}')" title="Hapus">
+              <i class="bi bi-trash" style="font-size:.85rem;color:#ef4444"></i>
+            </button>
           </div>
         </div>
       </div>`).join('');
@@ -4107,6 +4256,7 @@ async function loadStudentFlashcards(){
 function flipFlashcard(el){
   const front = el.querySelector('.fc-front');
   const back = el.querySelector('.fc-back');
+  if (!front || !back) return;
   if (front.style.display === 'none') {
     front.style.display = '';
     back.style.display = 'none';
@@ -4117,22 +4267,35 @@ function flipFlashcard(el){
 }
 
 function openAddFlashcardModal(){
+  if (!FLASH_ACTIVE_MATERI || !FLASH_ACTIVE_MATERI.id) {
+    showToast('Pilih materi dulu.', 'warn');
+    return;
+  }
   const front = prompt('Teks depan kartu (pertanyaan / istilah):');
-  if (!front) return;
+  if (front === null) return;
+  if (!String(front).trim()) { showToast('Teks depan wajib diisi.', 'warn'); return; }
   const back = prompt('Teks belakang kartu (jawaban / penjelasan):');
-  if (!back) return;
-  saveNewFlashcard(front, back);
+  if (back === null) return;
+  if (!String(back).trim()) { showToast('Teks belakang wajib diisi.', 'warn'); return; }
+  saveNewFlashcard(String(front).trim(), String(back).trim());
 }
 
 async function saveNewFlashcard(front, back){
+  if (!FLASH_ACTIVE_MATERI || !FLASH_ACTIVE_MATERI.id) {
+    showToast('Pilih materi dulu.', 'warn');
+    return;
+  }
   try {
-    await callServer('saveFlashcard', {
+    const res = await callServer('saveFlashcard', {
       username: CURRENT_USER.username,
+      materiId: FLASH_ACTIVE_MATERI.id,
+      kategori: FLASH_ACTIVE_MATERI.kategori || '',
       front: front,
       back: back
     });
+    if (!res || !res.success) throw new Error((res && res.message) || 'Gagal menyimpan.');
     showToast('Flashcard ditambahkan.', 'success');
-    loadStudentFlashcards();
+    await renderFlashcardsForMateri(FLASH_ACTIVE_MATERI.id);
   } catch (err) {
     showToast(err.message || err, 'error');
   }
@@ -4143,21 +4306,35 @@ async function deleteFlashcardItem(id){
   try {
     await callServer('deleteFlashcard', id);
     showToast('Flashcard dihapus.', 'success');
-    loadStudentFlashcards();
+    if (FLASH_ACTIVE_MATERI) await renderFlashcardsForMateri(FLASH_ACTIVE_MATERI.id);
+    else loadStudentFlashcards();
   } catch (err) {
     showToast(err.message || err, 'error');
   }
 }
 
-async function generateFlashFromMateri(materiId){
+async function generateFlashFromActiveMateri(){
+  if (!FLASH_ACTIVE_MATERI || !FLASH_ACTIVE_MATERI.id) {
+    showToast('Pilih materi dulu.', 'warn');
+    return;
+  }
+  const btn = document.getElementById('btnGenerateFlash');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Membuat...'; }
   try {
     const res = await callServer('generateFlashcardsFromMateri', {
       username: CURRENT_USER.username,
-      materiId: materiId
+      materiId: FLASH_ACTIVE_MATERI.id
     });
-    showToast(res.created ? `${res.created} flashcard dibuat dari ringkasan.` : (res.message || 'Tidak ada yang dibuat.'), res.created ? 'success' : 'warn');
+    if (res.created > 0) {
+      showToast(res.created + ' flashcard dibuat dari ringkasan.', 'success');
+      await renderFlashcardsForMateri(FLASH_ACTIVE_MATERI.id);
+    } else {
+      showToast(res.message || 'Tidak ada flashcard yang dibuat. Pastikan materi punya ringkasan.', 'warn');
+    }
   } catch (err) {
     showToast(err.message || err, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-magic me-1"></i>Dari Ringkasan'; }
   }
 }
 </script>
