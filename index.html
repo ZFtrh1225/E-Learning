@@ -858,6 +858,86 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
 
 /* Prevent pull-to-refresh issues on some Android browsers when scrolling content */
 .content-area{-webkit-overflow-scrolling:touch; overscroll-behavior-y:auto}
+
+/* ===================== LEARNING PATH STEPPER ===================== */
+.learn-path {
+  display: flex; align-items: flex-start; gap: 0;
+  padding: 16px 12px; margin-bottom: 16px;
+  border-radius: var(--radius-lg);
+  background: var(--card-bg);
+  border: 1px solid var(--border-light);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.learn-path-step {
+  flex: 1; min-width: 72px; text-align: center; position: relative;
+  padding: 0 4px;
+}
+.learn-path-step:not(:last-child)::after {
+  content: '';
+  position: absolute; top: 16px; left: calc(50% + 18px); right: calc(-50% + 18px);
+  height: 3px; background: var(--border-light); border-radius: 2px; z-index: 0;
+}
+.learn-path-step.done:not(:last-child)::after { background: var(--emerald); }
+.learn-path-step.active:not(:last-child)::after {
+  background: linear-gradient(90deg, var(--emerald), var(--border-light));
+}
+.lp-dot {
+  width: 32px; height: 32px; border-radius: 50%; margin: 0 auto 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .85rem; font-weight: 700; position: relative; z-index: 1;
+  border: 2px solid var(--border-light);
+  background: var(--card-bg); color: var(--muted-dark);
+}
+.learn-path-step.done .lp-dot {
+  background: var(--emerald); border-color: var(--emerald); color: #fff;
+}
+.learn-path-step.active .lp-dot {
+  border-color: var(--emerald); color: var(--emerald);
+  box-shadow: 0 0 0 4px var(--emerald-soft);
+}
+.learn-path-step.locked .lp-dot { opacity: .45; }
+.lp-label {
+  font-size: .72rem; font-weight: 600; color: var(--muted-dark); line-height: 1.25;
+}
+.learn-path-step.active .lp-label { color: var(--emerald-dark); }
+html.dark .learn-path-step.active .lp-label { color: var(--emerald); }
+.learn-path-step.done .lp-label { color: var(--text-primary); }
+.lp-action { margin-top: 6px; }
+
+/* ===================== QUIZ FOCUS MODE ===================== */
+body.quiz-focus-mode .sidebar,
+body.quiz-focus-mode .bottom-nav,
+body.quiz-focus-mode .topbar,
+body.quiz-focus-mode .fab-install,
+body.quiz-focus-mode .sidebar-overlay {
+  display: none !important;
+}
+body.quiz-focus-mode #appShell.active {
+  display: block !important;
+}
+body.quiz-focus-mode .main-col {
+  width: 100%; max-width: 820px; margin: 0 auto;
+}
+body.quiz-focus-mode .content-area {
+  padding: 16px;
+  padding-bottom: calc(16px + var(--safe-bottom));
+  min-height: 100dvh;
+}
+.quiz-focus-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin-bottom: 12px; flex-wrap: wrap;
+}
+.quiz-focus-exit {
+  border: 1.5px solid var(--border-light);
+  background: var(--card-bg);
+  color: var(--ink);
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-weight: 600;
+  font-size: .85rem;
+  min-height: 40px;
+}
 </style>
 </head>
 <body>
@@ -1062,7 +1142,17 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
 
       <!-- ============ ADMIN: SOAL ============ -->
       <div class="screen" id="admin-soal">
-        <h5 class="font-display mb-3">Manajemen Soal</h5>
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <h5 class="font-display mb-0">Manajemen Soal</h5>
+          <div class="d-flex gap-2 flex-wrap">
+            <a class="btn btn-gold-outline btn-sm px-3" href="https://cdn.jsdelivr.net/gh/placeholder/template_soal_edufsr.xlsx" id="btnDownloadSoalTemplate" download onclick="return downloadSoalTemplate(event)">
+              <i class="bi bi-file-earmark-excel me-1"></i>Template Excel
+            </a>
+            <button class="btn btn-premium btn-sm px-3" onclick="openBulkSoalModal()">
+              <i class="bi bi-upload me-1"></i>Import Excel/CSV
+            </button>
+          </div>
+        </div>
         <div class="card-premium mb-3 glass">
           <label class="small-caps mb-2 d-block">Scope Soal</label>
           <div class="role-toggle mb-3" style="max-width:360px">
@@ -1086,6 +1176,54 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
           </div>
         </div>
         <div id="soalManageArea"></div>
+      </div>
+
+      <!-- Modal Bulk Import Soal -->
+      <div class="modal fade" id="bulkSoalModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title font-display">Import Soal (Excel / CSV)</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body">
+              <p class="text-muted" style="font-size:.88rem">
+                Unggah file <b>.xlsx</b> atau <b>.csv</b> sesuai template. Maksimal 200 soal per unggahan.
+                Kolom wajib: <code>Kategori</code>, <code>Tipe</code>, <code>Pertanyaan</code>. Untuk PG wajib opsi A–D + JawabanBenar.
+              </p>
+              <div class="mb-3">
+                <label class="small-caps mb-1 d-block">Fallback kategori (jika kolom Kategori kosong)</label>
+                <input type="text" class="form-control form-control-premium" id="bulkDefaultKategori" placeholder="Contoh: Matematika">
+              </div>
+              <div class="mb-3">
+                <label class="small-caps mb-1 d-block">Fallback MateriID (opsional, untuk soal per materi)</label>
+                <input type="text" class="form-control form-control-premium" id="bulkDefaultMateriId" placeholder="Kosongkan jika soal per kategori">
+              </div>
+              <div class="dropzone" id="bulkSoalDropzone" onclick="document.getElementById('bulkSoalFile').click()">
+                <i class="bi bi-file-earmark-arrow-up d-block mb-2"></i>
+                <div class="fw-semibold">Klik atau jatuhkan file .xlsx / .csv</div>
+                <div class="text-muted mt-1" style="font-size:.8rem">Sheet pertama akan dibaca (abaikan baris header)</div>
+                <input type="file" id="bulkSoalFile" accept=".xlsx,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="d-none" onchange="onBulkSoalFileSelected(event)">
+              </div>
+              <div id="bulkSoalPreview" class="mt-3" style="display:none">
+                <div class="small-caps mb-2">Pratinjau (<span id="bulkSoalCount">0</span> soal)</div>
+                <div class="table-responsive" style="max-height:220px;overflow:auto">
+                  <table class="table table-sm" style="font-size:.8rem">
+                    <thead><tr><th>#</th><th>Kategori</th><th>Tipe</th><th>Pertanyaan</th><th>Kunci</th></tr></thead>
+                    <tbody id="bulkSoalPreviewBody"></tbody>
+                  </table>
+                </div>
+              </div>
+              <div id="bulkSoalResult" class="mt-2" style="display:none"></div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-light" data-bs-dismiss="modal">Tutup</button>
+              <button type="button" class="btn btn-premium" id="bulkSoalSubmitBtn" onclick="submitBulkSoal()" disabled>
+                <span id="bulkSoalSubmitText">Import Soal</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- ============ ADMIN: SISWA ============ -->
@@ -1611,12 +1749,13 @@ input[type=radio]:checked + .quiz-option, .quiz-option.selected{border-color:var
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 /* ==========================================================
  * CONFIG — ganti URL ini dengan URL Web App Google Apps Script
  * Setelah deploy Code.gs sebagai Web App, salin URL (.../exec)
  * ========================================================*/
-const API_URL = 'https://script.google.com/macros/s/AKfycbwR00KBQHy65mwM0iLOrOdcbz9aTxF5YbAOAT8lYfL_ywvZA1Bex1FcHNt7K4xdKW8/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxKxDwvFm8sfg4LqetawnVE44RFRjdSs2NCY-auOpdS2xEPlR5ti6PRjjeDmUcF9-g/exec';
 // Contoh: 'https://script.google.com/macros/s/AKfycbx.../exec'
 
 /* ==========================================================
@@ -1881,6 +2020,8 @@ function buildPayload(action, args) {
     case 'resetStudentPassword':
     case 'setWeeklyGoal':
     case 'recordActivity':
+    case 'importSoalBulk':
+    case 'setLearningStage':
       payload.data = args[0];
       break;
     case 'abortChunkUpload':
@@ -2117,7 +2258,10 @@ const TITLE_MAP = {
 };
 
 function navTo(screenId){
-  if (screenId !== 'student-quiz') stopQuizTimer();
+  if (screenId !== 'student-quiz') {
+    stopQuizTimer();
+    exitQuizFocusMode();
+  }
   // tutup reader fullscreen jika pindah halaman
   const rw = document.getElementById('readerFrameWrap');
   if (rw) rw.classList.remove('fullscreen-reader');
@@ -2955,6 +3099,213 @@ function deleteSoalConfirm(id){
 }
 
 /* ==========================================================
+ * ADMIN: BULK IMPORT SOAL (XLSX / CSV)
+ * ========================================================*/
+let BULK_SOAL_ROWS = [];
+
+function openBulkSoalModal(){
+  BULK_SOAL_ROWS = [];
+  document.getElementById('bulkSoalFile').value = '';
+  document.getElementById('bulkSoalPreview').style.display = 'none';
+  document.getElementById('bulkSoalResult').style.display = 'none';
+  document.getElementById('bulkSoalSubmitBtn').disabled = true;
+  document.getElementById('bulkSoalSubmitText').innerText = 'Import Soal';
+  // Prefill fallback from current scope
+  const sel = document.getElementById('soalMateriSelect');
+  if (sel && sel.value) {
+    if (SOAL_SCOPE_MODE === 'kategori') {
+      document.getElementById('bulkDefaultKategori').value = sel.value;
+      document.getElementById('bulkDefaultMateriId').value = '';
+    } else {
+      document.getElementById('bulkDefaultMateriId').value = sel.value;
+      const opt = sel.options[sel.selectedIndex];
+      document.getElementById('bulkDefaultKategori').value = (opt && opt.dataset.kategori) || '';
+    }
+  }
+  new bootstrap.Modal(document.getElementById('bulkSoalModal')).show();
+}
+
+function downloadSoalTemplate(e){
+  // Generate minimal template client-side so link always works
+  e.preventDefault();
+  const headers = ['Kategori','Tipe','Pertanyaan','PilihanA','PilihanB','PilihanC','PilihanD','JawabanBenar','Kesulitan','MateriID','Tags','Pembahasan','Status'];
+  const sample = ['Matematika','PG','Contoh: 2+2=?','3','4','5','6','B','Mudah','','dasar','2+2=4','Aktif'];
+  const csv = headers.join(',') + '\n' + sample.map(c => '"' + String(c).replace(/"/g,'""') + '"').join(',') + '\n';
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'template_soal_edufsr.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Template CSV diunduh. Buka di Excel lalu Save As .xlsx jika perlu.', 'success');
+  return false;
+}
+
+function onBulkSoalFileSelected(ev){
+  const file = ev.target.files && ev.target.files[0];
+  if (!file) return;
+  const name = (file.name || '').toLowerCase();
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      let rows = [];
+      if (name.endsWith('.csv')) {
+        rows = parseCsvToSoalRows(e.target.result);
+      } else if (typeof XLSX === 'undefined') {
+        showToast('Library Excel belum termuat. Refresh halaman lalu coba lagi.', 'error');
+        return;
+      } else {
+        const data = new Uint8Array(e.target.result);
+        const wb = XLSX.read(data, { type: 'array' });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+        rows = json.map(normalizeSoalRow);
+      }
+      BULK_SOAL_ROWS = rows.filter(r => r.pertanyaan);
+      renderBulkSoalPreview(BULK_SOAL_ROWS);
+    } catch (err) {
+      showToast('Gagal membaca file: ' + (err.message || err), 'error');
+      BULK_SOAL_ROWS = [];
+      document.getElementById('bulkSoalSubmitBtn').disabled = true;
+    }
+  };
+  if (name.endsWith('.csv')) reader.readAsText(file, 'UTF-8');
+  else reader.readAsArrayBuffer(file);
+}
+
+function normalizeSoalRow(raw){
+  const get = (...keys) => {
+    for (const k of keys) {
+      if (raw[k] !== undefined && raw[k] !== null && String(raw[k]).trim() !== '') return String(raw[k]).trim();
+      // case-insensitive
+      const found = Object.keys(raw).find(x => x.toLowerCase() === String(k).toLowerCase());
+      if (found && raw[found] !== undefined && String(raw[found]).trim() !== '') return String(raw[found]).trim();
+    }
+    return '';
+  };
+  return {
+    kategori: get('Kategori', 'kategori'),
+    tipe: get('Tipe', 'tipe') || 'PG',
+    pertanyaan: get('Pertanyaan', 'pertanyaan'),
+    a: get('PilihanA', 'a', 'A'),
+    b: get('PilihanB', 'b', 'B'),
+    c: get('PilihanC', 'c', 'C'),
+    d: get('PilihanD', 'd', 'D'),
+    jawabanBenar: get('JawabanBenar', 'jawabanBenar', 'Kunci'),
+    kesulitan: get('Kesulitan', 'kesulitan') || 'Sedang',
+    materiId: get('MateriID', 'materiId', 'MateriId'),
+    tags: get('Tags', 'tags'),
+    pembahasan: get('Pembahasan', 'pembahasan'),
+    status: get('Status', 'status') || 'Aktif'
+  };
+}
+
+function parseCsvToSoalRows(text){
+  const lines = String(text).replace(/^\ufeff/, '').split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) return [];
+  // Simple CSV parse with quotes
+  function splitCsvLine(line) {
+    const out = []; let cur = ''; let inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQ && line[i+1] === '"') { cur += '"'; i++; }
+        else inQ = !inQ;
+      } else if (ch === ',' && !inQ) { out.push(cur); cur = ''; }
+      else cur += ch;
+    }
+    out.push(cur);
+    return out;
+  }
+  const headers = splitCsvLine(lines[0]).map(h => h.trim());
+  return lines.slice(1).map(line => {
+    const cols = splitCsvLine(line);
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = cols[i] != null ? cols[i] : ''; });
+    return normalizeSoalRow(obj);
+  });
+}
+
+function renderBulkSoalPreview(rows){
+  const wrap = document.getElementById('bulkSoalPreview');
+  const body = document.getElementById('bulkSoalPreviewBody');
+  document.getElementById('bulkSoalCount').innerText = rows.length;
+  if (!rows.length) {
+    wrap.style.display = 'none';
+    document.getElementById('bulkSoalSubmitBtn').disabled = true;
+    showToast('Tidak ada baris soal valid di file.', 'warn');
+    return;
+  }
+  wrap.style.display = 'block';
+  body.innerHTML = rows.slice(0, 30).map((r, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${escapeHtml(r.kategori || '(fallback)')}</td>
+      <td>${escapeHtml(r.tipe)}</td>
+      <td class="text-truncate" style="max-width:220px">${escapeHtml(r.pertanyaan)}</td>
+      <td>${escapeHtml(r.jawabanBenar || '—')}</td>
+    </tr>`).join('') + (rows.length > 30 ? `<tr><td colspan="5" class="text-muted">… dan ${rows.length - 30} baris lainnya</td></tr>` : '');
+  document.getElementById('bulkSoalSubmitBtn').disabled = false;
+  document.getElementById('bulkSoalResult').style.display = 'none';
+}
+
+async function submitBulkSoal(){
+  if (!BULK_SOAL_ROWS.length) return;
+  const btn = document.getElementById('bulkSoalSubmitBtn');
+  const txt = document.getElementById('bulkSoalSubmitText');
+  btn.disabled = true;
+  txt.innerText = 'Mengimpor...';
+  try {
+    const res = await callServer('importSoalBulk', {
+      soals: BULK_SOAL_ROWS,
+      defaultKategori: document.getElementById('bulkDefaultKategori').value.trim(),
+      defaultMateriId: document.getElementById('bulkDefaultMateriId').value.trim()
+    });
+    const resultEl = document.getElementById('bulkSoalResult');
+    resultEl.style.display = 'block';
+    let msg = `<div class="alert alert-success py-2 mb-0" style="border-radius:12px">Berhasil import <b>${res.imported}</b> dari ${res.total} soal.`;
+    if (res.failed) msg += ` Gagal: <b>${res.failed}</b>.</div>`;
+    else msg += `</div>`;
+    if (res.errors && res.errors.length) {
+      msg += `<div class="text-muted mt-2" style="font-size:.8rem">Contoh error: ` +
+        res.errors.slice(0, 5).map(e => `baris ${e.row}: ${escapeHtml(e.message)}`).join('; ') + `</div>`;
+    }
+    resultEl.innerHTML = msg;
+    showToast(`${res.imported} soal berhasil diimpor.`, res.failed ? 'warn' : 'success');
+    if (res.imported > 0) loadSoalForScope();
+  } catch (err) {
+    showToast(err.message || err, 'error');
+  } finally {
+    btn.disabled = false;
+    txt.innerText = 'Import Soal';
+  }
+}
+
+/* ==========================================================
+ * QUIZ FOCUS MODE
+ * ========================================================*/
+let QUIZ_FOCUS_ON = false;
+function toggleQuizFocusMode(forceOff){
+  if (forceOff === true) QUIZ_FOCUS_ON = false;
+  else QUIZ_FOCUS_ON = !QUIZ_FOCUS_ON;
+  document.body.classList.toggle('quiz-focus-mode', QUIZ_FOCUS_ON);
+  const t = document.getElementById('btnQuizFocusText');
+  const btn = document.getElementById('btnQuizFocus');
+  if (t) t.innerText = QUIZ_FOCUS_ON ? 'Keluar Focus' : 'Focus Mode';
+  if (btn) {
+    const icon = btn.querySelector('i');
+    if (icon) icon.className = QUIZ_FOCUS_ON ? 'bi bi-fullscreen-exit me-1' : 'bi bi-arrows-fullscreen me-1';
+  }
+  if (QUIZ_FOCUS_ON) {
+    showToast('Focus Mode aktif. Ketuk "Keluar Focus" untuk menampilkan menu.', 'success');
+  }
+}
+function exitQuizFocusMode(){
+  toggleQuizFocusMode(true);
+}
+
+/* ==========================================================
  * ADMIN: SISWA
  * ========================================================*/
 async function loadAdminSiswa(){
@@ -3568,6 +3919,37 @@ function renderStudentMateriList(){
 }
 
 
+function renderLearningPathHtml(path, materiId, kategori){
+  if (!path || !path.stages) return '';
+  const icons = { baca: 'bi-book', cek: 'bi-lightning-charge', latihan: 'bi-patch-question', kuasai: 'bi-trophy' };
+  let html = `<div class="learn-path glass fade-item" id="learnPathBar">`;
+  path.stages.forEach((st, i) => {
+    let cls = 'learn-path-step';
+    if (st.done) cls += ' done';
+    else if (st.unlocked && !st.done) cls += ' active';
+    else cls += ' locked';
+    const icon = st.done ? 'bi-check-lg' : (icons[st.id] || 'bi-circle');
+    let action = '';
+    if (st.id === 'cek' && st.unlocked && !st.done) {
+      action = `<div class="lp-action"><button type="button" class="btn btn-sm btn-premium px-2 py-1" style="font-size:.7rem" onclick="startCekPemahaman('${materiId}')">Mulai</button></div>`;
+    } else if (st.id === 'latihan' && st.unlocked && !st.done) {
+      action = `<div class="lp-action"><button type="button" class="btn btn-sm btn-premium px-2 py-1" style="font-size:.7rem" onclick="goToLatihanForMateri('${materiId}','${escapeHtml(kategori).replace(/'/g,"&apos;")}')">Mulai</button></div>`;
+    } else if (st.id === 'kuasai' && st.done) {
+      action = `<div class="lp-action"><span class="text-emerald" style="font-size:.7rem;font-weight:700">Selesai</span></div>`;
+    }
+    html += `<div class="${cls}">
+      <div class="lp-dot"><i class="bi ${icon}"></i></div>
+      <div class="lp-label">${escapeHtml(st.label)}</div>
+      ${action}
+    </div>`;
+  });
+  html += `</div>`;
+  if (path.skorTerbaik != null) {
+    html += `<div class="text-muted mb-3" style="font-size:.78rem"><i class="bi bi-graph-up me-1"></i>Skor terbaik materi ini: <b>${path.skorTerbaik}</b></div>`;
+  }
+  return html;
+}
+
 async function openMateriRead(id){
   CACHE.activeMateriId = id;
   navTo('student-read');
@@ -3584,6 +3966,14 @@ async function openMateriRead(id){
     const ringkasanHtml = m.ringkasan
       ? `<div class="ringkasan-box"><div class="small-caps mb-1"><i class="bi bi-lightbulb me-1 text-gold"></i>Ringkasan / poin penting</div><div style="font-size:.9rem;white-space:pre-wrap;line-height:1.5">${escapeHtml(m.ringkasan)}</div></div>`
       : '';
+
+    // Learning path
+    let pathHtml = '';
+    try {
+      const path = await callServer('getLearningPath', id, CURRENT_USER.username);
+      pathHtml = renderLearningPathHtml(path, m.id, m.kategori);
+    } catch (e) { pathHtml = ''; }
+
     area.innerHTML = `
       <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
         <div style="min-width:0; flex:1">
@@ -3600,6 +3990,7 @@ async function openMateriRead(id){
           <button class="btn btn-premium btn-sm px-3" onclick="goToLatihanForMateri('${m.id}','${escapeHtml(m.kategori).replace(/'/g,"&apos;")}')"><i class="bi bi-patch-question me-1"></i>Latihan</button>
         </div>
       </div>
+      ${pathHtml}
       ${ringkasanHtml}
       <div class="reader-frame-wrap glass fade-item" id="readerFrameWrap">
         <div class="reader-toolbar">
@@ -3941,6 +4332,12 @@ async function startQuiz(metaOrKategori){
     const jumlahTerkunci = list.filter(s => s.status === 'Terkunci').length;
     const title = meta.judul || (isMateri ? 'Latihan Materi' : ('Latihan — ' + kategori));
     let html = `
+      <div class="quiz-focus-bar">
+        <button type="button" class="quiz-focus-exit" id="btnQuizFocus" onclick="toggleQuizFocusMode()">
+          <i class="bi bi-arrows-fullscreen me-1"></i><span id="btnQuizFocusText">Focus Mode</span>
+        </button>
+        <span class="text-muted" style="font-size:.78rem">Sembunyikan menu agar lebih fokus</span>
+      </div>
       <div class="quiz-timer-bar glass" id="quizTimerBar">
         <div>
           <div class="timer-label"><i class="bi bi-stopwatch me-1"></i>Sisa Waktu</div>
@@ -4003,6 +4400,7 @@ function markSelected(radio){
 
 async function submitQuiz(){
   stopQuizTimer();
+  exitQuizFocusMode();
   const meta = ACTIVE_QUIZ_META || { type: 'kategori', kategori: '', materiId: '' };
   const submitBtn = document.getElementById('quizSubmitBtn');
   if (submitBtn) {
@@ -4061,6 +4459,19 @@ async function submitQuiz(){
       } else {
         btnPembahasan.style.display = 'none';
       }
+    }
+
+    // Update learning path stage for materi quiz
+    if (meta.materiId && CURRENT_USER) {
+      try {
+        const skor = Number(res.skor || 0);
+        const stage = skor >= 85 ? 'kuasai' : 'latihan';
+        await callServer('setLearningStage', {
+          username: CURRENT_USER.username,
+          materiId: meta.materiId,
+          stage: stage
+        });
+      } catch (e) { /* non-critical */ }
     }
 
     new bootstrap.Modal(document.getElementById('hasilModal')).show();
