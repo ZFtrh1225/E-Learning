@@ -6,7 +6,7 @@
 <title>EduFSR — E-Learning Platform</title>
 
 <!-- Viewport & Mobile Optimization -->
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0b1730" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0b1730" media="(prefers-color-scheme: dark)">
 <meta name="color-scheme" content="light dark">
@@ -25,11 +25,9 @@
 <link rel="icon" type="image/png" sizes="192x192" href="https://api.iconify.design/mdi/school.svg?color=%23d4af37&width=192&height=192">
 <link rel="icon" type="image/png" sizes="512x512" href="https://api.iconify.design/mdi/school.svg?color=%23d4af37&width=512&height=512">
 
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 
 <style>
 /* ===================== DESIGN TOKENS ===================== */
@@ -938,6 +936,107 @@ body.quiz-focus-mode .content-area {
   font-size: .85rem;
   min-height: 40px;
 }
+
+/* Learning workspace: readable, touch friendly, and light on small screens. */
+body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
+h1,h2,h3,h4,h5,h6,.font-display { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; letter-spacing:-.025em; }
+.btn-premium { background:#047857; color:#fff; }
+.btn-premium:hover,.btn-premium:active { background:#065f46; color:#fff; }
+.bottom-nav .bnav-item.active,.bottom-nav .bnav-item.active i { color:#047857; }
+.student-home-hero {
+  display:flex; align-items:stretch; justify-content:space-between; gap:24px;
+  padding:clamp(20px,3vw,32px); margin-bottom:20px;
+  background:linear-gradient(130deg,#0b1730 0%,#123b44 80%,#0e594c 100%);
+  color:#fff; border-radius:24px; box-shadow:var(--shadow-md);
+}
+.student-home-copy { flex:1; min-width:0; }
+.admin-quick-actions { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-bottom:18px; }
+.admin-quick-actions button {
+  display:flex; align-items:center; gap:11px; min-height:80px; text-align:left;
+  background:var(--card-bg); border:1px solid var(--border-light); color:var(--ink);
+  border-radius:16px; padding:14px; font-weight:700; box-shadow:var(--shadow-sm);
+}
+.admin-quick-actions button > .bi:first-child { font-size:1.4rem; color:var(--emerald-dark); }
+.admin-quick-actions button > .bi:last-child { margin-left:auto; color:var(--muted-dark); }
+.admin-quick-actions small { display:block; margin-top:2px; color:var(--muted-dark); font-weight:400; font-size:.75rem; }
+.admin-quick-actions button:focus-visible { outline:3px solid var(--gold); outline-offset:2px; }
+.student-home-eyebrow { color:#aaf5d6; font-size:.74rem; font-weight:800; letter-spacing:.1em; margin-bottom:10px; }
+.student-home-hero h1 { font-size:clamp(1.55rem,3vw,2.1rem); margin:0 0 6px; }
+.student-home-hero p { color:#dbf4ea; line-height:1.5; margin-bottom:18px; max-width:560px; }
+.student-next-card {
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.18);
+  border-radius:16px; padding:14px 16px;
+}
+.student-next-label { color:#bcead7; font-size:.7rem; font-weight:800; letter-spacing:.1em; width:100%; }
+.student-next-card strong { flex:1; min-width:150px; font-size:1.03rem; line-height:1.35; }
+.student-next-card .btn { background:#ecfaf2; color:#075239; white-space:nowrap; box-shadow:none; }
+.student-next-card .btn:hover { background:#fff; color:#075239; }
+.student-home-steps { display:flex; flex-direction:column; justify-content:center; gap:12px; min-width:122px; }
+.student-home-steps span { color:#e3f8ed; font-weight:600; }
+.student-home-steps b { color:#b5f5d5; margin-right:8px; }
+.learning-checkpoint {
+  margin:14px 0; padding:17px 18px; border-radius:16px;
+  background:var(--card-bg); border:1px solid var(--border-light);
+  border-left:4px solid var(--gold);
+}
+.learning-checkpoint h4 { font-size:1.03rem; margin:8px 0 5px; }
+.learning-checkpoint p { color:var(--muted-dark); line-height:1.55; margin:0; }
+.learning-result-guidance {
+  max-width:520px; margin:0 auto; padding:12px 14px;
+  border-radius:12px; background:var(--emerald-soft); color:var(--ink);
+  line-height:1.5; font-size:.9rem;
+}
+.material-preview-details { border:1px solid var(--border-light); border-radius:16px; overflow:hidden; background:var(--card-bg); }
+.material-preview-details summary {
+  cursor:pointer; display:flex; align-items:center; gap:10px; padding:15px 17px;
+  font-weight:700; color:var(--ink); min-height:52px; list-style:none;
+}
+.material-preview-details summary::-webkit-details-marker { display:none; }
+.material-preview-details summary .bi-chevron-down { margin-left:auto; transition:transform .2s; }
+.material-preview-details[open] summary .bi-chevron-down { transform:rotate(180deg); }
+.material-preview-details .reader-frame-wrap { margin:0 12px 12px; }
+.quiz-answer-input:focus-visible + .quiz-option,
+.student-home-hero button:focus-visible,
+.material-preview-details summary:focus-visible,
+.bnav-item:focus-visible { outline:3px solid var(--gold); outline-offset:3px; }
+.quiz-option { font-size:1rem; min-height:52px; }
+.quiz-q-card { line-height:1.5; }
+.soal-image {
+  display:block; max-width:100%; max-height:320px; object-fit:contain;
+  margin:12px 0; border-radius:12px; border:1px solid var(--border-light);
+  background:var(--off-white);
+}
+@media(max-width:767px) {
+  .admin-quick-actions { grid-template-columns:1fr; gap:9px; }
+  .admin-quick-actions button { min-height:64px; }
+  .student-home-hero { display:block; padding:22px 18px; border-radius:20px; }
+  .student-home-hero h1 { line-height:1.2; }
+  .student-home-hero p { font-size:.94rem; }
+  .student-home-steps { flex-direction:row; justify-content:space-between; gap:4px; min-width:0; margin-top:17px; font-size:.78rem; }
+  .student-home-steps b { display:block; margin:0 0 3px; font-size:.75rem; }
+  .student-next-card { gap:10px; }
+  .student-next-card strong { width:100%; }
+  .student-next-card .btn { width:100%; }
+  #student-dashboard .stat-card { min-height:106px; }
+  .learn-actions > button { flex:1 1 100%; min-height:48px; }
+  .learn-path-step { min-width:86px; }
+  .lp-label { font-size:.78rem; }
+  .quiz-q-card { padding:16px; border-left-width:3px; }
+  .bottom-nav { gap:1px; padding-inline:4px; }
+  .bottom-nav .bnav-item { min-width:0; max-width:none; padding:6px 2px; font-size:.65rem; }
+  .bottom-nav .bnav-item i { font-size:1.2rem; }
+  .table-premium { min-width:620px; }
+  .login-form-wrap { backdrop-filter:none; -webkit-backdrop-filter:none; }
+}
+@media(max-width:380px) {
+  .student-home-steps { font-size:.72rem; }
+  .bottom-nav .bnav-item { font-size:.6rem; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .screen.active,.fade-item,.orbit-card { animation:none!important; }
+  * { scroll-behavior:auto!important; }
+}
 </style>
 </head>
 <body>
@@ -1077,6 +1176,11 @@ body.quiz-focus-mode .content-area {
         <div class="card-premium glass mb-3">
           <h5 class="mb-1">Selamat datang, Administrator 👋</h5>
           <p class="text-muted mb-0" style="font-size:.9rem">Kelola materi pembelajaran, soal latihan, serta pantau perkembangan seluruh siswa dari satu tempat. Satu kategori dapat memuat banyak materi — cukup pilih kategori saat unggah.</p>
+        </div>
+        <div class="admin-quick-actions" aria-label="Aksi utama admin">
+          <button type="button" onclick="navTo('admin-materi')"><i class="bi bi-journal-plus" aria-hidden="true"></i><span>Kelola materi<small>Susun bahan belajar</small></span><i class="bi bi-arrow-right" aria-hidden="true"></i></button>
+          <button type="button" onclick="navTo('admin-soal')"><i class="bi bi-patch-question" aria-hidden="true"></i><span>Kelola soal<small>Latihan dan pembahasan</small></span><i class="bi bi-arrow-right" aria-hidden="true"></i></button>
+          <button type="button" onclick="navTo('admin-hasil')"><i class="bi bi-graph-up" aria-hidden="true"></i><span>Lihat hasil<small>Pantau pemahaman siswa</small></span><i class="bi bi-arrow-right" aria-hidden="true"></i></button>
         </div>
         <div class="card-premium glass">
           <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
@@ -1306,6 +1410,23 @@ body.quiz-focus-mode .content-area {
 
       <!-- ============ STUDENT: DASHBOARD ============ -->
       <div class="screen" id="student-dashboard">
+        <section class="student-home-hero" aria-labelledby="studentHomeHeading">
+          <div class="student-home-copy">
+            <div class="student-home-eyebrow"><i class="bi bi-stars"></i> RUANG BELAJAR KAMU</div>
+            <h1 id="studentHomeHeading">Halo, <span id="studentWelcomeName">teman belajar</span> 👋</h1>
+            <p>Belajar satu langkah kecil, cek pemahaman, lalu lanjutkan saat sudah siap.</p>
+            <div class="student-next-card">
+              <span class="student-next-label">MATERI BERIKUTNYA</span>
+              <strong id="studentNextTitle">Menyiapkan materi...</strong>
+              <button type="button" id="studentContinueBtn" class="btn btn-premium" disabled>
+                <i class="bi bi-play-fill" aria-hidden="true"></i> Lanjut belajar
+              </button>
+            </div>
+          </div>
+          <div class="student-home-steps" aria-label="Cara belajar">
+            <span><b>01</b> Pahami</span><span><b>02</b> Coba</span><span><b>03</b> Ulangi</span>
+          </div>
+        </section>
         <div class="row g-3 mb-4">
           <div class="col-12 col-lg-6">
             <div class="card-premium glass h-100">
@@ -1730,6 +1851,7 @@ body.quiz-focus-mode .content-area {
         <div class="display-5 font-display text-emerald my-2" id="hasilSkorText">0</div>
         <span class="file-type-badge ft-excel mb-2" id="hasilLulusBadge" style="display:none"></span>
         <p class="text-muted mb-3" id="hasilDetailText" style="font-size:.92rem">-</p>
+        <p class="learning-result-guidance" id="hasilGuidance"></p>
         <div id="hasilPembahasanArea" class="text-start mt-3" style="display:none"></div>
         <div class="d-flex flex-wrap gap-2 justify-content-center mt-4">
           <button class="btn btn-premium px-4" id="btnLihatPembahasan" onclick="togglePembahasan()" style="display:none">
@@ -1749,20 +1871,34 @@ body.quiz-focus-mode .content-area {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 /* ==========================================================
  * CONFIG — ganti URL ini dengan URL Web App Google Apps Script
  * Setelah deploy Code.gs sebagai Web App, salin URL (.../exec)
  * ========================================================*/
-const API_URL = 'https://script.google.com/macros/s/AKfycbxKxDwvFm8sfg4LqetawnVE44RFRjdSs2NCY-auOpdS2xEPlR5ti6PRjjeDmUcF9-g/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzzwZvOJ4QhoHmiP4V0L21ReSVHZZ1ttsqY4RsVWzwApqpdbW-RKykS8xjK5Y3tI98/exec';
 // Contoh: 'https://script.google.com/macros/s/AKfycbx.../exec'
+
+let excelLoader = null;
+function ensureExcelLibrary(){
+  if (window.XLSX) return Promise.resolve();
+  if (!excelLoader) excelLoader = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    script.onload = () => resolve();
+    script.onerror = () => { excelLoader = null; reject(new Error('Pustaka Excel gagal dimuat. Periksa koneksi lalu coba lagi.')); };
+    document.head.appendChild(script);
+  });
+  return excelLoader;
+}
 
 /* ==========================================================
  * APP STATE
  * ========================================================*/
 let CURRENT_USER = null;
 let CURRENT_ROLE = null;
+let CURRENT_TOKEN = null;
+let BELAJAR_META_LOADED = false;
 let CACHE = { materi: [], kategori: [], kategoriFull: [], quiz: [], latihan: [], activeMateriId: null, adminSiswa: [], adminHasil: [], belajar: {} };
 let ACTIVE_MATERI_OBJ = null;
 let ADMIN_ACTIVE_KATEGORI = null; // nama folder yang dibuka di admin
@@ -1777,6 +1913,8 @@ let soalGambarRemove = false;   // true jika user klik hapus gambar
 let quizTimerInterval = null;
 let quizTimerRemaining = 0;
 let quizTimerTotal = 0;
+let quizTimerEndsAt = 0;
+let quizTimerTick = null;
 let QUIZ_DEFAULT_MINUTES = 20;
 let lastQuizDetails = null;
 let pembahasanVisible = false;
@@ -1872,6 +2010,7 @@ function stopQuizTimer(){
     clearInterval(quizTimerInterval);
     quizTimerInterval = null;
   }
+  quizTimerTick = null;
   const ft = document.getElementById('quizFloatTimer');
   if (ft) ft.classList.remove('show', 'urgent', 'warn');
 }
@@ -1900,20 +2039,26 @@ function startQuizTimer(minutes, onExpire){
   stopQuizTimer();
   quizTimerTotal = Math.max(1, Math.round(minutes * 60));
   quizTimerRemaining = quizTimerTotal;
+  quizTimerEndsAt = Date.now() + quizTimerTotal * 1000;
   const floatEl = document.getElementById('quizFloatTimer');
   if (floatEl) floatEl.classList.add('show');
   updateTimerUI();
 
-  quizTimerInterval = setInterval(() => {
-    quizTimerRemaining--;
+  function tick(){
+    quizTimerRemaining = Math.max(0, Math.ceil((quizTimerEndsAt - Date.now()) / 1000));
     updateTimerUI();
     if (quizTimerRemaining <= 0) {
       stopQuizTimer();
       showToast('Waktu habis! Jawaban dikumpulkan otomatis.', 'warn');
       if (typeof onExpire === 'function') onExpire();
     }
-  }, 1000);
+  }
+  quizTimerTick = tick;
+  quizTimerInterval = setInterval(tick, 1000);
 }
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && quizTimerTick) quizTimerTick();
+});
 
 /* ==========================================================
  * ADMIN SEARCH FILTERS
@@ -1971,6 +2116,7 @@ function filterAdminSoal(){
 function buildPayload(action, args) {
   // Mapping pemanggilan ke body API
   const payload = { action };
+  if (CURRENT_TOKEN && action !== 'login') payload.authToken = CURRENT_TOKEN;
   switch (action) {
     case 'login':
       payload.username = args[0];
@@ -2079,7 +2225,7 @@ async function callServer(name, ...args) {
   }
 
   // Timeout lebih panjang untuk upload chunk / finalize
-  const longActions = { initChunkUpload:1, uploadChunk:1, finalizeChunkUpload:1, saveMateri:1 };
+  const longActions = { login:1, initChunkUpload:1, uploadChunk:1, finalizeChunkUpload:1, saveMateri:1 };
   const timeoutMs = longActions[name] ? 120000 : 30000;
 
   const controller = new AbortController();
@@ -2117,6 +2263,10 @@ async function callServer(name, ...args) {
 
     // Backend error (success: false) → throw agar catch di caller jalan
     if (data && data.success === false) {
+      if (name !== 'logout' && CURRENT_USER && /^Sesi (habis|tidak berlaku)/.test(data.message || '')) {
+        logout();
+        showToast('Sesi berakhir. Silakan masuk kembali.', 'warn');
+      }
       throw new Error(data.message || 'Permintaan gagal.');
     }
 
@@ -2167,6 +2317,9 @@ async function handleLogin(e){
     if (res.success) {
       CURRENT_USER = { username: res.username, fullname: res.fullname };
       CURRENT_ROLE = res.role;
+      CURRENT_TOKEN = res.token;
+      CACHE = { materi: [], kategori: [], kategoriFull: [], quiz: [], latihan: [], activeMateriId: null, adminSiswa: [], adminHasil: [], belajar: {} };
+      BELAJAR_META_LOADED = false;
       enterApp();
       if (res.newUser) showToast('Akun baru berhasil dibuat. Selamat belajar!', 'success');
     } else {
@@ -2183,8 +2336,11 @@ async function handleLogin(e){
 }
 
 function logout(){
+  if (CURRENT_TOKEN) callServer('logout').catch(() => {});
   stopQuizTimer();
-  CURRENT_USER = null; CURRENT_ROLE = null;
+  CURRENT_USER = null; CURRENT_ROLE = null; CURRENT_TOKEN = null;
+  CACHE = { materi: [], kategori: [], kategoriFull: [], quiz: [], latihan: [], activeMateriId: null, adminSiswa: [], adminHasil: [], belajar: {} };
+  BELAJAR_META_LOADED = false;
   document.getElementById('appShell').classList.remove('active');
   document.getElementById('loginScreen').classList.add('active');
   document.getElementById('loginForm').reset();
@@ -2209,7 +2365,6 @@ function enterApp(){
     document.getElementById('topbarBadge').innerText = 'Admin';
     buildBottomNav('admin');
     navTo('admin-dashboard');
-    loadAdminStats();
   } else {
     document.getElementById('adminNav').style.display = 'none';
     document.getElementById('studentNav').style.display = 'block';
@@ -2217,7 +2372,6 @@ function enterApp(){
     document.getElementById('topbarBadge').innerText = 'Siswa';
     buildBottomNav('student');
     navTo('student-dashboard');
-    loadStudentDashboard();
   }
 }
 
@@ -2290,6 +2444,7 @@ function navTo(screenId){
   if (content) content.scrollTop = 0;
   window.scrollTo(0, 0);
 
+  if (screenId === 'admin-dashboard') loadAdminStats();
   if (screenId === 'admin-materi') loadAdminMateri();
   if (screenId === 'admin-soal') loadSoalMateriSelect();
   if (screenId === 'admin-siswa') loadAdminSiswa();
@@ -2818,6 +2973,7 @@ function renderAdminSoalList(list){
             <button class="btn btn-icon-sm text-danger" onclick="deleteSoalConfirm('${s.id}')" title="Hapus" aria-label="Hapus soal"><i class="bi bi-trash"></i></button>
           </div>
         </div>
+        ${s.gambarUrl ? `<img class="soal-image" src="${escapeHtml(s.gambarUrl)}" alt="Gambar untuk soal ${i+1}" loading="lazy">` : ''}
         ${s.tipe === 'PG' ? `
         <div class="mt-2 text-muted" style="font-size:.85rem">
           A. ${escapeHtml(s.a||'')} &nbsp; B. ${escapeHtml(s.b||'')} &nbsp; C. ${escapeHtml(s.c||'')} &nbsp; D. ${escapeHtml(s.d||'')}
@@ -2869,7 +3025,7 @@ function showSoalGambarPreview(url){
   const btn = document.getElementById('soalGambarRemoveBtn');
   if (!prev) return;
   if (url) {
-    prev.innerHTML = `<img src="${url}" alt="Preview gambar soal" style="max-width:100%;max-height:180px;border-radius:10px;object-fit:contain;border:1px solid #e7ebf3">`;
+    prev.innerHTML = `<img src="${escapeHtml(url)}" alt="Preview gambar soal" style="max-width:100%;max-height:180px;border-radius:10px;object-fit:contain;border:1px solid #e7ebf3">`;
     if (btn) btn.classList.remove('d-none');
   } else {
     prev.innerHTML = '';
@@ -3147,15 +3303,13 @@ function onBulkSoalFileSelected(ev){
   if (!file) return;
   const name = (file.name || '').toLowerCase();
   const reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = async function(e) {
     try {
       let rows = [];
       if (name.endsWith('.csv')) {
         rows = parseCsvToSoalRows(e.target.result);
-      } else if (typeof XLSX === 'undefined') {
-        showToast('Library Excel belum termuat. Refresh halaman lalu coba lagi.', 'error');
-        return;
       } else {
+        await ensureExcelLibrary();
         const data = new Uint8Array(e.target.result);
         const wb = XLSX.read(data, { type: 'array' });
         const sheet = wb.Sheets[wb.SheetNames[0]];
@@ -3605,77 +3759,65 @@ function showEssayReview(essayArr){
  * STUDENT: DASHBOARD
  * ========================================================*/
 async function loadStudentDashboard(){
-  await loadBelajarMeta();
-
-  // Profile (streak, badges, weekly, weakness, wrong)
-  try {
-    const profile = await callServer('getStudentProfile', CURRENT_USER.username);
-    if (profile) {
-      document.getElementById('stuStreak').innerText = profile.streak || 0;
-      document.getElementById('stuLongestStreak').innerText = profile.longestStreak || 0;
-      document.getElementById('stuWeeklyProgress').innerText = profile.weeklyProgress || 0;
-      document.getElementById('stuWeeklyGoal').innerText = profile.weeklyGoal || 0;
-      const wp = profile.weeklyGoal > 0 ? Math.min(100, Math.round((profile.weeklyProgress / profile.weeklyGoal) * 100)) : 0;
-      document.getElementById('stuWeeklyBar').style.width = wp + '%';
-
-      // Badges
-      const badgeEl = document.getElementById('stuBadgesList');
-      if (profile.badges && profile.badges.length) {
-        badgeEl.innerHTML = profile.badges.map(b =>
-          `<span class="badge rounded-pill" style="background:var(--emerald-soft);color:var(--emerald-dark);padding:6px 10px;font-size:.75rem"><i class="bi bi-award me-1"></i>${escapeHtml(b.name)}</span>`
-        ).join('');
-      } else {
-        badgeEl.innerHTML = '<span class="text-muted" style="font-size:.82rem">Belum ada badge — terus belajar!</span>';
-      }
-
-      // Weakness
-      const weakEl = document.getElementById('stuWeaknessList');
-      if (profile.weakness && profile.weakness.categories && profile.weakness.categories.length) {
-        weakEl.innerHTML = profile.weakness.categories.slice(0, 5).map(c => {
-          const color = c.level === 'lemah' ? '#ef4444' : (c.level === 'sedang' ? '#f59e0b' : 'var(--emerald)');
-          return `<div class="d-flex justify-content-between align-items-center mb-1">
-            <span>${escapeHtml(c.kategori)}</span>
-            <span style="color:${color};font-weight:600">${c.avgSkor} · ${c.level}</span>
-          </div>`;
-        }).join('');
-      } else {
-        weakEl.innerHTML = '<span class="text-muted">Belum ada data latihan untuk dianalisis.</span>';
-      }
-
-      // Wrong queue
-      const wrongInfo = document.getElementById('stuWrongQueueInfo');
-      const btnRetry = document.getElementById('btnRetryWrong');
-      if (profile.wrongCount > 0) {
-        wrongInfo.innerText = `${profile.wrongCount} soal yang pernah salah siap untuk diulang.`;
-        if (btnRetry) btnRetry.style.display = 'inline-flex';
-      } else {
-        wrongInfo.innerText = 'Tidak ada soal yang perlu diulang. Kerja bagus!';
-        if (btnRetry) btnRetry.style.display = 'none';
-      }
-    }
-  } catch (e) { /* non-critical */ }
-
-  try {
-    const p = await callServer('getProgressByStudent', CURRENT_USER.username);
-    document.getElementById('progressPercentText').innerText = p.persen + '%';
-    document.getElementById('progressBar').style.width = p.persen + '%';
-    document.getElementById('progressSubtext').innerText = `${p.selesai} dari ${p.total} materi dibaca/diselesaikan` + (p.bookmark ? ` · ${p.bookmark} favorit` : '');
-  } catch (err) { onServerError(err); }
-
-  try {
-    const list = (await callServer('getHasilByStudent', CURRENT_USER.username)) || [];
-    document.getElementById('stuTotalLatihan').innerText = list.length;
-    const avg = list.length ? Math.round(list.reduce((s,h)=>s+Number(h.skorAkhir != null ? h.skorAkhir : h.skor||0),0)/list.length) : 0;
-    document.getElementById('stuRataRata').innerText = avg;
-  } catch (err) { onServerError(err); }
-
+  if (!CURRENT_USER) return;
+  const token = CURRENT_TOKEN;
   const cont = document.getElementById('studentDashboardMateri');
   cont.innerHTML = skeletonCards(3);
   try {
-    const list = (await callServer('getMateriList')) || [];
+    const data = await callServer('getStudentDashboard', CURRENT_USER.username);
+    if (!CURRENT_USER || CURRENT_TOKEN !== token) return;
+    const profile = data.profile || {};
+    const p = data.progress || { persen:0, selesai:0, total:0, bookmark:0 };
+    const map = {};
+    (data.belajar || []).forEach(b => { map[b.materiId] = b; });
+    CACHE.belajar = map;
+    BELAJAR_META_LOADED = true;
+    const list = data.materi || [];
     CACHE.materi = list;
-    if (!list.length) { cont.innerHTML = '<div class="empty-state w-100"><i class="bi bi-journal-x"></i>Belum ada materi tersedia.</div>'; return; }
-    cont.innerHTML = list.slice(0,3).map(m => materiCardHtml(m)).join('');
+    document.getElementById('progressPercentText').innerText = p.persen + '%';
+    document.getElementById('progressBar').style.width = p.persen + '%';
+    document.getElementById('progressSubtext').innerText = `${p.selesai} dari ${p.total} materi dibaca/diselesaikan` + (p.bookmark ? ` · ${p.bookmark} favorit` : '');
+    document.getElementById('stuTotalLatihan').innerText = data.totalLatihan || 0;
+    document.getElementById('stuRataRata').innerText = data.rataRata || 0;
+    document.getElementById('stuStreak').innerText = profile.streak || 0;
+    document.getElementById('stuLongestStreak').innerText = profile.longestStreak || 0;
+    document.getElementById('stuWeeklyProgress').innerText = profile.weeklyProgress || 0;
+    document.getElementById('stuWeeklyGoal').innerText = profile.weeklyGoal || 0;
+    const wp = profile.weeklyGoal > 0 ? Math.min(100, Math.round(profile.weeklyProgress / profile.weeklyGoal * 100)) : 0;
+    document.getElementById('stuWeeklyBar').style.width = wp + '%';
+    const badgeEl = document.getElementById('stuBadgesList');
+    badgeEl.innerHTML = profile.badges && profile.badges.length
+      ? profile.badges.map(b => `<span class="badge rounded-pill" style="background:var(--emerald-soft);color:var(--emerald-dark);padding:6px 10px;font-size:.75rem"><i class="bi bi-award me-1"></i>${escapeHtml(b.name)}</span>`).join('')
+      : '<span class="text-muted">Belum ada badge — terus belajar!</span>';
+    const weakEl = document.getElementById('stuWeaknessList');
+    const weak = (profile.weakness && profile.weakness.categories) || [];
+    weakEl.innerHTML = weak.length ? weak.slice(0,5).map(c => {
+      const color = c.level === 'lemah' ? '#b42318' : c.level === 'sedang' ? '#9a6700' : 'var(--emerald-dark)';
+      return `<div class="d-flex justify-content-between align-items-center gap-2 mb-2"><span>${escapeHtml(c.kategori)}</span><span style="color:${color};font-weight:700">${Number(c.avgSkor)||0} · ${escapeHtml(c.level)}</span></div>`;
+    }).join('') : '<span class="text-muted">Belum ada data latihan untuk dianalisis.</span>';
+    const wrongInfo = document.getElementById('stuWrongQueueInfo');
+    const btnRetry = document.getElementById('btnRetryWrong');
+    wrongInfo.innerText = profile.wrongCount > 0
+      ? `${profile.wrongCount} soal yang pernah salah siap untuk diulang.`
+      : 'Tidak ada soal yang perlu diulang.';
+    if (btnRetry) btnRetry.style.display = profile.wrongCount > 0 ? 'inline-flex' : 'none';
+    cont.innerHTML = list.length
+      ? list.map(m => materiCardHtml(m)).join('')
+      : '<div class="empty-state w-100"><i class="bi bi-journal-x"></i>Belum ada materi tersedia.</div>';
+    const welcome = document.getElementById('studentWelcomeName');
+    if (welcome) welcome.innerText = (CURRENT_USER.fullname || 'Teman belajar').split(' ')[0];
+    const next = data.nextMateri || null;
+    const allDone = p.total > 0 && p.selesai >= p.total;
+    const nextLabel = document.querySelector('.student-next-label');
+    if (nextLabel) nextLabel.innerText = allDone ? 'ULANGI MATERI' : 'MATERI BERIKUTNYA';
+    const nextTitle = document.getElementById('studentNextTitle');
+    if (nextTitle) nextTitle.innerText = next ? next.judul : 'Materi baru akan muncul di sini';
+    const nextButton = document.getElementById('studentContinueBtn');
+    if (nextButton) {
+      nextButton.disabled = !next;
+      nextButton.onclick = next ? () => openMateriRead(next.id) : null;
+      nextButton.innerHTML = `<i class="bi bi-play-fill" aria-hidden="true"></i> ${allDone ? 'Tinjau ulang' : 'Lanjut belajar'}`;
+    }
   } catch (err) {
     cont.innerHTML = errorStateHtml(err.message || err, 'loadStudentDashboard()');
   }
@@ -3700,12 +3842,12 @@ async function startRetryQuiz(){
   const area = document.getElementById('studentQuizArea');
   area.innerHTML = '<div class="spinner-wrap"><div class="spinner-border text-success"></div><span>Memuat soal yang perlu diulang...</span></div>';
   try {
-    const res = await callServer('getRetryQuiz', CURRENT_USER.username);
+    const res = await callServer('startQuizAttempt', { type: 'retry' });
     if (!res.soal || !res.soal.length) {
       area.innerHTML = '<div class="empty-state"><i class="bi bi-check-circle"></i>Tidak ada soal yang perlu diulang.</div>';
       return;
     }
-    ACTIVE_QUIZ_META = { type: 'retry', kategori: '', materiId: '', judul: 'Ulangi Soal yang Salah', cekPemahaman: false };
+    ACTIVE_QUIZ_META = { type: 'retry', kategori: '', materiId: '', judul: 'Ulangi Soal yang Salah', cekPemahaman: false, attemptId: res.attemptId };
     CACHE.quiz = res.soal;
     // reuse startQuiz renderer by building similar UI
     let html = `<h5 class="font-display mb-1">Ulangi Soal yang Salah</h5>
@@ -3713,12 +3855,13 @@ async function startRetryQuiz(){
       <form id="quizForm">`;
     res.soal.forEach((s, i) => {
       html += `<div class="quiz-q-card glass"><div class="fw-semibold mb-1">${i+1}. ${escapeHtml(s.pertanyaan || '')}</div>`;
+      if (s.gambarUrl) html += `<img class="soal-image" src="${escapeHtml(s.gambarUrl)}" alt="Gambar untuk soal ${i+1}" loading="lazy">`;
       if (s.tipe === 'PG') {
         ['a','b','c','d'].forEach(opt => {
           if (!s[opt]) return;
           const letter = opt.toUpperCase();
           html += `<label class="d-block">
-            <input type="radio" name="q_${s.id}" value="${letter}" class="d-none" onchange="markSelected(this)">
+            <input type="radio" name="q_${s.id}" value="${letter}" class="visually-hidden quiz-answer-input" onchange="markSelected(this)">
             <span class="quiz-option">${letter}. ${escapeHtml(s[opt])}</span>
           </label>`;
         });
@@ -3745,6 +3888,7 @@ async function loadBelajarMeta(){
     const map = {};
     list.forEach(b => { map[b.materiId] = b; });
     CACHE.belajar = map;
+    BELAJAR_META_LOADED = true;
   } catch (e) { CACHE.belajar = CACHE.belajar || {}; }
 }
 
@@ -3756,7 +3900,7 @@ function materiCardHtml(m){
   ].filter(Boolean).join(' ');
   return `
     <div class="col-sm-6 col-lg-4">
-      <div class="materi-card glass fade-item" onclick="openMateriRead('${m.id}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter')openMateriRead('${m.id}')">
+      <div class="materi-card glass fade-item" onclick="openMateriRead('${m.id}')" role="button" tabindex="0">
         <div class="top"></div>
         <div class="body">
           <div class="d-flex justify-content-between align-items-start gap-2">
@@ -3951,13 +4095,18 @@ function renderLearningPathHtml(path, materiId, kategori){
 }
 
 async function openMateriRead(id){
+  const sessionToken = CURRENT_TOKEN;
   CACHE.activeMateriId = id;
   navTo('student-read');
   const area = document.getElementById('studentReadArea');
   area.innerHTML = '<div class="spinner-wrap"><div class="spinner-border text-success"></div><span>Memuat materi...</span></div>';
   try {
-    if (!CACHE.belajar || !Object.keys(CACHE.belajar).length) await loadBelajarMeta();
-    const m = await callServer('getMateriById', id);
+    const [m, path] = await Promise.all([
+      callServer('getMateriById', id),
+      callServer('getLearningPath', id, CURRENT_USER.username).catch(() => null),
+      BELAJAR_META_LOADED ? Promise.resolve() : loadBelajarMeta()
+    ]);
+    if (!CURRENT_USER || CURRENT_TOKEN !== sessionToken || CACHE.activeMateriId !== id) return;
     if (!m) { area.innerHTML = errorStateHtml('Materi tidak ditemukan.'); return; }
     ACTIVE_MATERI_OBJ = m;
     const meta = getBelajarFor(m.id);
@@ -3968,11 +4117,7 @@ async function openMateriRead(id){
       : '';
 
     // Learning path
-    let pathHtml = '';
-    try {
-      const path = await callServer('getLearningPath', id, CURRENT_USER.username);
-      pathHtml = renderLearningPathHtml(path, m.id, m.kategori);
-    } catch (e) { pathHtml = ''; }
+    const pathHtml = renderLearningPathHtml(path, m.id, m.kategori);
 
     area.innerHTML = `
       <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
@@ -3992,6 +4137,13 @@ async function openMateriRead(id){
       </div>
       ${pathHtml}
       ${ringkasanHtml}
+      <section class="learning-checkpoint">
+        <span class="small-caps">PAHAMI • COBA • ULANGI</span>
+        <h4>Bisakah kamu menjelaskan intinya?</h4>
+        <p>Setelah membaca, tulis satu gagasan penting dengan bahasamu sendiri di catatan. Lalu uji pemahamanmu dengan soal singkat.</p>
+      </section>
+      <details class="material-preview-details" ontoggle="loadMaterialPreview(this)">
+        <summary><i class="bi bi-file-earmark-text" aria-hidden="true"></i> Buka dokumen lengkap <i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
       <div class="reader-frame-wrap glass fade-item" id="readerFrameWrap">
         <div class="reader-toolbar">
           <div class="text-muted" style="font-size:.78rem"><i class="bi bi-eye me-1"></i>Pratinjau materi</div>
@@ -4001,8 +4153,9 @@ async function openMateriRead(id){
             <a class="btn btn-icon-sm" href="${driveOpen}" target="_blank" rel="noopener" title="Buka di tab baru" aria-label="Tab baru"><i class="bi bi-box-arrow-up-right"></i></a>
           </div>
         </div>
-        <iframe id="materiReaderIframe" src="${preview}" allow="autoplay" title="Preview materi" style="height:min(72vh, 680px)"></iframe>
+        <iframe id="materiReaderIframe" data-src="${escapeHtml(preview)}" src="about:blank" loading="lazy" title="Preview materi" style="height:min(72vh, 680px)"></iframe>
       </div>
+      </details>
       <div class="learn-actions">
         <button type="button" class="btn btn-premium btn-sm px-3" id="btnMarkDibaca" onclick="markMateriDibaca('${m.id}', ${meta.dibaca ? 'false' : 'true'})">
           <i class="bi ${meta.dibaca ? 'bi-arrow-counterclockwise' : 'bi-check2-circle'} me-1"></i>
@@ -4026,6 +4179,15 @@ async function openMateriRead(id){
     `;
   } catch (err) {
     area.innerHTML = errorStateHtml(err.message || err);
+  }
+}
+
+function loadMaterialPreview(details){
+  if (!details.open) return;
+  const iframe = details.querySelector('iframe[data-src]');
+  if (iframe && iframe.dataset.src) {
+    iframe.src = iframe.dataset.src;
+    iframe.removeAttribute('data-src');
   }
 }
 
@@ -4082,7 +4244,7 @@ async function startCekPemahaman(materiId){
   const area = document.getElementById('studentQuizArea');
   area.innerHTML = '<div class="spinner-wrap"><div class="spinner-border text-success"></div><span>Menyiapkan cek pemahaman...</span></div>';
   try {
-    const res = await callServer('getCekPemahaman', materiId);
+    const res = await callServer('startQuizAttempt', { type: 'cek', materiId: materiId });
     if (!res.soal || !res.soal.length) {
       area.innerHTML = '<div class="empty-state"><i class="bi bi-patch-question"></i>Belum ada soal untuk cek pemahaman materi ini.<br><span class="text-muted" style="font-size:.85rem">Admin perlu menambahkan soal per materi atau per kategori.</span></div>';
       return;
@@ -4092,16 +4254,13 @@ async function startCekPemahaman(materiId){
       materiId: materiId,
       kategori: res.kategori || '',
       judul: 'Cek pemahaman: ' + (res.judul || ''),
-      cekPemahaman: true
+      cekPemahaman: true,
+      attemptId: res.attemptId
     };
     // Reuse quiz renderer via CACHE + startQuiz path
     CACHE.quiz = res.soal;
     // Build quiz UI similar to startQuiz but without long timer (use half default or 10 min)
-    let minutes = Math.min(10, QUIZ_DEFAULT_MINUTES);
-    try {
-      const settings = await callServer('getSettings');
-      if (settings && settings.quizMinutes) minutes = Math.min(10, settings.quizMinutes);
-    } catch(e){}
+    const minutes = Math.min(10, Number(res.quizMinutes) || QUIZ_DEFAULT_MINUTES);
 
     const list = res.soal;
     let html = `
@@ -4121,12 +4280,13 @@ async function startCekPemahaman(materiId){
       <form id="quizForm">`;
     list.forEach((s, i) => {
       html += `<div class="quiz-q-card glass"><div class="fw-semibold mb-1">${i+1}. ${escapeHtml(s.pertanyaan || '')}</div>`;
+      if (s.gambarUrl) html += `<img class="soal-image" src="${escapeHtml(s.gambarUrl)}" alt="Gambar untuk soal ${i+1}" loading="lazy">`;
       if (s.tipe === 'PG') {
         ['a','b','c','d'].forEach(opt => {
           if (!s[opt]) return;
           const letter = opt.toUpperCase();
           html += `<label class="d-block">
-            <input type="radio" name="q_${s.id}" value="${letter}" class="d-none" onchange="markSelected(this)">
+            <input type="radio" name="q_${s.id}" value="${letter}" class="visually-hidden quiz-answer-input" onchange="markSelected(this)">
             <span class="quiz-option">${letter}. ${escapeHtml(s[opt])}</span>
           </label>`;
         });
@@ -4190,20 +4350,10 @@ function goToLatihanForKategori(kategori){
 
 /** Dari halaman baca materi: mulai kuis per-materi jika ada, else filter kategori */
 async function goToLatihanForMateri(materiId, kategori){
-  try {
-    const list = (await callServer('getSoalByMateriStudent', materiId)) || [];
-    const aktif = list.filter(s => s.status !== 'Terkunci');
-    if (aktif.length) {
-      startQuizFromItem({
-        type: 'materi',
-        materiId: materiId,
-        kategori: kategori || '',
-        judul: 'Latihan Materi'
-      });
-      return;
-    }
-  } catch (e) { /* fallback */ }
-  goToLatihanForKategori(kategori);
+  startQuizFromItem({
+    type: 'materi', materiId: materiId,
+    kategori: kategori || '', judul: 'Latihan Materi'
+  });
 }
 </script>
 <script>
@@ -4302,7 +4452,6 @@ async function startQuiz(metaOrKategori){
   } else if (metaOrKategori && typeof metaOrKategori === 'object') {
     meta = metaOrKategori;
   }
-  ACTIVE_QUIZ_META = meta;
   const kategori = meta.kategori || '';
   const materiId = meta.materiId || '';
   const isMateri = meta.type === 'materi' && materiId;
@@ -4311,20 +4460,19 @@ async function startQuiz(metaOrKategori){
   const area = document.getElementById('studentQuizArea');
   area.innerHTML = '<div class="spinner-wrap"><div class="spinner-border text-success"></div><span>Memuat soal...</span></div>';
 
-  // Load timer setting
   try {
-    const settings = await callServer('getSettings');
-    if (settings && settings.quizMinutes) QUIZ_DEFAULT_MINUTES = settings.quizMinutes;
-  } catch (e) { /* gunakan default */ }
-
-  try {
-    let list;
-    if (isMateri) {
-      list = (await callServer('getSoalByMateriStudent', materiId)) || [];
-    } else {
-      list = (await callServer('getSoalByKategoriStudent', kategori)) || [];
-    }
+    const attempt = await callServer('startQuizAttempt', {
+      type: isMateri ? 'materi' : 'kategori', materiId: materiId, kategori: kategori
+    });
+    const list = attempt.soal || [];
+    ACTIVE_QUIZ_META = { ...meta, attemptId: attempt.attemptId };
+    QUIZ_DEFAULT_MINUTES = Number(attempt.quizMinutes) || QUIZ_DEFAULT_MINUTES;
     if (!list.length) {
+      if (isMateri && kategori) {
+        goToLatihanForKategori(kategori);
+        showToast('Belum ada soal materi ini. Menampilkan latihan kategori.', 'warn');
+        return;
+      }
       area.innerHTML = '<div class="empty-state"><i class="bi bi-patch-question"></i>Belum ada soal untuk latihan ini.</div>';
       return;
     }
@@ -4362,7 +4510,7 @@ async function startQuiz(metaOrKategori){
       const terkunci = s.status === 'Terkunci';
       html += `<div class="quiz-q-card glass" style="${terkunci ? 'opacity:.7; border-left-color:#b42323' : ''}"><div class="fw-semibold mb-1">${i+1}. ${escapeHtml(s.pertanyaan || '')} ${terkunci ? '<span class="file-type-badge ft-pdf ms-1"><i class="bi bi-lock-fill"></i>Terkunci</span>' : ''}</div>`;
       if (s.gambarUrl) {
-        html += `<div class="mt-2 mb-2"><img src="${s.gambarUrl}" alt="Gambar soal ${i+1}" style="max-width:100%;max-height:280px;border-radius:12px;object-fit:contain;border:1px solid var(--border-light);background:var(--off-white)" loading="lazy"></div>`;
+        html += `<img class="soal-image" src="${escapeHtml(s.gambarUrl)}" alt="Gambar untuk soal ${i+1}" loading="lazy">`;
       }
       if (terkunci) {
         html += `<div class="alert alert-danger py-2 mt-2 mb-0" style="border-radius:10px; font-size:.85rem"><i class="bi bi-exclamation-triangle-fill me-1"></i>Soal ini sedang dikunci admin. Hubungi admin jika ini seharusnya bisa dikerjakan.</div>`;
@@ -4371,7 +4519,7 @@ async function startQuiz(metaOrKategori){
           if (!s[opt]) return;
           const letter = opt.toUpperCase();
           html += `<label class="d-block">
-            <input type="radio" name="q_${s.id}" value="${letter}" class="d-none" onchange="markSelected(this)">
+            <input type="radio" name="q_${s.id}" value="${letter}" class="visually-hidden quiz-answer-input" onchange="markSelected(this)">
             <span class="quiz-option">${letter}. ${escapeHtml(s[opt])}</span>
           </label>`;
         });
@@ -4426,8 +4574,10 @@ async function submitQuiz(){
       kategori: meta.kategori || '',
       materiId: meta.materiId || '',
       judul: meta.judul || '',
+      attemptId: meta.attemptId || '',
       answers: answers
     });
+    if (res.alreadySubmitted) showToast('Jawaban sudah tersimpan. Berikut hasilnya.', 'success');
     lastQuizDetails = res.details || [];
     pembahasanVisible = false;
 
@@ -4436,6 +4586,13 @@ async function submitQuiz(){
       ? `Kamu menjawab benar ${res.benar} dari ${res.totalPG} soal pilihan ganda (KKM: ${res.kkm}%).` + (res.essayCount ? ` ${res.essayCount} soal essay telah dikumpulkan untuk dinilai admin.` : '')
       : `${res.essayCount} soal essay telah dikumpulkan untuk dinilai admin.`;
     document.getElementById('hasilDetailText').innerText = detail;
+    document.getElementById('hasilGuidance').innerText = res.alreadySubmitted
+      ? 'Hasil sebelumnya berhasil ditemukan. Buka riwayat latihan untuk melihat perkembangannya.'
+      : res.essayStatus === 'Menunggu'
+      ? 'Baca pembahasan pilihan ganda sekarang. Jawaban esaimu akan dinilai admin.'
+      : res.skor >= res.kkm
+        ? 'Coba jelaskan satu konsep penting dengan bahasamu sendiri sebelum lanjut ke materi berikutnya.'
+        : 'Buka pembahasan, cari alasan jawabanmu keliru, lalu ulangi soal yang salah.';
 
     const lulusBadge = document.getElementById('hasilLulusBadge');
     if (res.lulus) {
@@ -4459,19 +4616,6 @@ async function submitQuiz(){
       } else {
         btnPembahasan.style.display = 'none';
       }
-    }
-
-    // Update learning path stage for materi quiz
-    if (meta.materiId && CURRENT_USER) {
-      try {
-        const skor = Number(res.skor || 0);
-        const stage = skor >= 85 ? 'kuasai' : 'latihan';
-        await callServer('setLearningStage', {
-          username: CURRENT_USER.username,
-          materiId: meta.materiId,
-          stage: stage
-        });
-      } catch (e) { /* non-critical */ }
     }
 
     new bootstrap.Modal(document.getElementById('hasilModal')).show();
@@ -4790,6 +4934,14 @@ function escapeHtml(str){
   if (str === null || str === undefined) return '';
   return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const card = e.target.closest('.folder-card[role="button"], .materi-card[role="button"]');
+  if (card && e.target === card) {
+    e.preventDefault();
+    card.click();
+  }
+});
 function formatDate(d){
   try { const dt = new Date(d); return dt.toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' }); } catch(e){ return d || ''; }
 }
