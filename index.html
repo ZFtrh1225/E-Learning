@@ -1822,7 +1822,17 @@ h1,h2,h3,h4,h5,h6,.font-display { font-family: system-ui, -apple-system, 'Segoe 
             <div class="font-display text-emerald" id="essayGradeSkorAkhir">—</div>
           </div>
         </div>
-        <div class="text-muted mb-3" style="font-size:.75rem">*Skor akhir = 60% PG + 40% Essay (jika keduanya ada). Hanya essay = 100% essay.</div>
+        <div class="row g-2 mb-2" id="essayWeightControls">
+          <div class="col-6">
+            <label class="small-caps mb-1 d-block" for="essayWeightPG">Bobot PG (%)</label>
+            <input type="number" class="form-control form-control-premium" id="essayWeightPG" min="0" max="100" step="1" value="60" inputmode="numeric" oninput="previewEssayFinalScore()">
+          </div>
+          <div class="col-6">
+            <label class="small-caps mb-1 d-block" for="essayWeightEssay">Bobot esai (%)</label>
+            <input type="number" class="form-control form-control-premium" id="essayWeightEssay" min="0" max="100" step="1" value="40" inputmode="numeric" oninput="previewEssayFinalScore()">
+          </div>
+        </div>
+        <div class="text-muted mb-3" id="essayWeightHint" style="font-size:.75rem">Jumlah bobot harus 100%. Bobot disimpan bersama nilai.</div>
         <div id="essayGradeList"></div>
         <div class="mt-3">
           <label class="small-caps mb-1 d-block" for="essayGradeCatatan">Catatan untuk siswa (opsional)</label>
@@ -1876,7 +1886,7 @@ h1,h2,h3,h4,h5,h6,.font-display { font-family: system-ui, -apple-system, 'Segoe 
  * CONFIG — ganti URL ini dengan URL Web App Google Apps Script
  * Setelah deploy Code.gs sebagai Web App, salin URL (.../exec)
  * ========================================================*/
-const API_URL = 'https://script.google.com/macros/s/AKfycbyjJJ2sSib3r9hfp-JtWJyX7Fb3Cv75HzvdCJ1Xoy6SFHdbIr9iyLlja_DPEJ2-tpo/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwtc4AmqpD6PNVHe3EhdywBttdMajcN73lD5crxqvDqHEGjxJk7nnDjtmTtmeZDTGA/exec';
 // Contoh: 'https://script.google.com/macros/s/AKfycbx.../exec'
 
 let excelLoader = null;
@@ -3664,6 +3674,16 @@ async function openEssayGradeModal(hasilId){
       (h.username || '') + ' · ' + (h.judulMateri || '') + ' · ' + formatDate(h.tanggal);
     document.getElementById('essayGradeSkorPG').innerText = (h.totalPG > 0 ? h.skor : '—') + (h.totalPG > 0 ? '' : '');
     document.getElementById('essayGradeCatatan').value = h.catatanAdmin || '';
+    const onlyEssay = Number(h.totalPG || 0) === 0;
+    const weightPG = document.getElementById('essayWeightPG');
+    const weightEssay = document.getElementById('essayWeightEssay');
+    weightPG.value = onlyEssay ? 0 : (h.bobotPG == null ? 60 : h.bobotPG);
+    weightEssay.value = onlyEssay ? 100 : (h.bobotEssay == null ? 40 : h.bobotEssay);
+    weightPG.disabled = onlyEssay;
+    weightEssay.disabled = onlyEssay;
+    document.getElementById('essayWeightHint').innerText = onlyEssay
+      ? 'Latihan ini hanya berisi esai. Bobot esai selalu 100%.'
+      : 'Jumlah bobot harus 100%. Bobot disimpan bersama nilai.';
 
     let essay = [];
     try { essay = JSON.parse(h.jawabanEssay || '[]'); } catch(e){}
@@ -3691,15 +3711,28 @@ async function openEssayGradeModal(hasilId){
   }
 }
 
+function essayWeightsFromForm(totalPG){
+  const pgInput = document.getElementById('essayWeightPG');
+  const essayInput = document.getElementById('essayWeightEssay');
+  if (!pgInput.value || !essayInput.value) return null;
+  const pg = Number(pgInput.value), essay = Number(essayInput.value);
+  if (!Number.isFinite(pg) || !Number.isFinite(essay) || pg < 0 || essay <= 0 ||
+      pg > 100 || essay > 100 || Math.abs(pg + essay - 100) > 1e-8 ||
+      (totalPG > 0 && pg <= 0) || (totalPG === 0 && (pg !== 0 || essay !== 100))) return null;
+  return { pg: pg, essay: essay };
+}
+
 function previewEssayFinalScore(){
   const h = ESSAY_GRADE_CACHE;
   if (!h) return;
   const inputs = [...document.querySelectorAll('.essay-skor-input')];
   const scores = inputs.map(inp => {
     const v = Number(inp.value);
-    return isNaN(v) ? null : Math.max(0, Math.min(100, v));
+    return inp.value === '' || !Number.isFinite(v) || v < 0 || v > 100 ? null : v;
   });
-  if (scores.some(s => s === null)) {
+  const totalPG = Number(h.totalPG || 0);
+  const weights = essayWeightsFromForm(totalPG);
+  if (!weights || !scores.length || scores.some(s => s === null)) {
     document.getElementById('essayGradeSkorEssay').innerText = '—';
     document.getElementById('essayGradeSkorAkhir').innerText = '—';
     return;
@@ -3707,10 +3740,7 @@ function previewEssayFinalScore(){
   const essaySkor = Math.round(scores.reduce((a,b)=>a+b,0) / scores.length);
   document.getElementById('essayGradeSkorEssay').innerText = essaySkor;
   const skorPG = Number(h.skor || 0);
-  const totalPG = Number(h.totalPG || 0);
-  let skorAkhir;
-  if (totalPG > 0) skorAkhir = Math.round(skorPG * 0.6 + essaySkor * 0.4);
-  else skorAkhir = essaySkor;
+  const skorAkhir = Math.round((skorPG * weights.pg + essaySkor * weights.essay) / 100);
   document.getElementById('essayGradeSkorAkhir').innerText = skorAkhir;
 }
 
@@ -3723,11 +3753,16 @@ async function submitEssayGrade(){
     const soalId = el.dataset.soalId || '';
     const inp = el.querySelector('.essay-skor-input');
     const skor = Number(inp && inp.value);
-    if (inp.value === '' || isNaN(skor)) {
+    if (inp.value === '' || !Number.isFinite(skor) || skor < 0 || skor > 100) {
       showToast('Semua soal essay harus diberi nilai 0–100.', 'warn');
       return;
     }
-    essays.push({ index: idx, soalId: soalId, skor: Math.max(0, Math.min(100, skor)) });
+    essays.push({ index: idx, soalId: soalId, skor: skor });
+  }
+  const weights = essayWeightsFromForm(Number(ESSAY_GRADE_CACHE && ESSAY_GRADE_CACHE.totalPG || 0));
+  if (!weights) {
+    showToast('Bobot PG dan esai harus berjumlah 100% dan tiap bagian yang ada harus positif.', 'warn');
+    return;
   }
 
   const btn = document.getElementById('essayGradeSubmitBtn');
@@ -3738,6 +3773,8 @@ async function submitEssayGrade(){
     const res = await callServer('gradeEssay', {
       id: id,
       essays: essays,
+      bobotPG: weights.pg,
+      bobotEssay: weights.essay,
       catatanAdmin: document.getElementById('essayGradeCatatan').value.trim()
     });
     showToast('Nilai essay disimpan. Skor akhir: ' + res.skorAkhir + ' (' + res.lulus + ')', 'success');
@@ -4585,9 +4622,11 @@ async function submitQuiz(){
     lastQuizDetails = res.details || [];
     pembahasanVisible = false;
 
-    document.getElementById('hasilSkorText').innerText = res.totalPG > 0 ? res.skor : '-';
+    document.getElementById('hasilSkorText').innerText = res.essayStatus === 'Menunggu'
+      ? (res.totalPG > 0 ? 'PG ' + res.skor : 'Menunggu nilai')
+      : (res.skorAkhir == null ? '—' : res.skorAkhir);
     let detail = res.totalPG > 0
-      ? `Kamu menjawab benar ${res.benar} dari ${res.totalPG} soal pilihan ganda (KKM: ${res.kkm}%).` + (res.essayCount ? ` ${res.essayCount} soal essay telah dikumpulkan untuk dinilai admin.` : '')
+      ? `Kamu menjawab benar ${res.benar} dari ${res.totalPG} soal pilihan ganda (KKM: ${res.kkm}%).` + (res.essayCount ? ` ${res.essayCount} esai menunggu penilaian; nilai PG belum menentukan kelulusan.` : '')
       : `${res.essayCount} soal essay telah dikumpulkan untuk dinilai admin.`;
     document.getElementById('hasilDetailText').innerText = detail;
     document.getElementById('hasilGuidance').innerText = res.alreadySubmitted
@@ -4601,8 +4640,9 @@ async function submitQuiz(){
     const lulusBadge = document.getElementById('hasilLulusBadge');
     if (res.lulus) {
       lulusBadge.style.display = 'inline-flex';
-      lulusBadge.className = 'file-type-badge ' + (res.lulus === 'Lulus' ? 'ft-excel' : 'ft-pdf');
-      lulusBadge.innerHTML = `<i class="bi ${res.lulus === 'Lulus' ? 'bi-check-circle-fill' : 'bi-x-circle-fill'}"></i>${escapeHtml(res.lulus)}`;
+      const waiting = res.essayStatus === 'Menunggu';
+      lulusBadge.className = 'file-type-badge ' + (waiting ? 'ft-file' : res.lulus === 'Lulus' ? 'ft-excel' : 'ft-pdf');
+      lulusBadge.innerHTML = `<i class="bi ${waiting ? 'bi-hourglass-split' : res.lulus === 'Lulus' ? 'bi-check-circle-fill' : 'bi-x-circle-fill'}"></i>${escapeHtml(res.lulus)}`;
     } else {
       lulusBadge.style.display = 'none';
     }
@@ -4908,7 +4948,7 @@ async function loadStudentRiwayat(){
     const list = (await callServer('getHasilByStudent', CURRENT_USER.username)) || [];
     if (!list.length) { cont.innerHTML = '<div class="empty-state"><i class="bi bi-clock-history"></i>Belum ada riwayat latihan.</div>'; return; }
     cont.innerHTML = list.map(h => {
-      const finalScore = (h.skorAkhir !== null && h.skorAkhir !== undefined) ? h.skorAkhir : h.skor;
+      const finalScore = h.skorAkhir;
       const essayNote = h.essayStatus === 'Menunggu'
         ? '<span class="pill-essay-wait">Essay menunggu nilai</span>'
         : (h.essayStatus === 'Dinilai' ? '<span class="pill-essay-done">Essay dinilai</span>' : '');
@@ -4922,7 +4962,8 @@ async function loadStudentRiwayat(){
         </div>
         <div class="d-flex align-items-center gap-2 flex-shrink-0">
           ${lulusBadgeHtml(h.lulus)}
-          ${scorePill(finalScore)}
+          ${finalScore === null || finalScore === undefined
+            ? '<span class="pill-essay-wait">Menunggu nilai</span>' : scorePill(finalScore)}
         </div>
       </div>`;
     }).join('');
@@ -4973,8 +5014,9 @@ function scorePill(score){
 }
 function lulusBadgeHtml(lulus){
   if (!lulus) return '';
-  const cls = lulus === 'Lulus' ? 'ft-excel' : 'ft-pdf';
-  const icon = lulus === 'Lulus' ? 'bi-check-circle-fill' : 'bi-x-circle-fill';
+  const pending = lulus === 'Menunggu Penilaian' || lulus === 'Lulus Sementara' || lulus === 'Menunggu Essay';
+  const cls = pending ? 'ft-file' : (lulus === 'Lulus' ? 'ft-excel' : 'ft-pdf');
+  const icon = pending ? 'bi-hourglass-split' : (lulus === 'Lulus' ? 'bi-check-circle-fill' : 'bi-x-circle-fill');
   return `<span class="file-type-badge ${cls}"><i class="bi ${icon}"></i>${escapeHtml(lulus)}</span>`;
 }
 
