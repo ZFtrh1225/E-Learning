@@ -982,6 +982,25 @@ h1,h2,h3,h4,h5,h6,.font-display { font-family: system-ui, -apple-system, 'Segoe 
 }
 .learning-checkpoint h4 { font-size:1.03rem; margin:8px 0 5px; }
 .learning-checkpoint p { color:var(--muted-dark); line-height:1.55; margin:0; }
+.learning-checkpoint .recall-prompt { font-weight:700; color:var(--ink); margin-top:10px; }
+.student-study-plan {
+  display:flex; align-items:center; justify-content:space-between; gap:14px;
+  margin:-3px 0 20px; padding:15px 18px; border:1px solid var(--border-light);
+  border-radius:16px; background:var(--card-bg); box-shadow:var(--shadow-sm);
+}
+.student-study-plan p { margin:3px 0 0; font-size:.88rem; color:var(--muted-dark); line-height:1.5; }
+.student-study-plan .btn { flex-shrink:0; min-height:44px; }
+.recall-actions { display:flex; flex-wrap:wrap; gap:9px; margin-top:12px; }
+.recall-actions .btn { min-height:44px; }
+.result-next-actions { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
+.result-next-actions .btn { min-height:44px; }
+.quiz-submit-panel {
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap;
+  gap:8px; padding:12px 14px; margin-top:14px; border-radius:14px;
+  border:1px solid var(--border-light); background:var(--card-bg);
+}
+.quiz-submit-panel .btn { min-height:44px; }
+.quiz-submit-panel .quiz-count { font-size:.84rem; color:var(--ink); font-weight:700; }
 .learning-result-guidance {
   max-width:520px; margin:0 auto; padding:12px 14px;
   border-radius:12px; background:var(--emerald-soft); color:var(--ink);
@@ -1018,6 +1037,13 @@ h1,h2,h3,h4,h5,h6,.font-display { font-family: system-ui, -apple-system, 'Segoe 
   .student-next-card { gap:10px; }
   .student-next-card strong { width:100%; }
   .student-next-card .btn { width:100%; }
+  .student-study-plan { display:block; padding:16px; }
+  .student-study-plan .btn { width:100%; margin-top:12px; }
+  .recall-actions .btn, .result-next-actions .btn { width:100%; }
+  .catatan-box textarea { min-height:116px; font-size:16px; }
+  .quiz-submit-panel { position:sticky; bottom:calc(var(--bottom-nav-h) + var(--safe-bottom) + 6px); z-index:8; box-shadow:var(--shadow-md); }
+  body.quiz-focus-mode .quiz-submit-panel { bottom:calc(var(--safe-bottom) + 6px); }
+  .quiz-submit-panel #quizSubmitBtn { width:100%!important; margin-top:0!important; }
   #student-dashboard .stat-card { min-height:106px; }
   .learn-actions > button { flex:1 1 100%; min-height:48px; }
   .learn-path-step { min-width:86px; }
@@ -1426,6 +1452,13 @@ h1,h2,h3,h4,h5,h6,.font-display { font-family: system-ui, -apple-system, 'Segoe 
           <div class="student-home-steps" aria-label="Cara belajar">
             <span><b>01</b> Pahami</span><span><b>02</b> Coba</span><span><b>03</b> Ulangi</span>
           </div>
+        </section>
+        <section class="student-study-plan" aria-labelledby="studentPlanTitle">
+          <div>
+            <div class="small-caps" id="studentPlanTitle">LANGKAH HARI INI</div>
+            <p id="studentPlanText">Menyiapkan langkah belajar untukmu...</p>
+          </div>
+          <button type="button" id="studentPlanBtn" class="btn btn-gold-outline" disabled>Lihat materi</button>
         </section>
         <div class="row g-3 mb-4">
           <div class="col-12 col-lg-6">
@@ -1862,6 +1895,7 @@ h1,h2,h3,h4,h5,h6,.font-display { font-family: system-ui, -apple-system, 'Segoe 
         <span class="file-type-badge ft-excel mb-2" id="hasilLulusBadge" style="display:none"></span>
         <p class="text-muted mb-3" id="hasilDetailText" style="font-size:.92rem">-</p>
         <p class="learning-result-guidance" id="hasilGuidance"></p>
+        <div class="result-next-actions mt-3" id="hasilNextActions" style="display:none"></div>
         <div id="hasilPembahasanArea" class="text-start mt-3" style="display:none"></div>
         <div class="d-flex flex-wrap gap-2 justify-content-center mt-4">
           <button class="btn btn-premium px-4" id="btnLihatPembahasan" onclick="togglePembahasan()" style="display:none">
@@ -1886,7 +1920,7 @@ h1,h2,h3,h4,h5,h6,.font-display { font-family: system-ui, -apple-system, 'Segoe 
  * CONFIG — ganti URL ini dengan URL Web App Google Apps Script
  * Setelah deploy Code.gs sebagai Web App, salin URL (.../exec)
  * ========================================================*/
-const API_URL = 'https://script.google.com/macros/s/AKfycbwtc4AmqpD6PNVHe3EhdywBttdMajcN73lD5crxqvDqHEGjxJk7nnDjtmTtmeZDTGA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzBAgwsi_pc2imkVvxpJOQE11k6GRuSGP_8QEkY-tVOhWyC4iQR9Mlp8raBIzOL9-4/exec';
 // Contoh: 'https://script.google.com/macros/s/AKfycbx.../exec'
 
 let excelLoader = null;
@@ -2149,6 +2183,7 @@ function buildPayload(action, args) {
     case 'getSoalByMateriStudent':
     case 'getCekPemahaman':
     case 'getLearningPath':
+    case 'getMateriReader':
       payload.materiId = args[0];
       if (args[1] != null) payload.username = args[1];
       break;
@@ -3858,6 +3893,29 @@ async function loadStudentDashboard(){
       nextButton.onclick = next ? () => openMateriRead(next.id) : null;
       nextButton.innerHTML = `<i class="bi bi-play-fill" aria-hidden="true"></i> ${allDone ? 'Tinjau ulang' : 'Lanjut belajar'}`;
     }
+    const planText = document.getElementById('studentPlanText');
+    const planButton = document.getElementById('studentPlanBtn');
+    if (planText && planButton) {
+      const wrongCount = Number(profile.wrongCount) || 0;
+      if (next) {
+        planText.innerText = allDone
+          ? `Tinjau kembali “${next.judul}”, jelaskan intinya dengan bahasamu sendiri, lalu coba soal singkat.`
+          : `Baca “${next.judul}”, catat satu gagasan penting, lalu cek pemahamanmu.`;
+        planButton.innerText = allDone ? 'Tinjau materi' : 'Mulai belajar';
+        planButton.onclick = () => openMateriRead(next.id);
+        planButton.disabled = false;
+      } else if (wrongCount > 0) {
+        planText.innerText = `Ada ${wrongCount} soal yang dapat dicoba lagi. Baca pembahasannya setelah mengerjakan.`;
+        planButton.innerText = 'Ulangi soal';
+        planButton.onclick = startRetryQuiz;
+        planButton.disabled = false;
+      } else {
+        planText.innerText = 'Belum ada materi atau soal untuk dikerjakan. Materi baru akan muncul di sini.';
+        planButton.innerText = 'Lihat materi';
+        planButton.onclick = null;
+        planButton.disabled = true;
+      }
+    }
     DASHBOARD_RENDERED = true;
   } catch (err) {
     if (!DASHBOARD_RENDERED) cont.innerHTML = errorStateHtml(err.message || err, 'loadStudentDashboard()');
@@ -3914,6 +3972,7 @@ async function startRetryQuiz(){
     });
     html += `<button type="button" class="btn btn-premium px-4 mt-2 w-100" id="quizSubmitBtn" onclick="submitQuiz()"><i class="bi bi-send-check me-2"></i>Kumpulkan</button></form>`;
     area.innerHTML = html;
+    initQuizProgress(area);
   } catch (err) {
     area.innerHTML = errorStateHtml(err.message || err);
   }
@@ -4142,13 +4201,23 @@ async function openMateriRead(id){
   const area = document.getElementById('studentReadArea');
   area.innerHTML = '<div class="spinner-wrap"><div class="spinner-border text-success"></div><span>Memuat materi...</span></div>';
   try {
-    const [m, path] = await Promise.all([
-      callServer('getMateriById', id),
-      callServer('getLearningPath', id, CURRENT_USER.username).catch(() => null),
-      BELAJAR_META_LOADED ? Promise.resolve() : loadBelajarMeta()
-    ]);
+    let bundle;
+    try {
+      bundle = await callServer('getMateriReader', id);
+    } catch (err) {
+      // During a staged deployment, the previous backend can still serve the reader.
+      if (!/^(Tindakan tidak tersedia\.|Action tidak dikenal: getMateriReader)$/.test(err.message || '')) throw err;
+      const [materi, path] = await Promise.all([
+        callServer('getMateriById', id),
+        callServer('getLearningPath', id, CURRENT_USER.username).catch(() => null),
+        BELAJAR_META_LOADED ? Promise.resolve() : loadBelajarMeta()
+      ]);
+      bundle = { materi: materi, path: path };
+    }
     if (!CURRENT_USER || CURRENT_TOKEN !== sessionToken || CACHE.activeMateriId !== id) return;
+    const m = bundle && bundle.materi;
     if (!m) { area.innerHTML = errorStateHtml('Materi tidak ditemukan.'); return; }
+    if (bundle.belajar) CACHE.belajar[m.id] = bundle.belajar;
     ACTIVE_MATERI_OBJ = m;
     const meta = getBelajarFor(m.id);
     const preview = safeDrivePreviewUrl(m.previewUrl);
@@ -4158,7 +4227,7 @@ async function openMateriRead(id){
       : '';
 
     // Learning path
-    const pathHtml = renderLearningPathHtml(path, m.id, m.kategori);
+    const pathHtml = renderLearningPathHtml(bundle.path, m.id, m.kategori);
 
     area.innerHTML = `
       <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
@@ -4178,11 +4247,6 @@ async function openMateriRead(id){
       </div>
       ${pathHtml}
       ${ringkasanHtml}
-      <section class="learning-checkpoint">
-        <span class="small-caps">PAHAMI • COBA • ULANGI</span>
-        <h4>Bisakah kamu menjelaskan intinya?</h4>
-        <p>Setelah membaca, tulis satu gagasan penting dengan bahasamu sendiri di catatan. Lalu uji pemahamanmu dengan soal singkat.</p>
-      </section>
       <details class="material-preview-details" ontoggle="loadMaterialPreview(this)">
         <summary><i class="bi bi-file-earmark-text" aria-hidden="true"></i> Buka dokumen lengkap <i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
       <div class="reader-frame-wrap glass fade-item" id="readerFrameWrap">
@@ -4197,25 +4261,35 @@ async function openMateriRead(id){
         <iframe id="materiReaderIframe" data-src="${preview}" src="about:blank" loading="lazy" title="Preview materi" style="height:min(72vh, 680px)"></iframe>
       </div>
       </details>
+      <section class="learning-checkpoint" aria-labelledby="recallTitle">
+        <span class="small-caps">JELASKAN KEMBALI</span>
+        <h4 id="recallTitle">Apa yang kamu pahami?</h4>
+        <p>Tutup atau tinggalkan dokumen sejenak. Tulis jawabannya dengan bahasamu sendiri di catatan bawah.</p>
+        <p class="recall-prompt">Apa gagasan utama “${escapeHtml(m.judul)}”? Berikan satu contoh atau pertanyaan yang masih kamu punya.</p>
+      </section>
+      <div class="card-premium glass mt-3 catatan-box">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="small-caps mb-0"><i class="bi bi-journal-text me-1"></i>Catatan pribadi</div>
+        </div>
+        <label class="visually-hidden" for="materiCatatanInput">Penjelasanmu dan catatan pribadi</label>
+        <textarea class="form-control form-control-premium" id="materiCatatanInput" rows="4" placeholder="Menurut saya, gagasan utamanya adalah... Contohnya...">${escapeHtml(meta.catatan || '')}</textarea>
+        <div class="text-muted mt-1" style="font-size:.78rem">Bandingkan jawabanmu dengan ringkasan atau dokumen, lalu perbaiki jika perlu. Catatan hanya terlihat olehmu.</div>
+        <div class="recall-actions">
+          <button type="button" class="btn btn-gold-outline btn-sm px-3" onclick="saveCatatanMateri(${jsArg(m.id)})">Simpan catatan</button>
+          <button type="button" class="btn btn-premium btn-sm px-3" id="btnRecallCheck" onclick="saveRecallAndCheck(${jsArg(m.id)})">Simpan &amp; cek pemahaman</button>
+        </div>
+      </div>
       <div class="learn-actions">
-        <button type="button" class="btn btn-premium btn-sm px-3" id="btnMarkDibaca" onclick="markMateriDibaca(${jsArg(m.id)}, ${meta.dibaca ? 'false' : 'true'})">
+        <button type="button" class="btn btn-gold-outline btn-sm px-3" id="btnMarkDibaca" onclick="markMateriDibaca(${jsArg(m.id)}, ${meta.dibaca ? 'false' : 'true'})">
           <i class="bi ${meta.dibaca ? 'bi-arrow-counterclockwise' : 'bi-check2-circle'} me-1"></i>
           ${meta.dibaca ? 'Batalkan status dibaca' : 'Tandai sudah dibaca'}
         </button>
         <button type="button" class="btn btn-gold-outline btn-sm px-3" onclick="startCekPemahaman(${jsArg(m.id)})">
-          <i class="bi bi-lightning-charge me-1"></i>Cek pemahaman
+          <i class="bi bi-lightning-charge me-1"></i>Lewati catatan &amp; coba soal
         </button>
       </div>
-      <div class="card-premium glass mt-3 catatan-box">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <div class="small-caps mb-0"><i class="bi bi-journal-text me-1"></i>Catatan pribadi</div>
-          <button type="button" class="btn btn-sm btn-premium px-3" onclick="saveCatatanMateri(${jsArg(m.id)})">Simpan catatan</button>
-        </div>
-        <textarea class="form-control form-control-premium" id="materiCatatanInput" placeholder="Tulis ringkasan, pertanyaan, atau poin yang ingin kamu ingat...">${escapeHtml(meta.catatan || '')}</textarea>
-        <div class="text-muted mt-1" style="font-size:.75rem">Hanya kamu yang bisa melihat catatan ini.</div>
-      </div>
       <div class="text-muted mt-2" style="font-size:.78rem">
-        Tips: tandai <b>sudah dibaca</b> setelah selesai, lalu kerjakan <b>cek pemahaman</b> (3–5 soal singkat).
+        Tandai <b>sudah dibaca</b> setelah kamu menyelesaikan materi. Catatan tidak dinilai otomatis; cek pemahaman menggunakan soal singkat.
       </div>
     `;
   } catch (err) {
@@ -4234,6 +4308,9 @@ function loadMaterialPreview(details){
 
 async function markMateriDibaca(materiId, dibaca){
   try {
+    const input = document.getElementById('materiCatatanInput');
+    const savedNote = String((CACHE.belajar[materiId] || {}).catatan || '');
+    if (input && input.value !== savedNote && !(await saveCatatanMateri(materiId))) return;
     const res = await callServer('markMateriDibaca', {
       username: CURRENT_USER.username,
       materiId: materiId,
@@ -4275,9 +4352,25 @@ async function saveCatatanMateri(materiId){
     if (!CACHE.belajar[materiId]) CACHE.belajar[materiId] = { materiId: materiId };
     CACHE.belajar[materiId].catatan = catatan;
     showToast('Catatan disimpan.', 'success');
+    return true;
   } catch (err) {
     showToast(err.message || err, 'error');
+    return false;
   }
+}
+
+async function saveRecallAndCheck(materiId){
+  const input = document.getElementById('materiCatatanInput');
+  if (!input || !input.value.trim()) {
+    showToast('Tulis dulu satu gagasan atau contoh dengan bahasamu sendiri.', 'warn');
+    if (input) input.focus();
+    return;
+  }
+  const button = document.getElementById('btnRecallCheck');
+  if (button) button.disabled = true;
+  const saved = await saveCatatanMateri(materiId);
+  if (saved) return startCekPemahaman(materiId);
+  if (button) button.disabled = false;
 }
 
 async function startCekPemahaman(materiId){
@@ -4338,6 +4431,7 @@ async function startCekPemahaman(materiId){
     });
     html += `<button type="button" class="btn btn-premium px-4 mt-2 w-100 w-md-auto" id="quizSubmitBtn" onclick="submitQuiz()"><i class="bi bi-send-check me-2"></i>Kumpulkan</button></form>`;
     area.innerHTML = html;
+    initQuizProgress(area);
     startQuizTimer(minutes, () => {
       const btn = document.getElementById('quizSubmitBtn');
       if (btn && !btn.disabled) btn.click();
@@ -4571,6 +4665,7 @@ async function startQuiz(metaOrKategori){
     });
     html += `<button type="button" class="btn btn-premium px-4 mt-2 w-100 w-md-auto" id="quizSubmitBtn" onclick="submitQuiz()"><i class="bi bi-send-check me-2"></i>Kumpulkan Jawaban</button></form>`;
     area.innerHTML = html;
+    initQuizProgress(area);
 
     startQuizTimer(QUIZ_DEFAULT_MINUTES, () => {
       const btn = document.getElementById('quizSubmitBtn');
@@ -4585,6 +4680,41 @@ function markSelected(radio){
   const container = radio.closest('.quiz-q-card');
   container.querySelectorAll('.quiz-option').forEach(el => el.classList.remove('selected'));
   radio.nextElementSibling.classList.add('selected');
+}
+
+function quizUnansweredInputs(form){
+  return (CACHE.quiz || []).filter(s => s.status !== 'Terkunci').map(s => {
+    const inputs = Array.from(form.elements).filter(el => el.name === 'q_' + s.id);
+    return s.tipe === 'PG'
+      ? (inputs.some(el => el.checked) ? null : inputs[0])
+      : (inputs[0] && inputs[0].value.trim() ? null : inputs[0]);
+  }).filter(Boolean);
+}
+
+function initQuizProgress(area){
+  const form = area.querySelector('#quizForm');
+  const submit = area.querySelector('#quizSubmitBtn');
+  if (!form || !submit) return;
+  const panel = document.createElement('div');
+  panel.className = 'quiz-submit-panel';
+  panel.innerHTML = '<span class="quiz-count" role="status" aria-live="polite"></span><button type="button" class="btn btn-gold-outline btn-sm" id="quizFindUnanswered">Ke soal belum dijawab</button>';
+  form.insertBefore(panel, submit);
+  panel.appendChild(submit);
+  const count = panel.querySelector('.quiz-count');
+  const find = panel.querySelector('#quizFindUnanswered');
+  function update(){
+    const total = (CACHE.quiz || []).filter(s => s.status !== 'Terkunci').length;
+    const missing = quizUnansweredInputs(form);
+    count.textContent = `Terjawab ${total - missing.length} dari ${total} soal`;
+    find.disabled = !missing.length;
+  }
+  form.addEventListener('change', update);
+  form.addEventListener('input', update);
+  find.addEventListener('click', () => {
+    const first = quizUnansweredInputs(form)[0];
+    if (first) { first.closest('.quiz-q-card').scrollIntoView({ block:'center' }); first.focus(); }
+  });
+  update();
 }
 
 async function submitQuiz(){
@@ -4662,6 +4792,16 @@ async function submitQuiz(){
       }
     }
 
+    const nextArea = document.getElementById('hasilNextActions');
+    if (nextArea) {
+      const wrongPgCount = lastQuizDetails.filter(d => d.tipe === 'PG' && d.benar === false).length;
+      nextArea.innerHTML = (wrongPgCount > 0
+        ? '<button type="button" class="btn btn-premium px-3" onclick="resultNextAction(\'retry\')"><i class="bi bi-arrow-repeat me-1"></i>Ulangi soal salah</button>' : '')
+        + (meta.materiId
+          ? '<button type="button" class="btn btn-gold-outline px-3" onclick="resultNextAction(\'read\')"><i class="bi bi-book me-1"></i>Baca materi lagi</button>' : '');
+      nextArea.style.display = nextArea.innerHTML ? 'flex' : 'none';
+    }
+
     new bootstrap.Modal(document.getElementById('hasilModal')).show();
   } catch (err) {
     showToast('Gagal mengumpulkan jawaban: ' + (err.message || err), 'error');
@@ -4702,6 +4842,7 @@ function togglePembahasan(){
             <span class="answer-chip ${d.benar ? 'user-correct' : 'user-wrong'}">Jawabanmu: ${escapeHtml(d.jawabanUser || '—')}</span>
             ${!d.benar ? `<span class="answer-chip correct-ans">Kunci: ${escapeHtml(d.jawabanBenar)}</span>` : ''}
           </div>
+          ${d.pembahasan ? `<div class="mt-2" style="white-space:pre-wrap"><b>Penjelasan:</b> ${escapeHtml(d.pembahasan)}</div>` : ''}
         </div>
       </div>`;
     } else {
@@ -4715,11 +4856,25 @@ function togglePembahasan(){
   area.innerHTML = html;
 }
 
+function resultNextAction(action){
+  const materiId = ACTIVE_QUIZ_META && ACTIVE_QUIZ_META.materiId;
+  const modalEl = document.getElementById('hasilModal');
+  const modal = bootstrap.Modal.getInstance(modalEl);
+  const continueLearning = () => {
+    lastQuizDetails = null;
+    pembahasanVisible = false;
+    if (action === 'retry') startRetryQuiz();
+    else if (action === 'read' && materiId) openMateriRead(materiId);
+    else navTo('student-latihan');
+  };
+  if (modal) {
+    modalEl.addEventListener('hidden.bs.modal', continueLearning, { once: true });
+    modal.hide();
+  } else continueLearning();
+}
+
 function closeHasilModal(){
-  bootstrap.Modal.getInstance(document.getElementById('hasilModal')).hide();
-  lastQuizDetails = null;
-  pembahasanVisible = false;
-  navTo('student-latihan');
+  resultNextAction('latihan');
 }
 </script>
 <script>
