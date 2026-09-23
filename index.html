@@ -1876,7 +1876,7 @@ h1,h2,h3,h4,h5,h6,.font-display { font-family: system-ui, -apple-system, 'Segoe 
  * CONFIG — ganti URL ini dengan URL Web App Google Apps Script
  * Setelah deploy Code.gs sebagai Web App, salin URL (.../exec)
  * ========================================================*/
-const API_URL = 'https://script.google.com/macros/s/AKfycbzzwZvOJ4QhoHmiP4V0L21ReSVHZZ1ttsqY4RsVWzwApqpdbW-RKykS8xjK5Y3tI98/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbyjJJ2sSib3r9hfp-JtWJyX7Fb3Cv75HzvdCJ1Xoy6SFHdbIr9iyLlja_DPEJ2-tpo/exec';
 // Contoh: 'https://script.google.com/macros/s/AKfycbx.../exec'
 
 let excelLoader = null;
@@ -1899,6 +1899,7 @@ let CURRENT_USER = null;
 let CURRENT_ROLE = null;
 let CURRENT_TOKEN = null;
 let BELAJAR_META_LOADED = false;
+let DASHBOARD_RENDERED = false;
 let CACHE = { materi: [], kategori: [], kategoriFull: [], quiz: [], latihan: [], activeMateriId: null, adminSiswa: [], adminHasil: [], belajar: {} };
 let ACTIVE_MATERI_OBJ = null;
 let ADMIN_ACTIVE_KATEGORI = null; // nama folder yang dibuka di admin
@@ -1938,6 +1939,7 @@ function onServerError(err){
   showToast('Terjadi kesalahan server: ' + (err && err.message ? err.message : err), 'error');
 }
 function errorStateHtml(msg, retryFn){
+  // retryFn comes from fixed callers; variable arguments must use jsArg().
   const btn = retryFn ? `<button class="btn btn-premium btn-sm px-3 mt-2" onclick="${retryFn}"><i class="bi bi-arrow-clockwise me-1"></i>Coba Lagi</button>` : '';
   return `<div class="error-state w-100"><i class="bi bi-exclamation-triangle-fill"></i>${escapeHtml(msg)}<br>${btn}</div>`;
 }
@@ -2320,6 +2322,7 @@ async function handleLogin(e){
       CURRENT_TOKEN = res.token;
       CACHE = { materi: [], kategori: [], kategoriFull: [], quiz: [], latihan: [], activeMateriId: null, adminSiswa: [], adminHasil: [], belajar: {} };
       BELAJAR_META_LOADED = false;
+  DASHBOARD_RENDERED = false;
       enterApp();
       if (res.newUser) showToast('Akun baru berhasil dibuat. Selamat belajar!', 'success');
     } else {
@@ -2341,6 +2344,7 @@ function logout(){
   CURRENT_USER = null; CURRENT_ROLE = null; CURRENT_TOKEN = null;
   CACHE = { materi: [], kategori: [], kategoriFull: [], quiz: [], latihan: [], activeMateriId: null, adminSiswa: [], adminHasil: [], belajar: {} };
   BELAJAR_META_LOADED = false;
+  DASHBOARD_RENDERED = false;
   document.getElementById('appShell').classList.remove('active');
   document.getElementById('loginScreen').classList.add('active');
   document.getElementById('loginForm').reset();
@@ -2520,10 +2524,9 @@ function renderAdminKategoriList(list){
     return;
   }
   cont.innerHTML = list.map(c => {
-    const safeNama = escapeHtml(c.nama).replace(/'/g, "\'");
     return `
     <div class="col-sm-6 col-lg-4">
-      <div class="folder-card glass fade-item" onclick="openAdminKategoriFolder('${safeNama}')">
+      <div class="folder-card glass fade-item" onclick="openAdminKategoriFolder(${jsArg(c.nama)})">
         <div class="body">
           <div class="d-flex align-items-start gap-3">
             <div class="folder-icon"><i class="bi bi-folder-fill"></i></div>
@@ -2534,9 +2537,9 @@ function renderAdminKategoriList(list){
             </div>
           </div>
           <div class="d-flex gap-2 flex-wrap mt-3" onclick="event.stopPropagation()">
-            <button class="btn btn-icon-sm" onclick="openKategoriModal('${escapeHtml(c.id)}','${safeNama}')" title="Edit kategori" aria-label="Edit"><i class="bi bi-pencil"></i></button>
-            <button class="btn btn-icon-sm text-danger" onclick="deleteKategoriConfirm('${escapeHtml(c.id || c.nama)}','${safeNama}')" title="Hapus kategori" aria-label="Hapus"><i class="bi bi-trash"></i></button>
-            <button class="btn btn-sm btn-premium ms-auto px-3" onclick="openAdminKategoriFolder('${safeNama}')"><i class="bi bi-folder2-open me-1"></i>Buka</button>
+            <button class="btn btn-icon-sm" onclick="openKategoriModal(${jsArg(c.id)},${jsArg(c.nama)})" title="Edit kategori" aria-label="Edit"><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-icon-sm text-danger" onclick="deleteKategoriConfirm(${jsArg(c.id || c.nama)},${jsArg(c.nama)})" title="Hapus kategori" aria-label="Hapus"><i class="bi bi-trash"></i></button>
+            <button class="btn btn-sm btn-premium ms-auto px-3" onclick="openAdminKategoriFolder(${jsArg(c.nama)})"><i class="bi bi-folder2-open me-1"></i>Buka</button>
           </div>
         </div>
       </div>
@@ -2562,9 +2565,9 @@ function renderAdminMateriList(list){
           <h6 class="font-display mt-3 mb-1 text-truncate-2">${escapeHtml(m.judul)}</h6>
           <div class="text-muted mb-3" style="font-size:.8rem"><i class="bi bi-file-earmark me-1"></i>${escapeHtml(m.fileName||'-')}</div>
           <div class="d-flex gap-2 flex-wrap mt-auto">
-            <a class="btn btn-icon-sm" href="${m.previewUrl}" target="_blank" rel="noopener" title="Lihat" aria-label="Lihat materi"><i class="bi bi-eye"></i></a>
-            <button class="btn btn-icon-sm" onclick="openMateriModal('${m.id}')" title="Edit" aria-label="Edit materi"><i class="bi bi-pencil"></i></button>
-            <button class="btn btn-icon-sm text-danger" onclick="deleteMateriConfirm('${m.id}')" title="Hapus" aria-label="Hapus materi"><i class="bi bi-trash"></i></button>
+            <a class="btn btn-icon-sm" href="${safeDrivePreviewUrl(m.previewUrl) || '#'}" target="_blank" rel="noopener" title="Lihat" aria-label="Lihat materi"><i class="bi bi-eye"></i></a>
+            <button class="btn btn-icon-sm" onclick="openMateriModal(${jsArg(m.id)})" title="Edit" aria-label="Edit materi"><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-icon-sm text-danger" onclick="deleteMateriConfirm(${jsArg(m.id)})" title="Hapus" aria-label="Hapus materi"><i class="bi bi-trash"></i></button>
           </div>
         </div>
       </div>
@@ -2604,7 +2607,7 @@ async function openAdminKategoriFolder(nama){
     CACHE.materi = list;
     renderAdminMateriList(list);
   } catch (err) {
-    cont.innerHTML = errorStateHtml(err.message || err, `openAdminKategoriFolder('${escapeHtml(nama).replace(/'/g,"\\'")}')`);
+    cont.innerHTML = errorStateHtml(err.message || err, `openAdminKategoriFolder(${jsArg(nama)})`);
   }
 }
 
@@ -2968,9 +2971,9 @@ function renderAdminSoalList(list){
         <div class="d-flex justify-content-between align-items-start gap-2">
           <div class="fw-semibold" style="flex:1; min-width:0">${i+1}. ${escapeHtml(s.pertanyaan || '(gambar)')} <span class="badge-kategori ms-1">${s.tipe}</span> ${s.materiId ? '<span class="file-type-badge ft-word ms-1"><i class="bi bi-journal-text"></i>Per Materi</span>' : '<span class="file-type-badge ft-file ms-1"><i class="bi bi-folder"></i>Per Kategori</span>'} ${s.status==='Terkunci' ? '<span class="file-type-badge ft-pdf ms-1"><i class="bi bi-lock-fill"></i>Terkunci</span>' : '<span class="file-type-badge ft-excel ms-1"><i class="bi bi-unlock-fill"></i>Aktif</span>'}</div>
           <div class="d-flex gap-1 flex-shrink-0">
-            <button class="btn btn-icon-sm" onclick="toggleSoalStatusQuick('${s.id}')" title="${s.status==='Terkunci' ? 'Buka kunci' : 'Kunci soal'}" aria-label="Toggle status"><i class="bi ${s.status==='Terkunci' ? 'bi-unlock' : 'bi-lock'}"></i></button>
-            <button class="btn btn-icon-sm" onclick="openSoalModal('${s.id}')" title="Edit" aria-label="Edit soal"><i class="bi bi-pencil"></i></button>
-            <button class="btn btn-icon-sm text-danger" onclick="deleteSoalConfirm('${s.id}')" title="Hapus" aria-label="Hapus soal"><i class="bi bi-trash"></i></button>
+            <button class="btn btn-icon-sm" onclick="toggleSoalStatusQuick(${jsArg(s.id)})" title="${s.status==='Terkunci' ? 'Buka kunci' : 'Kunci soal'}" aria-label="Toggle status"><i class="bi ${s.status==='Terkunci' ? 'bi-unlock' : 'bi-lock'}"></i></button>
+            <button class="btn btn-icon-sm" onclick="openSoalModal(${jsArg(s.id)})" title="Edit" aria-label="Edit soal"><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-icon-sm text-danger" onclick="deleteSoalConfirm(${jsArg(s.id)})" title="Hapus" aria-label="Hapus soal"><i class="bi bi-trash"></i></button>
           </div>
         </div>
         ${s.gambarUrl ? `<img class="soal-image" src="${escapeHtml(s.gambarUrl)}" alt="Gambar untuk soal ${i+1}" loading="lazy">` : ''}
@@ -3507,13 +3510,13 @@ function renderAdminSiswaTable(list){
       <td>${u.totalLatihan}</td>
       <td>${scorePill(u.rataRata)}</td>
       <td style="min-width:120px">
-        <div class="progress-premium"><div class="bar" style="width:${u.progress||0}%"></div></div>
+        <div class="progress-premium"><div class="bar" style="width:${Math.min(100, Math.max(0, Number(u.progress) || 0))}%"></div></div>
         <div style="font-size:.72rem;color:var(--muted-dark)" class="mt-1">${u.progress||0}%</div>
       </td>
       <td>
         <div class="d-flex gap-1">
-          <button class="btn-icon-sm" title="Edit / Reset password" onclick="openEditStudentModal('${escapeHtml(u.username)}','${escapeHtml(u.fullname||'')}')"><i class="bi bi-pencil"></i></button>
-          <button class="btn-icon-sm" title="Hapus siswa" style="color:#ef4444" onclick="confirmDeleteStudent('${escapeHtml(u.username)}')"><i class="bi bi-trash"></i></button>
+          <button class="btn-icon-sm" title="Edit / Reset password" onclick="openEditStudentModal(${jsArg(u.username)},${jsArg(u.fullname||'')})"><i class="bi bi-pencil"></i></button>
+          <button class="btn-icon-sm" title="Hapus siswa" style="color:#ef4444" onclick="confirmDeleteStudent(${jsArg(u.username)})"><i class="bi bi-trash"></i></button>
         </div>
       </td>
     </tr>`).join('');
@@ -3622,9 +3625,9 @@ function renderAdminHasilTable(list){
     let essayBtn = '<span class="text-muted">-</span>';
     if (essayCount > 0) {
       if (waiting) {
-        essayBtn = `<button class="btn btn-sm btn-premium px-2 py-1" onclick="openEssayGradeModal('${h.id}')" style="font-size:.78rem"><i class="bi bi-pencil-square me-1"></i>Nilai (${essayCount})</button>`;
+        essayBtn = `<button class="btn btn-sm btn-premium px-2 py-1" onclick="openEssayGradeModal(${jsArg(h.id)})" style="font-size:.78rem"><i class="bi bi-pencil-square me-1"></i>Nilai (${essayCount})</button>`;
       } else {
-        essayBtn = `<button class="btn btn-icon-sm" onclick="openEssayGradeModal('${h.id}')" title="Lihat / edit nilai essay" aria-label="Essay"><i class="bi bi-journal-check"></i></button>
+        essayBtn = `<button class="btn btn-icon-sm" onclick="openEssayGradeModal(${jsArg(h.id)})" title="Lihat / edit nilai essay" aria-label="Essay"><i class="bi bi-journal-check"></i></button>
           <span class="pill-essay-done ms-1">Dinilai</span>`;
       }
     }
@@ -3677,7 +3680,7 @@ async function openEssayGradeModal(hasilId){
           <label class="small-caps mb-0" for="essaySkor_${i}">Nilai (0–100)</label>
           <input type="number" class="form-control form-control-premium essay-skor-input" id="essaySkor_${i}"
             min="0" max="100" step="1" inputmode="numeric" style="width:110px"
-            value="${e.skor !== null && e.skor !== undefined && e.skor !== '' ? e.skor : ''}"
+            value="${e.skor !== null && e.skor !== undefined && e.skor !== '' ? escapeHtml(e.skor) : ''}"
             oninput="previewEssayFinalScore()">
         </div>
       </div>`).join('');
@@ -3762,7 +3765,7 @@ async function loadStudentDashboard(){
   if (!CURRENT_USER) return;
   const token = CURRENT_TOKEN;
   const cont = document.getElementById('studentDashboardMateri');
-  cont.innerHTML = skeletonCards(3);
+  if (!DASHBOARD_RENDERED) cont.innerHTML = skeletonCards(3);
   try {
     const data = await callServer('getStudentDashboard', CURRENT_USER.username);
     if (!CURRENT_USER || CURRENT_TOKEN !== token) return;
@@ -3818,8 +3821,10 @@ async function loadStudentDashboard(){
       nextButton.onclick = next ? () => openMateriRead(next.id) : null;
       nextButton.innerHTML = `<i class="bi bi-play-fill" aria-hidden="true"></i> ${allDone ? 'Tinjau ulang' : 'Lanjut belajar'}`;
     }
+    DASHBOARD_RENDERED = true;
   } catch (err) {
-    cont.innerHTML = errorStateHtml(err.message || err, 'loadStudentDashboard()');
+    if (!DASHBOARD_RENDERED) cont.innerHTML = errorStateHtml(err.message || err, 'loadStudentDashboard()');
+    else showToast('Dashboard belum dapat diperbarui: ' + (err.message || err), 'warn');
   }
 }
 
@@ -3861,12 +3866,12 @@ async function startRetryQuiz(){
           if (!s[opt]) return;
           const letter = opt.toUpperCase();
           html += `<label class="d-block">
-            <input type="radio" name="q_${s.id}" value="${letter}" class="visually-hidden quiz-answer-input" onchange="markSelected(this)">
+            <input type="radio" name="q_${escapeHtml(s.id)}" value="${letter}" class="visually-hidden quiz-answer-input" onchange="markSelected(this)">
             <span class="quiz-option">${letter}. ${escapeHtml(s[opt])}</span>
           </label>`;
         });
       } else {
-        html += `<textarea class="form-control form-control-premium mt-2" name="q_${s.id}" rows="3" placeholder="Jawaban..."></textarea>`;
+        html += `<textarea class="form-control form-control-premium mt-2" name="q_${escapeHtml(s.id)}" rows="3" placeholder="Jawaban..."></textarea>`;
       }
       html += `</div>`;
     });
@@ -3900,7 +3905,7 @@ function materiCardHtml(m){
   ].filter(Boolean).join(' ');
   return `
     <div class="col-sm-6 col-lg-4">
-      <div class="materi-card glass fade-item" onclick="openMateriRead('${m.id}')" role="button" tabindex="0">
+      <div class="materi-card glass fade-item" onclick="openMateriRead(${jsArg(m.id)})" role="button" tabindex="0">
         <div class="top"></div>
         <div class="body">
           <div class="d-flex justify-content-between align-items-start gap-2">
@@ -4000,10 +4005,9 @@ function renderStudentKategoriList(list){
     return;
   }
   cont.innerHTML = list.map(c => {
-    const safe = escapeHtml(c.nama).replace(/'/g, "\'");
     return `
     <div class="col-sm-6 col-lg-4">
-      <div class="folder-card glass fade-item" onclick="openStudentKategoriFolder('${safe}')" role="button" tabindex="0">
+      <div class="folder-card glass fade-item" onclick="openStudentKategoriFolder(${jsArg(c.nama)})" role="button" tabindex="0">
         <div class="body">
           <div class="d-flex align-items-start gap-3">
             <div class="folder-icon"><i class="bi bi-folder-fill"></i></div>
@@ -4075,9 +4079,9 @@ function renderLearningPathHtml(path, materiId, kategori){
     const icon = st.done ? 'bi-check-lg' : (icons[st.id] || 'bi-circle');
     let action = '';
     if (st.id === 'cek' && st.unlocked && !st.done) {
-      action = `<div class="lp-action"><button type="button" class="btn btn-sm btn-premium px-2 py-1" style="font-size:.7rem" onclick="startCekPemahaman('${materiId}')">Mulai</button></div>`;
+      action = `<div class="lp-action"><button type="button" class="btn btn-sm btn-premium px-2 py-1" style="font-size:.7rem" onclick="startCekPemahaman(${jsArg(materiId)})">Mulai</button></div>`;
     } else if (st.id === 'latihan' && st.unlocked && !st.done) {
-      action = `<div class="lp-action"><button type="button" class="btn btn-sm btn-premium px-2 py-1" style="font-size:.7rem" onclick="goToLatihanForMateri('${materiId}','${escapeHtml(kategori).replace(/'/g,"&apos;")}')">Mulai</button></div>`;
+      action = `<div class="lp-action"><button type="button" class="btn btn-sm btn-premium px-2 py-1" style="font-size:.7rem" onclick="goToLatihanForMateri(${jsArg(materiId)},${jsArg(kategori)})">Mulai</button></div>`;
     } else if (st.id === 'kuasai' && st.done) {
       action = `<div class="lp-action"><span class="text-emerald" style="font-size:.7rem;font-weight:700">Selesai</span></div>`;
     }
@@ -4110,8 +4114,8 @@ async function openMateriRead(id){
     if (!m) { area.innerHTML = errorStateHtml('Materi tidak ditemukan.'); return; }
     ACTIVE_MATERI_OBJ = m;
     const meta = getBelajarFor(m.id);
-    const preview = m.previewUrl || '';
-    const driveOpen = m.fileId ? ('https://drive.google.com/file/d/' + m.fileId + '/view') : (m.fileUrl || '#');
+    const preview = safeDrivePreviewUrl(m.previewUrl);
+    const driveOpen = m.fileId ? ('https://drive.google.com/file/d/' + encodeURIComponent(m.fileId) + '/view') : (m.fileUrl || '#');
     const ringkasanHtml = m.ringkasan
       ? `<div class="ringkasan-box"><div class="small-caps mb-1"><i class="bi bi-lightbulb me-1 text-gold"></i>Ringkasan / poin penting</div><div style="font-size:.9rem;white-space:pre-wrap;line-height:1.5">${escapeHtml(m.ringkasan)}</div></div>`
       : '';
@@ -4128,11 +4132,11 @@ async function openMateriRead(id){
           <div class="text-muted" style="font-size:.85rem">${fileTypeBadge(m.fileType)} <span class="ms-1">${escapeHtml(m.fileName||'')}</span></div>
         </div>
         <div class="d-flex gap-2 flex-wrap">
-          <button type="button" class="btn btn-icon-sm" id="btnBookmarkMateri" onclick="toggleBookmarkMateri('${m.id}')" title="Favorit" aria-label="Favorit">
+          <button type="button" class="btn btn-icon-sm" id="btnBookmarkMateri" onclick="toggleBookmarkMateri(${jsArg(m.id)})" title="Favorit" aria-label="Favorit">
             <i class="bi ${meta.bookmark ? 'bi-star-fill badge-bookmark' : 'bi-star'}" id="iconBookmarkMateri"></i>
           </button>
-          <a class="btn btn-gold-outline btn-sm px-3" href="${m.downloadUrl}" target="_blank" rel="noopener"><i class="bi bi-download me-1"></i>Unduh</a>
-          <button class="btn btn-premium btn-sm px-3" onclick="goToLatihanForMateri('${m.id}','${escapeHtml(m.kategori).replace(/'/g,"&apos;")}')"><i class="bi bi-patch-question me-1"></i>Latihan</button>
+          <a class="btn btn-gold-outline btn-sm px-3" href="${safeHttpUrl(m.downloadUrl)}" target="_blank" rel="noopener"><i class="bi bi-download me-1"></i>Unduh</a>
+          <button class="btn btn-premium btn-sm px-3" onclick="goToLatihanForMateri(${jsArg(m.id)},${jsArg(m.kategori)})"><i class="bi bi-patch-question me-1"></i>Latihan</button>
         </div>
       </div>
       ${pathHtml}
@@ -4150,25 +4154,25 @@ async function openMateriRead(id){
           <div class="btn-group-reader">
             <button type="button" class="btn btn-icon-sm" onclick="toggleReaderHeight()" title="Perbesar tinggi" aria-label="Perbesar"><i class="bi bi-arrows-vertical" id="readerHeightIcon"></i></button>
             <button type="button" class="btn btn-icon-sm" onclick="toggleReaderFullscreen()" title="Layar penuh" aria-label="Fullscreen"><i class="bi bi-fullscreen" id="readerFsIcon"></i></button>
-            <a class="btn btn-icon-sm" href="${driveOpen}" target="_blank" rel="noopener" title="Buka di tab baru" aria-label="Tab baru"><i class="bi bi-box-arrow-up-right"></i></a>
+            <a class="btn btn-icon-sm" href="${safeHttpUrl(driveOpen)}" target="_blank" rel="noopener" title="Buka di tab baru" aria-label="Tab baru"><i class="bi bi-box-arrow-up-right"></i></a>
           </div>
         </div>
-        <iframe id="materiReaderIframe" data-src="${escapeHtml(preview)}" src="about:blank" loading="lazy" title="Preview materi" style="height:min(72vh, 680px)"></iframe>
+        <iframe id="materiReaderIframe" data-src="${preview}" src="about:blank" loading="lazy" title="Preview materi" style="height:min(72vh, 680px)"></iframe>
       </div>
       </details>
       <div class="learn-actions">
-        <button type="button" class="btn btn-premium btn-sm px-3" id="btnMarkDibaca" onclick="markMateriDibaca('${m.id}', ${meta.dibaca ? 'false' : 'true'})">
+        <button type="button" class="btn btn-premium btn-sm px-3" id="btnMarkDibaca" onclick="markMateriDibaca(${jsArg(m.id)}, ${meta.dibaca ? 'false' : 'true'})">
           <i class="bi ${meta.dibaca ? 'bi-arrow-counterclockwise' : 'bi-check2-circle'} me-1"></i>
           ${meta.dibaca ? 'Batalkan status dibaca' : 'Tandai sudah dibaca'}
         </button>
-        <button type="button" class="btn btn-gold-outline btn-sm px-3" onclick="startCekPemahaman('${m.id}')">
+        <button type="button" class="btn btn-gold-outline btn-sm px-3" onclick="startCekPemahaman(${jsArg(m.id)})">
           <i class="bi bi-lightning-charge me-1"></i>Cek pemahaman
         </button>
       </div>
       <div class="card-premium glass mt-3 catatan-box">
         <div class="d-flex justify-content-between align-items-center mb-2">
           <div class="small-caps mb-0"><i class="bi bi-journal-text me-1"></i>Catatan pribadi</div>
-          <button type="button" class="btn btn-sm btn-premium px-3" onclick="saveCatatanMateri('${m.id}')">Simpan catatan</button>
+          <button type="button" class="btn btn-sm btn-premium px-3" onclick="saveCatatanMateri(${jsArg(m.id)})">Simpan catatan</button>
         </div>
         <textarea class="form-control form-control-premium" id="materiCatatanInput" placeholder="Tulis ringkasan, pertanyaan, atau poin yang ingin kamu ingat...">${escapeHtml(meta.catatan || '')}</textarea>
         <div class="text-muted mt-1" style="font-size:.75rem">Hanya kamu yang bisa melihat catatan ini.</div>
@@ -4286,12 +4290,12 @@ async function startCekPemahaman(materiId){
           if (!s[opt]) return;
           const letter = opt.toUpperCase();
           html += `<label class="d-block">
-            <input type="radio" name="q_${s.id}" value="${letter}" class="visually-hidden quiz-answer-input" onchange="markSelected(this)">
+            <input type="radio" name="q_${escapeHtml(s.id)}" value="${letter}" class="visually-hidden quiz-answer-input" onchange="markSelected(this)">
             <span class="quiz-option">${letter}. ${escapeHtml(s[opt])}</span>
           </label>`;
         });
       } else {
-        html += `<textarea class="form-control form-control-premium mt-2" name="q_${s.id}" rows="3" placeholder="Jawaban singkat..."></textarea>`;
+        html += `<textarea class="form-control form-control-premium mt-2" name="q_${escapeHtml(s.id)}" rows="3" placeholder="Jawaban singkat..."></textarea>`;
       }
       html += `</div>`;
     });
@@ -4519,12 +4523,12 @@ async function startQuiz(metaOrKategori){
           if (!s[opt]) return;
           const letter = opt.toUpperCase();
           html += `<label class="d-block">
-            <input type="radio" name="q_${s.id}" value="${letter}" class="visually-hidden quiz-answer-input" onchange="markSelected(this)">
+            <input type="radio" name="q_${escapeHtml(s.id)}" value="${letter}" class="visually-hidden quiz-answer-input" onchange="markSelected(this)">
             <span class="quiz-option">${letter}. ${escapeHtml(s[opt])}</span>
           </label>`;
         });
       } else {
-        html += `<textarea class="form-control form-control-premium mt-2" name="q_${s.id}" rows="3" placeholder="Tulis jawaban essay kamu..."></textarea>`;
+        html += `<textarea class="form-control form-control-premium mt-2" name="q_${escapeHtml(s.id)}" rows="3" placeholder="Tulis jawaban essay kamu..."></textarea>`;
       }
       html += `</div>`;
     });
@@ -4560,10 +4564,10 @@ async function submitQuiz(){
     .filter(s => s.status !== 'Terkunci')
     .map(s => {
       if (s.tipe === 'PG') {
-        const el = document.querySelector(`input[name="q_${s.id}"]:checked`);
+        const el = Array.from(document.getElementsByName('q_' + s.id)).find(input => input.checked);
         return { soalId: s.id, tipe: 'PG', jawaban: el ? el.value : '' };
       } else {
-        const el = document.querySelector(`textarea[name="q_${s.id}"]`);
+        const el = Array.from(document.getElementsByName('q_' + s.id)).find(input => input.tagName === 'TEXTAREA');
         return { soalId: s.id, tipe: 'Essay', jawaban: el ? el.value.trim() : '' };
       }
     });
@@ -4598,7 +4602,7 @@ async function submitQuiz(){
     if (res.lulus) {
       lulusBadge.style.display = 'inline-flex';
       lulusBadge.className = 'file-type-badge ' + (res.lulus === 'Lulus' ? 'ft-excel' : 'ft-pdf');
-      lulusBadge.innerHTML = `<i class="bi ${res.lulus === 'Lulus' ? 'bi-check-circle-fill' : 'bi-x-circle-fill'}"></i>${res.lulus}`;
+      lulusBadge.innerHTML = `<i class="bi ${res.lulus === 'Lulus' ? 'bi-check-circle-fill' : 'bi-x-circle-fill'}"></i>${escapeHtml(res.lulus)}`;
     } else {
       lulusBadge.style.display = 'none';
     }
@@ -4655,8 +4659,8 @@ function togglePembahasan(){
         <div class="ms-4" style="font-size:.88rem">
           <div class="mb-1">A. ${escapeHtml(d.a)} &nbsp; B. ${escapeHtml(d.b)} &nbsp; C. ${escapeHtml(d.c)} &nbsp; D. ${escapeHtml(d.d)}</div>
           <div class="d-flex flex-wrap gap-2 mt-2">
-            <span class="answer-chip ${d.benar ? 'user-correct' : 'user-wrong'}">Jawabanmu: ${d.jawabanUser || '—'}</span>
-            ${!d.benar ? `<span class="answer-chip correct-ans">Kunci: ${d.jawabanBenar}</span>` : ''}
+            <span class="answer-chip ${d.benar ? 'user-correct' : 'user-wrong'}">Jawabanmu: ${escapeHtml(d.jawabanUser || '—')}</span>
+            ${!d.benar ? `<span class="answer-chip correct-ans">Kunci: ${escapeHtml(d.jawabanBenar)}</span>` : ''}
           </div>
         </div>
       </div>`;
@@ -4719,7 +4723,7 @@ async function loadStudentFlashcards(){
       const count = countMap[m.id] || 0;
       return `
       <div class="col-sm-6 col-lg-4">
-        <div class="folder-card glass fade-item" onclick="openFlashcardMateri('${m.id}')" role="button" tabindex="0">
+        <div class="folder-card glass fade-item" onclick="openFlashcardMateri(${jsArg(m.id)})" role="button" tabindex="0">
           <div class="body">
             <div class="d-flex align-items-start gap-3">
               <div class="folder-icon"><i class="bi bi-layers-fill"></i></div>
@@ -4797,7 +4801,7 @@ async function renderFlashcardsForMateri(materiId){
             <div style="font-size:.92rem;line-height:1.45">${escapeHtml(f.back)}</div>
           </div>
           <div class="mt-3 d-flex justify-content-end">
-            <button class="btn-icon-sm" style="width:32px;height:32px" onclick="event.stopPropagation();deleteFlashcardItem('${f.id}')" title="Hapus">
+            <button class="btn-icon-sm" style="width:32px;height:32px" onclick="event.stopPropagation();deleteFlashcardItem(${jsArg(f.id)})" title="Hapus">
               <i class="bi bi-trash" style="font-size:.85rem;color:#ef4444"></i>
             </button>
           </div>
@@ -4933,6 +4937,23 @@ async function loadStudentRiwayat(){
 function escapeHtml(str){
   if (str === null || str === undefined) return '';
   return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+// Encode a JS string literal and then its surrounding HTML attribute.
+function jsArg(value){
+  return escapeHtml(JSON.stringify(String(value == null ? '' : value)));
+}
+function safeHttpUrl(value){
+  try {
+    const url = new URL(String(value || ''), window.location.href);
+    return /^https?:$/.test(url.protocol) ? escapeHtml(url.href) : '#';
+  } catch (e) { return '#'; }
+}
+function safeDrivePreviewUrl(value){
+  try {
+    const url = new URL(String(value || ''));
+    return url.protocol === 'https:' && url.hostname === 'drive.google.com' &&
+      /^\/file\/d\/[A-Za-z0-9_-]+\/preview$/.test(url.pathname) ? escapeHtml(url.href) : '';
+  } catch (e) { return ''; }
 }
 document.addEventListener('keydown', e => {
   if (e.key !== 'Enter' && e.key !== ' ') return;
