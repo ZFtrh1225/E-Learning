@@ -760,8 +760,12 @@ select.form-control-premium option, select.form-select option{
   position:fixed; inset:0; z-index:2000; border-radius:0; height:100dvh !important;
   width:100vw; margin:0 !important; background:var(--off-white);
 }
-.reader-frame-wrap.fullscreen-reader .reader-content{height:auto !important; flex:1; max-height:none !important}
+.reader-frame-wrap.fullscreen-reader .reader-content{height:auto !important; flex:1; max-height:none !important; overflow:auto !important}
 .reader-content{height:min(78dvh, 720px); min-height:350px; overflow:auto; overscroll-behavior:contain; background:#f5f7fb; text-align:center}
+.reader-content.reader-pdf-flow{height:auto; min-height:0; max-height:none; overflow-x:auto; overflow-y:visible; padding:8px 0}
+.reader-content.reader-sheet-flow{height:auto; min-height:0; max-height:none; overflow:visible; text-align:left}
+.reader-pdf-page{margin:8px auto 16px; max-width:100%; display:flex; align-items:center; justify-content:center; background:#fff; box-shadow:0 2px 12px #0002; color:var(--muted-dark); font-size:.83rem}
+.reader-pdf-page canvas{margin:0; box-shadow:none}
 .reader-content iframe{width:100%; height:100%; min-height:100%; border:0; display:block}
 .reader-content canvas{display:block; margin:12px auto; max-width:none; background:white; box-shadow:0 2px 12px #0002}
 .reader-content .reader-notice{padding:18px; text-align:left; font-size:.85rem}
@@ -2289,7 +2293,7 @@ async function callServer(name, ...args) {
   }
 
   // Timeout lebih panjang untuk upload chunk / finalize
-  const longActions = { login:1, initChunkUpload:1, uploadChunk:1, finalizeChunkUpload:1, saveMateri:1 };
+  const longActions = { login:1, getReaderFileData:1, initChunkUpload:1, uploadChunk:1, finalizeChunkUpload:1, saveMateri:1 };
   const timeoutMs = longActions[name] ? 120000 : 30000;
 
   const controller = new AbortController();
@@ -2344,6 +2348,9 @@ async function callServer(name, ...args) {
   } catch (err) {
     clearTimeout(timer);
     if (err.name === 'AbortError') {
+      if (name === 'getReaderFileData') {
+        throw new Error('Dokumen terlalu lama dimuat. Coba lagi atau pilih Buka di Drive.');
+      }
       throw new Error('Waktu permintaan habis. Periksa koneksi internet & pastikan URL API benar.');
     }
     // Perjelas error jaringan / CORS
@@ -2547,6 +2554,10 @@ function navTo(screenId){
   if (rw) rw.classList.remove('fullscreen-reader');
   if (screenId !== 'student-read') {
     document.body.style.overflow = '';
+    if (readerEscapeHandler) {
+      document.removeEventListener('keydown', readerEscapeHandler);
+      readerEscapeHandler = null;
+    }
     closeReaderDocument();
     const previous = document.querySelector('#studentReadArea .material-preview-details');
     if (previous) {
@@ -4384,9 +4395,11 @@ async function openMateriRead(id){
         <summary><i class="bi bi-file-earmark-text" aria-hidden="true"></i> Buka dokumen lengkap <i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
       <div class="reader-frame-wrap glass fade-item" id="readerFrameWrap">
         <div class="reader-toolbar">
-          <div class="text-muted" style="font-size:.78rem"><i class="bi bi-eye me-1"></i>${fileIsPdf ? 'Pembaca PDF' : fileIsExcel ? 'Pembaca Excel' : 'Dokumen lengkap'}</div>
+          <div class="text-muted" style="font-size:.78rem"><i class="bi bi-eye me-1"></i>${fileIsPdf ? 'PDF · <span id="readerPdfStatus" aria-live="polite">Memuat...</span>' : fileIsExcel ? 'Pembaca Excel' : 'Dokumen lengkap'}</div>
           <div class="btn-group-reader">
-            <button type="button" class="btn btn-icon-sm" onclick="toggleReaderHeight()" title="Perbesar tinggi" aria-label="Perbesar"><i class="bi bi-arrows-vertical" id="readerHeightIcon"></i></button>
+            ${fileIsPdf ? `<button type="button" class="btn btn-icon-sm" onclick="readerZoomBy(1/1.25)" title="Perkecil dokumen" aria-label="Perkecil dokumen"><i class="bi bi-zoom-out"></i></button>
+              <button type="button" class="btn btn-icon-sm" onclick="readerZoomBy(0)" title="Pas layar">Pas layar</button>
+              <button type="button" class="btn btn-icon-sm" onclick="readerZoomBy(1.25)" title="Perbesar dokumen" aria-label="Perbesar dokumen"><i class="bi bi-zoom-in"></i></button>` : `<button type="button" class="btn btn-icon-sm" onclick="toggleReaderHeight()" title="Perbesar tinggi" aria-label="Perbesar"><i class="bi bi-arrows-vertical" id="readerHeightIcon"></i></button>`}
             <button type="button" class="btn btn-icon-sm" onclick="toggleReaderFullscreen()" title="Layar penuh" aria-label="Fullscreen"><i class="bi bi-fullscreen" id="readerFsIcon"></i></button>
             <a class="btn btn-gold-outline btn-sm" href="${safeHttpUrl(driveOpen)}" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right me-1"></i>Buka di Drive</a>
           </div>
@@ -4449,7 +4462,14 @@ let PDF_LIBRARY_PROMISE = null;
 function closeReaderDocument(){
   const old = READER_STATE;
   READER_STATE = { generation:old.generation + 1, pdf:null, renderTask:null };
-  if (old.renderTask) old.renderTask.cancel();
+  if (old.observer) old.observer.disconnect();
+  if (old.sheetObserver) old.sheetObserver.disconnect();
+  if (old.renderTasks) old.renderTasks.forEach(task => task.cancel());
+  if (old.scrollHandler) {
+    window.removeEventListener('scroll', old.scrollHandler);
+    const content = document.getElementById('readerContent');
+    if (content) content.removeEventListener('scroll', old.scrollHandler);
+  }
   if (old.pdf) old.pdf.destroy().catch(() => {});
   readerTall = false;
 }
@@ -4461,11 +4481,12 @@ function readerBytes(base64){
 }
 function renderOfficeFrame(content, message){
   const preview = content.dataset.preview;
+  content.classList.remove('reader-pdf-flow','reader-sheet-flow');
   content.innerHTML = '';
   if (message) {
     const note = document.createElement('div');
     note.className = 'reader-notice';
-    note.textContent = message + ' Jika pratinjau kosong, gunakan tombol Buka di Drive di atas.';
+    note.textContent = message.replace(/[.\s]+$/, '') + '. Jika pratinjau kosong, gunakan tombol Buka di Drive di atas.';
     content.appendChild(note);
   }
   if (preview) {
@@ -4497,9 +4518,8 @@ async function openReaderDocument(content){
       library.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.624/build/pdf.worker.mjs';
       state.pdf = await library.getDocument({ data:bytes, isEvalSupported:false }).promise;
       if (state !== READER_STATE || !content.isConnected) { state.pdf.destroy(); return; }
-      state.page = 1; state.zoom = 1;
-      content.innerHTML = '<canvas id="readerPdfCanvas" aria-label="Halaman PDF"></canvas>';
-      await renderReaderPdfPage(state);
+      state.zoom = 1;
+      await initReaderPdfFlow(state, content);
     } else if (content.dataset.kind === 'Excel' && file.fileType === 'Excel') {
       state.workbook = XLSX.read(bytes, {type:'array'});
       state.sheetIndex = 0; state.sheetPage = 0;
@@ -4507,98 +4527,201 @@ async function openReaderDocument(content){
     } else throw new Error('Jenis berkas tidak sesuai.');
   } catch (err) {
     if (state !== READER_STATE || !content.isConnected) return;
-    renderOfficeFrame(content, (err.message || 'Dokumen tidak dapat dibuka di pembaca aplikasi.') + '.');
+    renderOfficeFrame(content, err.message || 'Dokumen tidak dapat dibuka di pembaca aplikasi.');
   }
 }
-async function renderReaderPdfPage(state){
-  const content = document.getElementById('readerContent');
-  const canvas = document.getElementById('readerPdfCanvas');
+async function initReaderPdfFlow(state, content){
+  const first = await state.pdf.getPage(1);
+  if (state !== READER_STATE || !content.isConnected) return;
+  state.baseViewport = first.getViewport({scale:1});
+  state.renderTasks = new Map();
+  state.pageNodes = [];
+  content.classList.add('reader-pdf-flow');
+  content.innerHTML = '';
+  const fragment = document.createDocumentFragment();
+  for (let number=1; number<=state.pdf.numPages; number++) {
+    const page = document.createElement('div');
+    page.className = 'reader-pdf-page';
+    page.dataset.page = String(number);
+    page.setAttribute('aria-label', 'Halaman ' + number);
+    page.textContent = 'Halaman ' + number;
+    state.pageNodes.push(page);
+    fragment.appendChild(page);
+  }
+  content.appendChild(fragment);
   const controls = document.getElementById('readerPageControls');
-  if (state !== READER_STATE || !content || !canvas || !state.pdf) return;
-  const seq = state.renderSeq = (state.renderSeq || 0) + 1;
-  if (state.renderTask) { state.renderTask.cancel(); state.renderTask = null; }
+  if (controls) controls.style.display = 'none';
+  state.scrollHandler = () => {
+    if (state.statusFrame) return;
+    state.statusFrame = requestAnimationFrame(() => {
+      state.statusFrame = null;
+      updateReaderPdfStatus(state);
+      if (!state.observer) updateReaderPdfVisibility(state);
+    });
+  };
+  window.addEventListener('scroll', state.scrollHandler, {passive:true});
+  content.addEventListener('scroll', state.scrollHandler, {passive:true});
+  refreshReaderPdfLayout(state);
+}
+function updateReaderPdfStatus(state){
+  if (state !== READER_STATE || !state.pdf) return;
+  const status = document.getElementById('readerPdfStatus');
+  if (!status) return;
+  const content = document.getElementById('readerContent');
+  const top = content && content.closest('.fullscreen-reader') ? content.getBoundingClientRect().top : 0;
+  const visible = state.pageNodes.find(page => page.getBoundingClientRect().bottom > top + 80);
+  status.textContent = 'Halaman ' + (visible ? visible.dataset.page : state.pdf.numPages) + ' / ' + state.pdf.numPages;
+}
+function updateReaderPdfVisibility(state){
+  if (state !== READER_STATE || !state.pdf) return;
+  const content = document.getElementById('readerContent');
+  if (!content) return;
+  const full = !!content.closest('.fullscreen-reader');
+  const area = full ? content.getBoundingClientRect() : {top:0,bottom:window.innerHeight};
+  state.pageNodes.forEach(node => {
+    const box = node.getBoundingClientRect();
+    if (box.bottom > area.top-450 && box.top < area.bottom+450) renderReaderPdfPage(state, node);
+    else releaseReaderPdfPage(state, node);
+  });
+}
+function releaseReaderPdfPage(state, node){
+  const number = Number(node.dataset.page);
+  const task = state.renderTasks && state.renderTasks.get(number);
+  if (task) { task.cancel(); state.renderTasks.delete(number); }
+  if (node.dataset.loading === 'true' || node.querySelector('canvas')) {
+    node.dataset.sequence = String(Number(node.dataset.sequence || 0) + 1);
+    delete node.dataset.loading;
+    node.textContent = 'Halaman ' + number;
+  }
+}
+async function renderReaderPdfPage(state, node){
+  if (state !== READER_STATE || !node.isConnected || node.dataset.loading === 'true' || node.querySelector('canvas')) return;
+  const number = Number(node.dataset.page);
+  const sequence = node.dataset.sequence = String(Number(node.dataset.sequence || 0) + 1);
+  node.dataset.loading = 'true';
   try {
-    const page = await state.pdf.getPage(state.page);
-    if (seq !== state.renderSeq || state !== READER_STATE) return;
+    const page = await state.pdf.getPage(number);
+    if (state !== READER_STATE || !node.isConnected || node.dataset.sequence !== sequence) return;
+    const content = document.getElementById('readerContent');
     const base = page.getViewport({scale:1});
-    const fit = Math.max(0.2, (content.clientWidth - 28) / base.width);
-    const viewport = page.getViewport({scale:fit * state.zoom});
-    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = Math.ceil(viewport.width * pixelRatio);
-    canvas.height = Math.ceil(viewport.height * pixelRatio);
+    const fit = Math.max(.2, (content.clientWidth-28)/base.width);
+    const viewport = page.getViewport({scale:fit*state.zoom});
+    const ratio = Math.max(.3, Math.min(window.devicePixelRatio || 1, 2,
+      4096/viewport.width, 4096/viewport.height));
+    node.style.width = Math.ceil(viewport.width) + 'px';
+    node.style.height = Math.ceil(viewport.height) + 'px';
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(viewport.width * ratio);
+    canvas.height = Math.ceil(viewport.height * ratio);
     canvas.style.width = Math.ceil(viewport.width) + 'px';
     canvas.style.height = Math.ceil(viewport.height) + 'px';
-    const context = canvas.getContext('2d');
-    state.renderTask = page.render({ canvasContext:context, viewport:viewport,
-      transform:[pixelRatio,0,0,pixelRatio,0,0] });
-    await state.renderTask.promise;
-    if (seq !== state.renderSeq || state !== READER_STATE) return;
-    content.scrollTop = 0;
-    content.scrollLeft = 0;
-    controls.style.display = 'flex';
-    controls.innerHTML = `<button type="button" class="btn btn-icon-sm" onclick="readerChangePage(-1)" aria-label="Halaman sebelumnya" ${state.page === 1 ? 'disabled' : ''}><i class="bi bi-chevron-left"></i></button>
-      <span aria-live="polite" class="px-1">Halaman ${state.page} / ${state.pdf.numPages}</span>
-      <button type="button" class="btn btn-icon-sm" onclick="readerChangePage(1)" aria-label="Halaman berikutnya" ${state.page === state.pdf.numPages ? 'disabled' : ''}><i class="bi bi-chevron-right"></i></button>
-      <button type="button" class="btn btn-icon-sm" onclick="readerZoomBy(1/1.25)" aria-label="Perkecil isi dokumen"><i class="bi bi-zoom-out"></i></button>
-      <button type="button" class="btn btn-icon-sm" onclick="readerZoomBy(1.25)" aria-label="Perbesar isi dokumen"><i class="bi bi-zoom-in"></i></button>
-      <button type="button" class="btn btn-icon-sm" onclick="readerZoomBy(0)" aria-label="Pas dengan lebar layar">Pas layar</button>`;
+    node.textContent = '';
+    node.appendChild(canvas);
+    const task = page.render({ canvasContext:canvas.getContext('2d'), viewport:viewport,
+      transform:[ratio,0,0,ratio,0,0] });
+    state.renderTasks.set(number, task);
+    await task.promise;
+    if (state.renderTasks.get(number) === task) state.renderTasks.delete(number);
   } catch (err) {
-    if (err.name !== 'RenderingCancelledException' && state === READER_STATE) {
-      renderOfficeFrame(content, 'Halaman PDF gagal ditampilkan.');
+    if (err.name !== 'RenderingCancelledException' && state === READER_STATE && node.isConnected) {
+      node.textContent = 'Halaman ini belum dapat ditampilkan. Buka di Drive untuk membacanya.';
     }
+  } finally {
+    if (node.dataset.sequence === sequence) delete node.dataset.loading;
   }
 }
-function readerChangePage(delta){
-  const state = READER_STATE;
-  if (!state.pdf) return;
-  state.page = Math.max(1, Math.min(state.pdf.numPages, state.page + delta));
-  renderReaderPdfPage(state);
+function refreshReaderPdfLayout(state){
+  if (state !== READER_STATE || !state.pdf) return;
+  const content = document.getElementById('readerContent');
+  if (!content) return;
+  if (state.observer) { state.observer.disconnect(); state.observer = null; }
+  state.renderTasks.forEach(task => task.cancel());
+  state.renderTasks.clear();
+  const width = Math.max(100, content.clientWidth - 28) * state.zoom;
+  const height = Math.ceil(width * state.baseViewport.height / state.baseViewport.width);
+  state.pageNodes.forEach(page => {
+    page.dataset.sequence = String(Number(page.dataset.sequence || 0) + 1);
+    delete page.dataset.loading;
+    page.textContent = 'Halaman ' + page.dataset.page;
+    page.style.width = Math.ceil(width) + 'px';
+    page.style.height = height + 'px';
+  });
+  const full = !!content.closest('.fullscreen-reader');
+  if ('IntersectionObserver' in window) {
+    state.observer = new IntersectionObserver(entries => {
+      if (state !== READER_STATE) return;
+      entries.forEach(entry => entry.isIntersecting
+        ? renderReaderPdfPage(state, entry.target)
+        : releaseReaderPdfPage(state, entry.target));
+      updateReaderPdfStatus(state);
+    }, {root:full ? content : null, rootMargin:'450px 0px'});
+    state.pageNodes.forEach(page => state.observer.observe(page));
+  } else updateReaderPdfVisibility(state);
+  updateReaderPdfStatus(state);
 }
 function readerZoomBy(factor){
   const state = READER_STATE;
   if (!state.pdf) return;
   state.zoom = factor ? Math.max(.6, Math.min(3, state.zoom * factor)) : 1;
-  renderReaderPdfPage(state);
+  refreshReaderPdfLayout(state);
 }
 function renderReaderSheet(state){
   const content = document.getElementById('readerContent');
   const controls = document.getElementById('readerPageControls');
   if (state !== READER_STATE || !content || !state.workbook) return;
+  if (state.sheetObserver) { state.sheetObserver.disconnect(); state.sheetObserver = null; }
   const wb = state.workbook;
   const sheet = wb.Sheets[wb.SheetNames[state.sheetIndex]];
   const bounds = sheet['!ref'] ? XLSX.utils.decode_range(sheet['!ref']) : null;
-  const first = bounds ? bounds.s.r + state.sheetPage * 100 : 0;
-  const last = bounds ? Math.min(bounds.e.r, first + 99) : 0;
-  const colStart = bounds ? bounds.s.c : 0;
-  const colLast = bounds ? Math.min(bounds.e.c, colStart + 49) : 0;
-  const rows = bounds && first <= bounds.e.r ? XLSX.utils.sheet_to_json(sheet, {
-    header:1, raw:false, blankrows:true, defval:'',
-    range:XLSX.utils.encode_range({s:{r:first,c:colStart},e:{r:last,c:colLast}})
-  }) : [];
+  state.sheetBounds = bounds;
+  state.sheetLastRow = bounds ? bounds.s.r-1 : -1;
+  content.classList.add('reader-sheet-flow');
   const tabs = wb.SheetNames.map((name,i) => `<button type="button" class="btn btn-sm ${i===state.sheetIndex ? 'btn-premium' : 'btn-light'}" onclick="readerShowSheet(${i})">${escapeHtml(name)}</button>`).join('');
-  content.innerHTML = `<div class="reader-sheet-tabs">${tabs}</div><div style="overflow:auto;max-width:100%"><table class="reader-sheet"><tbody>${rows.map((row,i) =>
-    `<tr><th scope="row">${first+i+1}</th>${row.map(cell => `<td>${escapeHtml(String(cell ?? '').slice(0,2000))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
-    ${bounds && bounds.e.c > colLast ? '<div class="reader-notice">Sebagian kolom disembunyikan untuk menjaga kecepatan. Buka di Drive untuk seluruh kolom.</div>' : ''}`;
-  controls.style.display = 'flex';
-  controls.innerHTML = `<button type="button" class="btn btn-icon-sm" onclick="readerChangeSheetPage(-1)" ${state.sheetPage===0 ? 'disabled' : ''} aria-label="Baris sebelumnya"><i class="bi bi-chevron-left"></i></button>
-    <span aria-live="polite">Baris ${bounds ? first+1 : 0}–${bounds ? last+1 : 0} dari ${bounds ? bounds.e.r+1 : 0}</span>
-    <button type="button" class="btn btn-icon-sm" onclick="readerChangeSheetPage(1)" ${!bounds || last>=bounds.e.r ? 'disabled' : ''} aria-label="Baris berikutnya"><i class="bi bi-chevron-right"></i></button>`;
+  content.innerHTML = `<div class="reader-sheet-tabs">${tabs}</div><div style="overflow-x:auto;max-width:100%"><table class="reader-sheet"><tbody id="readerSheetBody"></tbody></table></div>
+    <button type="button" class="btn btn-gold-outline btn-sm m-3" id="readerSheetMore" onclick="readerLoadMoreRows()">Muat baris berikutnya</button>
+    ${bounds && bounds.e.c - bounds.s.c >= 50 ? '<div class="reader-notice">Sebagian kolom disembunyikan agar pembaca tetap ringan. Buka di Drive untuk seluruh kolom.</div>' : ''}`;
+  controls.style.display = 'none';
+  readerLoadMoreRows();
+  const more = document.getElementById('readerSheetMore');
+  if (more && 'IntersectionObserver' in window) {
+    state.sheetObserver = new IntersectionObserver(entries => {
+      if (state === READER_STATE && entries.some(entry => entry.isIntersecting)) readerLoadMoreRows();
+    }, {root:null,rootMargin:'300px 0px'});
+    state.sheetObserver.observe(more);
+  }
+}
+function readerLoadMoreRows(){
+  const state = READER_STATE;
+  if (!state.workbook || !state.sheetBounds) return;
+  const bounds = state.sheetBounds;
+  const first = state.sheetLastRow+1;
+  if (first > bounds.e.r) return;
+  const last = Math.min(bounds.e.r, first+99);
+  const sheet = state.workbook.Sheets[state.workbook.SheetNames[state.sheetIndex]];
+  const rows = XLSX.utils.sheet_to_json(sheet, {
+    header:1, raw:false, blankrows:true, defval:'',
+    range:XLSX.utils.encode_range({s:{r:first,c:bounds.s.c},e:{r:last,c:Math.min(bounds.e.c,bounds.s.c+49)}})
+  });
+  const body = document.getElementById('readerSheetBody');
+  if (!body) return;
+  body.insertAdjacentHTML('beforeend',rows.map((row,i) =>
+    `<tr><th scope="row">${first+i+1}</th>${row.map(cell => `<td>${escapeHtml(String(cell ?? '').slice(0,2000))}</td>`).join('')}</tr>`).join(''));
+  state.sheetLastRow = last;
+  const more = document.getElementById('readerSheetMore');
+  if (more) {
+    more.style.display = last >= bounds.e.r ? 'none' : '';
+    if (last >= bounds.e.r && state.sheetObserver) state.sheetObserver.disconnect();
+  }
 }
 function readerShowSheet(index){
   if (!READER_STATE.workbook) return;
   READER_STATE.sheetIndex = index;
-  READER_STATE.sheetPage = 0;
-  renderReaderSheet(READER_STATE);
-}
-function readerChangeSheetPage(delta){
-  if (!READER_STATE.workbook) return;
-  READER_STATE.sheetPage = Math.max(0, READER_STATE.sheetPage + delta);
   renderReaderSheet(READER_STATE);
 }
 let readerResizeTimer;
 window.addEventListener('resize', () => {
   clearTimeout(readerResizeTimer);
-  readerResizeTimer = setTimeout(() => { if (READER_STATE.pdf) renderReaderPdfPage(READER_STATE); }, 180);
+  readerResizeTimer = setTimeout(() => { if (READER_STATE.pdf) refreshReaderPdfLayout(READER_STATE); }, 180);
 });
 
 async function markMateriDibaca(materiId, dibaca){
@@ -4746,6 +4869,7 @@ function toggleReaderHeight(){
   if (icon) icon.className = readerTall ? 'bi bi-arrows-collapse' : 'bi bi-arrows-vertical';
 }
 
+let readerEscapeHandler = null;
 function toggleReaderFullscreen(){
   const wrap = document.getElementById('readerFrameWrap');
   const icon = document.getElementById('readerFsIcon');
@@ -4753,18 +4877,14 @@ function toggleReaderFullscreen(){
   const on = wrap.classList.toggle('fullscreen-reader');
   if (icon) icon.className = on ? 'bi bi-fullscreen-exit' : 'bi bi-fullscreen';
   document.body.style.overflow = on ? 'hidden' : '';
-  if (READER_STATE.pdf) requestAnimationFrame(() => renderReaderPdfPage(READER_STATE));
-  // Escape to exit
+  if (READER_STATE.pdf) requestAnimationFrame(() => refreshReaderPdfLayout(READER_STATE));
+  if (readerEscapeHandler) {
+    document.removeEventListener('keydown', readerEscapeHandler);
+    readerEscapeHandler = null;
+  }
   if (on) {
-    const esc = (e) => {
-      if (e.key === 'Escape') {
-        wrap.classList.remove('fullscreen-reader');
-        document.body.style.overflow = '';
-        if (icon) icon.className = 'bi bi-fullscreen';
-        document.removeEventListener('keydown', esc);
-      }
-    };
-    document.addEventListener('keydown', esc);
+    readerEscapeHandler = e => { if (e.key === 'Escape') toggleReaderFullscreen(); };
+    document.addEventListener('keydown', readerEscapeHandler);
   }
 }
 
