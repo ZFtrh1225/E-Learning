@@ -758,9 +758,20 @@ select.form-control-premium option, select.form-select option{
 .reader-frame-wrap{background:#fff; border-radius:var(--radius-lg); box-shadow:var(--shadow-sm); overflow:hidden; display:flex; flex-direction:column}
 .reader-frame-wrap.fullscreen-reader{
   position:fixed; inset:0; z-index:2000; border-radius:0; height:100dvh !important;
-  background:var(--off-white);
+  width:100vw; margin:0 !important; background:var(--off-white);
 }
-.reader-frame-wrap.fullscreen-reader iframe{height:calc(100dvh - 56px) !important; max-height:none !important}
+.reader-frame-wrap.fullscreen-reader .reader-content{height:auto !important; flex:1; max-height:none !important}
+.reader-content{height:min(78dvh, 720px); min-height:350px; overflow:auto; overscroll-behavior:contain; background:#f5f7fb; text-align:center}
+.reader-content iframe{width:100%; height:100%; min-height:100%; border:0; display:block}
+.reader-content canvas{display:block; margin:12px auto; max-width:none; background:white; box-shadow:0 2px 12px #0002}
+.reader-content .reader-notice{padding:18px; text-align:left; font-size:.85rem}
+.reader-page-controls{display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:6px; padding:8px; border-top:1px solid var(--border-light)}
+.reader-page-controls .btn-icon-sm{flex:none}
+.reader-sheet-tabs{display:flex; gap:5px; overflow-x:auto; padding:8px; white-space:nowrap}
+.reader-sheet{min-width:max-content; border-collapse:collapse; background:#fff; font-size:.82rem; text-align:left}
+.reader-sheet th,.reader-sheet td{border:1px solid #dce2e8; padding:6px 9px; max-width:340px; white-space:pre-wrap; overflow-wrap:anywhere}
+.reader-sheet th{position:sticky; top:0; background:#e9f1ee; z-index:1}
+@media(max-width:767px){.reader-toolbar{align-items:flex-start}.reader-content{height:78dvh}.reader-sheet th,.reader-sheet td{max-width:220px}}
 .essay-grade-item{
   border:1px solid var(--border-light); border-radius:14px; padding:16px; margin-bottom:12px;
   background:var(--card-bg);
@@ -777,10 +788,6 @@ html.dark .essay-grade-item .ans{background:rgba(255,255,255,.04)}
 html.dark .pill-essay-wait{background:rgba(212,175,55,.2); color:#f0d878}
 html.dark .pill-essay-done{color:#6ee7b7}
 
-.reader-frame-wrap iframe{width:100%; height:min(75vh, 640px); border:none; display:block; background:#f5f7fb}
-@media(max-width:767px){
-  .reader-frame-wrap iframe{height:min(65vh, 480px)}
-}
 
 .dropzone{
   border:2px dashed #d7deed; border-radius:14px; padding:22px 16px; text-align:center; cursor:pointer; transition:.2s; background:var(--off-white);
@@ -1920,7 +1927,7 @@ h1,h2,h3,h4,h5,h6,.font-display { font-family: system-ui, -apple-system, 'Segoe 
  * CONFIG — ganti URL ini dengan URL Web App Google Apps Script
  * Setelah deploy Code.gs sebagai Web App, salin URL (.../exec)
  * ========================================================*/
-const API_URL = 'https://script.google.com/macros/s/AKfycbydq7inpiQojV6JERPCdDW9BTzS0gRv-O4pHE3t9c-nUJyy6EjZuGvj-YMyh7ZzZ9E/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxW64ngmOgM7hi5s7Yz1AyJnAqQ4-nt08s4e0_RS5InkeYjFcE7FhlvZm5bdqihe-4/exec';
 // Contoh: 'https://script.google.com/macros/s/AKfycbx.../exec'
 
 let excelLoader = null;
@@ -2193,6 +2200,7 @@ function buildPayload(action, args) {
     case 'getCekPemahaman':
     case 'getLearningPath':
     case 'getMateriReader':
+    case 'getReaderFileData':
       payload.materiId = args[0];
       if (args[1] != null) payload.username = args[1];
       break;
@@ -2537,7 +2545,16 @@ function navTo(screenId){
   // tutup reader fullscreen jika pindah halaman
   const rw = document.getElementById('readerFrameWrap');
   if (rw) rw.classList.remove('fullscreen-reader');
-  if (screenId !== 'student-read') document.body.style.overflow = '';
+  if (screenId !== 'student-read') {
+    document.body.style.overflow = '';
+    closeReaderDocument();
+    const previous = document.querySelector('#studentReadArea .material-preview-details');
+    if (previous) {
+      previous.open = false;
+      const reader = previous.querySelector('#readerContent');
+      if (reader) delete reader.dataset.loaded;
+    }
+  }
 
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const target = document.getElementById(screenId);
@@ -4304,6 +4321,7 @@ function renderLearningPathHtml(path, materiId, kategori){
 }
 
 async function openMateriRead(id){
+  closeReaderDocument();
   const sessionToken = CURRENT_TOKEN;
   CACHE.activeMateriId = id;
   navTo('student-read');
@@ -4331,6 +4349,12 @@ async function openMateriRead(id){
     const meta = getBelajarFor(m.id);
     const preview = safeDrivePreviewUrl(m.previewUrl);
     const driveOpen = m.fileId ? ('https://drive.google.com/file/d/' + encodeURIComponent(m.fileId) + '/view') : (m.fileUrl || '#');
+    const fileIsPdf = m.fileType === 'PDF' && /\.pdf$/i.test(m.fileName || '');
+    const fileIsExcel = m.fileType === 'Excel' && /\.(xlsx|xls)$/i.test(m.fileName || '');
+    const directFile = m.fileId && /^[A-Za-z0-9_-]+$/.test(m.fileId)
+      ? 'https://drive.google.com/uc?export=download&id=' + encodeURIComponent(m.fileId) : '';
+    const officePreview = directFile
+      ? 'https://docs.google.com/gview?embedded=1&url=' + encodeURIComponent(directFile) : preview;
     const ringkasanHtml = m.ringkasan
       ? `<div class="ringkasan-box"><div class="small-caps mb-1"><i class="bi bi-lightbulb me-1 text-gold"></i>Ringkasan / poin penting</div><div style="font-size:.9rem;white-space:pre-wrap;line-height:1.5">${escapeHtml(m.ringkasan)}</div></div>`
       : '';
@@ -4360,14 +4384,17 @@ async function openMateriRead(id){
         <summary><i class="bi bi-file-earmark-text" aria-hidden="true"></i> Buka dokumen lengkap <i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
       <div class="reader-frame-wrap glass fade-item" id="readerFrameWrap">
         <div class="reader-toolbar">
-          <div class="text-muted" style="font-size:.78rem"><i class="bi bi-eye me-1"></i>Pratinjau materi</div>
+          <div class="text-muted" style="font-size:.78rem"><i class="bi bi-eye me-1"></i>${fileIsPdf ? 'Pembaca PDF' : fileIsExcel ? 'Pembaca Excel' : 'Dokumen lengkap'}</div>
           <div class="btn-group-reader">
             <button type="button" class="btn btn-icon-sm" onclick="toggleReaderHeight()" title="Perbesar tinggi" aria-label="Perbesar"><i class="bi bi-arrows-vertical" id="readerHeightIcon"></i></button>
             <button type="button" class="btn btn-icon-sm" onclick="toggleReaderFullscreen()" title="Layar penuh" aria-label="Fullscreen"><i class="bi bi-fullscreen" id="readerFsIcon"></i></button>
-            <a class="btn btn-icon-sm" href="${safeHttpUrl(driveOpen)}" target="_blank" rel="noopener" title="Buka di tab baru" aria-label="Tab baru"><i class="bi bi-box-arrow-up-right"></i></a>
+            <a class="btn btn-gold-outline btn-sm" href="${safeHttpUrl(driveOpen)}" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right me-1"></i>Buka di Drive</a>
           </div>
         </div>
-        <iframe id="materiReaderIframe" data-src="${preview}" src="about:blank" loading="lazy" title="Preview materi" style="height:min(72vh, 680px)"></iframe>
+        <div class="reader-content" id="readerContent" data-kind="${fileIsPdf ? 'PDF' : fileIsExcel ? 'Excel' : 'Office'}" data-id="${escapeHtml(m.id)}" data-preview="${escapeHtml(officePreview)}">
+          <div class="reader-notice">Ketuk judul dokumen untuk mulai membaca.</div>
+        </div>
+        <div class="reader-page-controls" id="readerPageControls" style="display:none" aria-label="Navigasi halaman dokumen"></div>
       </div>
       </details>
       <section class="learning-checkpoint" aria-labelledby="recallTitle">
@@ -4408,12 +4435,171 @@ async function openMateriRead(id){
 
 function loadMaterialPreview(details){
   if (!details.open) return;
-  const iframe = details.querySelector('iframe[data-src]');
-  if (iframe && iframe.dataset.src) {
-    iframe.src = iframe.dataset.src;
-    iframe.removeAttribute('data-src');
+  const content = details.querySelector('#readerContent');
+  if (content && !content.dataset.loaded) {
+    content.dataset.loaded = 'true';
+    openReaderDocument(content);
   }
 }
+
+// A Drive iframe cannot be controlled from this page. PDF and Excel use a
+// document reader with their own page controls; Office uses a separate viewer.
+let READER_STATE = { generation:0, pdf:null, renderTask:null };
+let PDF_LIBRARY_PROMISE = null;
+function closeReaderDocument(){
+  const old = READER_STATE;
+  READER_STATE = { generation:old.generation + 1, pdf:null, renderTask:null };
+  if (old.renderTask) old.renderTask.cancel();
+  if (old.pdf) old.pdf.destroy().catch(() => {});
+  readerTall = false;
+}
+function readerBytes(base64){
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i=0; i<binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+function renderOfficeFrame(content, message){
+  const preview = content.dataset.preview;
+  content.innerHTML = '';
+  if (message) {
+    const note = document.createElement('div');
+    note.className = 'reader-notice';
+    note.textContent = message + ' Jika pratinjau kosong, gunakan tombol Buka di Drive di atas.';
+    content.appendChild(note);
+  }
+  if (preview) {
+    const frame = document.createElement('iframe');
+    frame.src = preview;
+    frame.title = 'Dokumen materi, geser untuk membaca halaman berikutnya';
+    frame.loading = 'lazy';
+    frame.style.height = message ? 'calc(100% - 75px)' : '100%';
+    content.appendChild(frame);
+  }
+  document.getElementById('readerPageControls').style.display = 'none';
+}
+async function openReaderDocument(content){
+  const state = READER_STATE;
+  const id = content.dataset.id;
+  if (content.dataset.kind === 'Office') {
+    renderOfficeFrame(content, 'Geser di dalam dokumen untuk membaca semua halaman.');
+    return;
+  }
+  content.innerHTML = '<div class="spinner-wrap"><div class="spinner-border text-success"></div><span>Memuat dokumen...</span></div>';
+  try {
+    const [file, library] = await Promise.all([
+      callServer('getReaderFileData', id),
+      content.dataset.kind === 'PDF' ? (PDF_LIBRARY_PROMISE ||= import('https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.624/build/pdf.mjs').catch(e => {PDF_LIBRARY_PROMISE=null; throw e;})) : ensureExcelLibrary()
+    ]);
+    if (state !== READER_STATE || !content.isConnected || CACHE.activeMateriId !== id) return;
+    const bytes = readerBytes(file.base64);
+    if (content.dataset.kind === 'PDF' && file.fileType === 'PDF') {
+      library.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.624/build/pdf.worker.mjs';
+      state.pdf = await library.getDocument({ data:bytes, isEvalSupported:false }).promise;
+      if (state !== READER_STATE || !content.isConnected) { state.pdf.destroy(); return; }
+      state.page = 1; state.zoom = 1;
+      content.innerHTML = '<canvas id="readerPdfCanvas" aria-label="Halaman PDF"></canvas>';
+      await renderReaderPdfPage(state);
+    } else if (content.dataset.kind === 'Excel' && file.fileType === 'Excel') {
+      state.workbook = XLSX.read(bytes, {type:'array'});
+      state.sheetIndex = 0; state.sheetPage = 0;
+      renderReaderSheet(state);
+    } else throw new Error('Jenis berkas tidak sesuai.');
+  } catch (err) {
+    if (state !== READER_STATE || !content.isConnected) return;
+    renderOfficeFrame(content, (err.message || 'Dokumen tidak dapat dibuka di pembaca aplikasi.') + '.');
+  }
+}
+async function renderReaderPdfPage(state){
+  const content = document.getElementById('readerContent');
+  const canvas = document.getElementById('readerPdfCanvas');
+  const controls = document.getElementById('readerPageControls');
+  if (state !== READER_STATE || !content || !canvas || !state.pdf) return;
+  const seq = state.renderSeq = (state.renderSeq || 0) + 1;
+  if (state.renderTask) { state.renderTask.cancel(); state.renderTask = null; }
+  try {
+    const page = await state.pdf.getPage(state.page);
+    if (seq !== state.renderSeq || state !== READER_STATE) return;
+    const base = page.getViewport({scale:1});
+    const fit = Math.max(0.2, (content.clientWidth - 28) / base.width);
+    const viewport = page.getViewport({scale:fit * state.zoom});
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.ceil(viewport.width * pixelRatio);
+    canvas.height = Math.ceil(viewport.height * pixelRatio);
+    canvas.style.width = Math.ceil(viewport.width) + 'px';
+    canvas.style.height = Math.ceil(viewport.height) + 'px';
+    const context = canvas.getContext('2d');
+    state.renderTask = page.render({ canvasContext:context, viewport:viewport,
+      transform:[pixelRatio,0,0,pixelRatio,0,0] });
+    await state.renderTask.promise;
+    if (seq !== state.renderSeq || state !== READER_STATE) return;
+    content.scrollTop = 0;
+    content.scrollLeft = 0;
+    controls.style.display = 'flex';
+    controls.innerHTML = `<button type="button" class="btn btn-icon-sm" onclick="readerChangePage(-1)" aria-label="Halaman sebelumnya" ${state.page === 1 ? 'disabled' : ''}><i class="bi bi-chevron-left"></i></button>
+      <span aria-live="polite" class="px-1">Halaman ${state.page} / ${state.pdf.numPages}</span>
+      <button type="button" class="btn btn-icon-sm" onclick="readerChangePage(1)" aria-label="Halaman berikutnya" ${state.page === state.pdf.numPages ? 'disabled' : ''}><i class="bi bi-chevron-right"></i></button>
+      <button type="button" class="btn btn-icon-sm" onclick="readerZoomBy(1/1.25)" aria-label="Perkecil isi dokumen"><i class="bi bi-zoom-out"></i></button>
+      <button type="button" class="btn btn-icon-sm" onclick="readerZoomBy(1.25)" aria-label="Perbesar isi dokumen"><i class="bi bi-zoom-in"></i></button>
+      <button type="button" class="btn btn-icon-sm" onclick="readerZoomBy(0)" aria-label="Pas dengan lebar layar">Pas layar</button>`;
+  } catch (err) {
+    if (err.name !== 'RenderingCancelledException' && state === READER_STATE) {
+      renderOfficeFrame(content, 'Halaman PDF gagal ditampilkan.');
+    }
+  }
+}
+function readerChangePage(delta){
+  const state = READER_STATE;
+  if (!state.pdf) return;
+  state.page = Math.max(1, Math.min(state.pdf.numPages, state.page + delta));
+  renderReaderPdfPage(state);
+}
+function readerZoomBy(factor){
+  const state = READER_STATE;
+  if (!state.pdf) return;
+  state.zoom = factor ? Math.max(.6, Math.min(3, state.zoom * factor)) : 1;
+  renderReaderPdfPage(state);
+}
+function renderReaderSheet(state){
+  const content = document.getElementById('readerContent');
+  const controls = document.getElementById('readerPageControls');
+  if (state !== READER_STATE || !content || !state.workbook) return;
+  const wb = state.workbook;
+  const sheet = wb.Sheets[wb.SheetNames[state.sheetIndex]];
+  const bounds = sheet['!ref'] ? XLSX.utils.decode_range(sheet['!ref']) : null;
+  const first = bounds ? bounds.s.r + state.sheetPage * 100 : 0;
+  const last = bounds ? Math.min(bounds.e.r, first + 99) : 0;
+  const colStart = bounds ? bounds.s.c : 0;
+  const colLast = bounds ? Math.min(bounds.e.c, colStart + 49) : 0;
+  const rows = bounds && first <= bounds.e.r ? XLSX.utils.sheet_to_json(sheet, {
+    header:1, raw:false, blankrows:true, defval:'',
+    range:XLSX.utils.encode_range({s:{r:first,c:colStart},e:{r:last,c:colLast}})
+  }) : [];
+  const tabs = wb.SheetNames.map((name,i) => `<button type="button" class="btn btn-sm ${i===state.sheetIndex ? 'btn-premium' : 'btn-light'}" onclick="readerShowSheet(${i})">${escapeHtml(name)}</button>`).join('');
+  content.innerHTML = `<div class="reader-sheet-tabs">${tabs}</div><div style="overflow:auto;max-width:100%"><table class="reader-sheet"><tbody>${rows.map((row,i) =>
+    `<tr><th scope="row">${first+i+1}</th>${row.map(cell => `<td>${escapeHtml(String(cell ?? '').slice(0,2000))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+    ${bounds && bounds.e.c > colLast ? '<div class="reader-notice">Sebagian kolom disembunyikan untuk menjaga kecepatan. Buka di Drive untuk seluruh kolom.</div>' : ''}`;
+  controls.style.display = 'flex';
+  controls.innerHTML = `<button type="button" class="btn btn-icon-sm" onclick="readerChangeSheetPage(-1)" ${state.sheetPage===0 ? 'disabled' : ''} aria-label="Baris sebelumnya"><i class="bi bi-chevron-left"></i></button>
+    <span aria-live="polite">Baris ${bounds ? first+1 : 0}–${bounds ? last+1 : 0} dari ${bounds ? bounds.e.r+1 : 0}</span>
+    <button type="button" class="btn btn-icon-sm" onclick="readerChangeSheetPage(1)" ${!bounds || last>=bounds.e.r ? 'disabled' : ''} aria-label="Baris berikutnya"><i class="bi bi-chevron-right"></i></button>`;
+}
+function readerShowSheet(index){
+  if (!READER_STATE.workbook) return;
+  READER_STATE.sheetIndex = index;
+  READER_STATE.sheetPage = 0;
+  renderReaderSheet(READER_STATE);
+}
+function readerChangeSheetPage(delta){
+  if (!READER_STATE.workbook) return;
+  READER_STATE.sheetPage = Math.max(0, READER_STATE.sheetPage + delta);
+  renderReaderSheet(READER_STATE);
+}
+let readerResizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(readerResizeTimer);
+  readerResizeTimer = setTimeout(() => { if (READER_STATE.pdf) renderReaderPdfPage(READER_STATE); }, 180);
+});
 
 async function markMateriDibaca(materiId, dibaca){
   try {
@@ -4552,11 +4738,11 @@ async function startCekPemahaman(materiId){
 
 let readerTall = false;
 function toggleReaderHeight(){
-  const iframe = document.getElementById('materiReaderIframe');
+  const content = document.getElementById('readerContent');
   const icon = document.getElementById('readerHeightIcon');
-  if (!iframe) return;
+  if (!content) return;
   readerTall = !readerTall;
-  iframe.style.height = readerTall ? 'min(90vh, 900px)' : 'min(72vh, 680px)';
+  content.style.height = readerTall ? 'min(92dvh, 920px)' : '';
   if (icon) icon.className = readerTall ? 'bi bi-arrows-collapse' : 'bi bi-arrows-vertical';
 }
 
@@ -4567,6 +4753,7 @@ function toggleReaderFullscreen(){
   const on = wrap.classList.toggle('fullscreen-reader');
   if (icon) icon.className = on ? 'bi bi-fullscreen-exit' : 'bi bi-fullscreen';
   document.body.style.overflow = on ? 'hidden' : '';
+  if (READER_STATE.pdf) requestAnimationFrame(() => renderReaderPdfPage(READER_STATE));
   // Escape to exit
   if (on) {
     const esc = (e) => {
