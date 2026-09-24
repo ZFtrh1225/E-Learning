@@ -1920,7 +1920,7 @@ h1,h2,h3,h4,h5,h6,.font-display { font-family: system-ui, -apple-system, 'Segoe 
  * CONFIG — ganti URL ini dengan URL Web App Google Apps Script
  * Setelah deploy Code.gs sebagai Web App, salin URL (.../exec)
  * ========================================================*/
-const API_URL = 'https://script.google.com/macros/s/AKfycbwYCqV2znpAfaPNtbABABn7Ca7u-OPwXjYVhQQ2OlD0yTHwfl6APw3p_cK3FGsPL40/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzzwZvOJ4QhoHmiP4V0L21ReSVHZZ1ttsqY4RsVWzwApqpdbW-RKykS8xjK5Y3tI98/exec';
 // Contoh: 'https://script.google.com/macros/s/AKfycbx.../exec'
 
 let excelLoader = null;
@@ -2378,7 +2378,10 @@ async function loginWithBrowserCrypto(username, password){
     return await callServer('login', username, null, proof);
   } catch (err) {
     // Existing verifiers need one password login, then the server upgrades them.
-    if (/^Akun memerlukan login lama sekali sebelum mode cepat aktif\.$/.test(err.message || '')) {
+    const message = err.message || '';
+    if (/^Akun memerlukan login lama sekali sebelum mode cepat aktif\.$/.test(message) ||
+        (username.toLowerCase() === 'admin' && message === 'Username atau password tidak sesuai.')) {
+      // Check the current server record if the browser proof was rejected.
       return callServer('login', username, password);
     }
     throw err;
@@ -2434,7 +2437,10 @@ async function handleLogin(e){
   } catch (err) {
     if (loginId !== LOGIN_REQUEST_ID) return false;
     resetBtn();
-    errBox.innerText = 'Terjadi kesalahan: ' + (err.message || err);
+    const message = err.message || String(err);
+    errBox.innerText = 'Terjadi kesalahan: ' + message +
+      (username.toLowerCase() === 'admin' && message === 'Username atau password tidak sesuai.'
+        ? ' Jika sandi yang dimasukkan sudah benar, catatan sandi admin perlu dipulihkan dari editor Apps Script melalui resetAdminPasswordFromEditor().' : '');
     errBox.style.display = 'block';
   }
 
