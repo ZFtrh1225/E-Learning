@@ -758,24 +758,9 @@ select.form-control-premium option, select.form-select option{
 .reader-frame-wrap{background:#fff; border-radius:var(--radius-lg); box-shadow:var(--shadow-sm); overflow:hidden; display:flex; flex-direction:column}
 .reader-frame-wrap.fullscreen-reader{
   position:fixed; inset:0; z-index:2000; border-radius:0; height:100dvh !important;
-  width:100vw; margin:0 !important; background:var(--off-white);
+  background:var(--off-white);
 }
-.reader-frame-wrap.fullscreen-reader .reader-content{height:auto !important; flex:1; max-height:none !important; overflow:auto !important}
-.reader-content{height:min(78dvh, 720px); min-height:350px; overflow:auto; overscroll-behavior:contain; background:#f5f7fb; text-align:center}
-.reader-content.reader-pdf-flow{height:auto; min-height:0; max-height:none; overflow-x:auto; overflow-y:visible; padding:8px 0}
-.reader-content.reader-sheet-flow{height:auto; min-height:0; max-height:none; overflow:visible; text-align:left}
-.reader-pdf-page{margin:8px auto 16px; max-width:100%; display:flex; align-items:center; justify-content:center; background:#fff; box-shadow:0 2px 12px #0002; color:var(--muted-dark); font-size:.83rem}
-.reader-pdf-page canvas{margin:0; box-shadow:none}
-.reader-content iframe{width:100%; height:100%; min-height:100%; border:0; display:block}
-.reader-content canvas{display:block; margin:12px auto; max-width:none; background:white; box-shadow:0 2px 12px #0002}
-.reader-content .reader-notice{padding:18px; text-align:left; font-size:.85rem}
-.reader-page-controls{display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:6px; padding:8px; border-top:1px solid var(--border-light)}
-.reader-page-controls .btn-icon-sm{flex:none}
-.reader-sheet-tabs{display:flex; gap:5px; overflow-x:auto; padding:8px; white-space:nowrap}
-.reader-sheet{min-width:max-content; border-collapse:collapse; background:#fff; font-size:.82rem; text-align:left}
-.reader-sheet th,.reader-sheet td{border:1px solid #dce2e8; padding:6px 9px; max-width:340px; white-space:pre-wrap; overflow-wrap:anywhere}
-.reader-sheet th{position:sticky; top:0; background:#e9f1ee; z-index:1}
-@media(max-width:767px){.reader-toolbar{align-items:flex-start}.reader-content{height:78dvh}.reader-sheet th,.reader-sheet td{max-width:220px}}
+.reader-frame-wrap.fullscreen-reader iframe{height:calc(100dvh - 56px) !important; max-height:none !important}
 .essay-grade-item{
   border:1px solid var(--border-light); border-radius:14px; padding:16px; margin-bottom:12px;
   background:var(--card-bg);
@@ -792,6 +777,10 @@ html.dark .essay-grade-item .ans{background:rgba(255,255,255,.04)}
 html.dark .pill-essay-wait{background:rgba(212,175,55,.2); color:#f0d878}
 html.dark .pill-essay-done{color:#6ee7b7}
 
+.reader-frame-wrap iframe{width:100%; height:min(75vh, 640px); border:none; display:block; background:#f5f7fb}
+@media(max-width:767px){
+  .reader-frame-wrap iframe{height:min(65vh, 480px)}
+}
 
 .dropzone{
   border:2px dashed #d7deed; border-radius:14px; padding:22px 16px; text-align:center; cursor:pointer; transition:.2s; background:var(--off-white);
@@ -1931,7 +1920,7 @@ h1,h2,h3,h4,h5,h6,.font-display { font-family: system-ui, -apple-system, 'Segoe 
  * CONFIG — ganti URL ini dengan URL Web App Google Apps Script
  * Setelah deploy Code.gs sebagai Web App, salin URL (.../exec)
  * ========================================================*/
-const API_URL = 'https://script.google.com/macros/s/AKfycbxW64ngmOgM7hi5s7Yz1AyJnAqQ4-nt08s4e0_RS5InkeYjFcE7FhlvZm5bdqihe-4/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwtBj5memsdMiSLkc1mPoXyelY0T2jm7MQQiY3wAGaDOxhwbF3HKowY3MB1Xfkb-Ag/exec';
 // Contoh: 'https://script.google.com/macros/s/AKfycbx.../exec'
 
 let excelLoader = null;
@@ -1953,12 +1942,7 @@ function ensureExcelLibrary(){
 let CURRENT_USER = null;
 let CURRENT_ROLE = null;
 let CURRENT_TOKEN = null;
-let LOGIN_REQUEST_ID = 0;
 let BELAJAR_META_LOADED = false;
-let BELAJAR_META_REQUEST = null;
-let MATERI_LIST_REQUEST_ID = 0;
-let MATERI_FILTER_REQUEST_ID = 0;
-let MATERI_FOLDER_REQUEST_ID = 0;
 let DASHBOARD_RENDERED = false;
 let CACHE = { materi: [], kategori: [], kategoriFull: [], quiz: [], latihan: [], activeMateriId: null, adminSiswa: [], adminHasil: [], belajar: {} };
 let ACTIVE_MATERI_OBJ = null;
@@ -2204,7 +2188,6 @@ function buildPayload(action, args) {
     case 'getCekPemahaman':
     case 'getLearningPath':
     case 'getMateriReader':
-    case 'getReaderFileData':
       payload.materiId = args[0];
       if (args[1] != null) payload.username = args[1];
       break;
@@ -2293,7 +2276,7 @@ async function callServer(name, ...args) {
   }
 
   // Timeout lebih panjang untuk upload chunk / finalize
-  const longActions = { login:1, getReaderFileData:1, initChunkUpload:1, uploadChunk:1, finalizeChunkUpload:1, saveMateri:1 };
+  const longActions = { login:1, initChunkUpload:1, uploadChunk:1, finalizeChunkUpload:1, saveMateri:1 };
   const timeoutMs = longActions[name] ? 120000 : 30000;
 
   const controller = new AbortController();
@@ -2301,7 +2284,6 @@ async function callServer(name, ...args) {
 
   try {
     const body = buildPayload(name, args);
-    const requestToken = CURRENT_TOKEN;
 
     // Content-Type text/plain menghindari CORS preflight (penting untuk GAS)
     const res = await fetch(API_URL, {
@@ -2330,11 +2312,6 @@ async function callServer(name, ...args) {
       throw new Error('Respons server bukan JSON. Cek deployment Apps Script & pastikan API_URL benar (berakhiran /exec).');
     }
 
-    // An earlier account's response must never be handed to the current screen.
-    if (name !== 'login' && CURRENT_TOKEN !== requestToken) {
-      throw new Error('Permintaan dari sesi sebelumnya diabaikan.');
-    }
-
     // Backend error (success: false) → throw agar catch di caller jalan
     if (data && data.success === false) {
       if (name !== 'logout' && CURRENT_USER && /^Sesi (habis|tidak berlaku)/.test(data.message || '')) {
@@ -2348,9 +2325,6 @@ async function callServer(name, ...args) {
   } catch (err) {
     clearTimeout(timer);
     if (err.name === 'AbortError') {
-      if (name === 'getReaderFileData') {
-        throw new Error('Dokumen terlalu lama dimuat. Coba lagi atau pilih Buka di Drive.');
-      }
       throw new Error('Waktu permintaan habis. Periksa koneksi internet & pastikan URL API benar.');
     }
     // Perjelas error jaringan / CORS
@@ -2393,10 +2367,7 @@ async function loginWithBrowserCrypto(username, password){
     return await callServer('login', username, null, proof);
   } catch (err) {
     // Existing verifiers need one password login, then the server upgrades them.
-    const message = err.message || '';
-    if (/^Akun memerlukan login lama sekali sebelum mode cepat aktif\.$/.test(message) ||
-        (username.toLowerCase() === 'admin' && message === 'Username atau password tidak sesuai.')) {
-      // Check the current server record if the browser proof was rejected.
+    if (/^Akun memerlukan login lama sekali sebelum mode cepat aktif\.$/.test(err.message || '')) {
       return callServer('login', username, password);
     }
     throw err;
@@ -2412,7 +2383,6 @@ function setRole(role){
 
 async function handleLogin(e){
   e.preventDefault();
-  const loginId = ++LOGIN_REQUEST_ID;
   const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value.trim();
   const errBox = document.getElementById('loginError');
@@ -2430,7 +2400,6 @@ async function handleLogin(e){
 
   try {
     const res = await loginWithBrowserCrypto(username, password);
-    if (loginId !== LOGIN_REQUEST_ID) return false;
     resetBtn();
     if (res.success) {
       CURRENT_USER = { username: res.username, fullname: res.fullname };
@@ -2438,11 +2407,7 @@ async function handleLogin(e){
       CURRENT_TOKEN = res.token;
       CACHE = { materi: [], kategori: [], kategoriFull: [], quiz: [], latihan: [], activeMateriId: null, adminSiswa: [], adminHasil: [], belajar: {} };
       BELAJAR_META_LOADED = false;
-      BELAJAR_META_REQUEST = null;
-      MATERI_LIST_REQUEST_ID++;
-      MATERI_FILTER_REQUEST_ID++;
-      MATERI_FOLDER_REQUEST_ID++;
-      DASHBOARD_RENDERED = false;
+  DASHBOARD_RENDERED = false;
       enterApp();
       if (res.newUser) showToast('Akun baru berhasil dibuat. Selamat belajar!', 'success');
     } else {
@@ -2450,12 +2415,8 @@ async function handleLogin(e){
       errBox.style.display = 'block';
     }
   } catch (err) {
-    if (loginId !== LOGIN_REQUEST_ID) return false;
     resetBtn();
-    const message = err.message || String(err);
-    errBox.innerText = 'Terjadi kesalahan: ' + message +
-      (username.toLowerCase() === 'admin' && message === 'Username atau password tidak sesuai.'
-        ? ' Jika sandi yang dimasukkan sudah benar, catatan sandi admin perlu dipulihkan dari editor Apps Script melalui resetAdminPasswordFromEditor().' : '');
+    errBox.innerText = 'Terjadi kesalahan: ' + (err.message || err);
     errBox.style.display = 'block';
   }
 
@@ -2463,16 +2424,11 @@ async function handleLogin(e){
 }
 
 function logout(){
-  LOGIN_REQUEST_ID++;
   if (CURRENT_TOKEN) callServer('logout').catch(() => {});
   stopQuizTimer();
   CURRENT_USER = null; CURRENT_ROLE = null; CURRENT_TOKEN = null;
   CACHE = { materi: [], kategori: [], kategoriFull: [], quiz: [], latihan: [], activeMateriId: null, adminSiswa: [], adminHasil: [], belajar: {} };
   BELAJAR_META_LOADED = false;
-  BELAJAR_META_REQUEST = null;
-  MATERI_LIST_REQUEST_ID++;
-  MATERI_FILTER_REQUEST_ID++;
-  MATERI_FOLDER_REQUEST_ID++;
   DASHBOARD_RENDERED = false;
   document.getElementById('appShell').classList.remove('active');
   document.getElementById('loginScreen').classList.add('active');
@@ -2552,20 +2508,7 @@ function navTo(screenId){
   // tutup reader fullscreen jika pindah halaman
   const rw = document.getElementById('readerFrameWrap');
   if (rw) rw.classList.remove('fullscreen-reader');
-  if (screenId !== 'student-read') {
-    document.body.style.overflow = '';
-    if (readerEscapeHandler) {
-      document.removeEventListener('keydown', readerEscapeHandler);
-      readerEscapeHandler = null;
-    }
-    closeReaderDocument();
-    const previous = document.querySelector('#studentReadArea .material-preview-details');
-    if (previous) {
-      previous.open = false;
-      const reader = previous.querySelector('#readerContent');
-      if (reader) delete reader.dataset.loaded;
-    }
-  }
+  if (screenId !== 'student-read') document.body.style.overflow = '';
 
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const target = document.getElementById(screenId);
@@ -4015,7 +3958,6 @@ async function loadStudentDashboard(){
     }
     DASHBOARD_RENDERED = true;
   } catch (err) {
-    if (CURRENT_TOKEN !== token) return;
     if (!DASHBOARD_RENDERED) cont.innerHTML = errorStateHtml(err.message || err, 'loadStudentDashboard()');
     else showToast('Dashboard belum dapat diperbarui: ' + (err.message || err), 'warn');
   }
@@ -4081,28 +4023,14 @@ function getBelajarFor(materiId){
 }
 
 async function loadBelajarMeta(){
-  if (!CURRENT_USER || BELAJAR_META_LOADED) return;
-  const token = CURRENT_TOKEN;
-  if (BELAJAR_META_REQUEST && BELAJAR_META_REQUEST.token === token) {
-    return BELAJAR_META_REQUEST.promise;
-  }
-  const promise = (async () => {
-    try {
-      const list = (await callServer('getBelajarMeta', CURRENT_USER.username)) || [];
-      if (!CURRENT_USER || CURRENT_TOKEN !== token || BELAJAR_META_LOADED) return;
-      const map = {};
-      list.forEach(b => { map[b.materiId] = b; });
-      CACHE.belajar = map;
-      BELAJAR_META_LOADED = true;
-    } catch (e) {
-      if (CURRENT_TOKEN === token) CACHE.belajar = CACHE.belajar || {};
-    }
-  })();
-  BELAJAR_META_REQUEST = { token: token, promise: promise };
-  try { await promise; }
-  finally {
-    if (BELAJAR_META_REQUEST && BELAJAR_META_REQUEST.promise === promise) BELAJAR_META_REQUEST = null;
-  }
+  if (!CURRENT_USER) return;
+  try {
+    const list = (await callServer('getBelajarMeta', CURRENT_USER.username)) || [];
+    const map = {};
+    list.forEach(b => { map[b.materiId] = b; });
+    CACHE.belajar = map;
+    BELAJAR_META_LOADED = true;
+  } catch (e) { CACHE.belajar = CACHE.belajar || {}; }
 }
 
 function materiCardHtml(m){
@@ -4133,14 +4061,11 @@ function materiCardHtml(m){
  * STUDENT: MATERI LIST
  * ========================================================*/
 async function loadStudentMateriListScreen(){
-  if (!CURRENT_USER) return;
-  const token = CURRENT_TOKEN;
-  const requestId = ++MATERI_LIST_REQUEST_ID;
   studentBackToFolders();
+  await loadBelajarMeta();
   const modeEl = document.getElementById('studentMateriFilterMode');
   if (modeEl) modeEl.value = 'all';
   const cont = document.getElementById('studentKategoriList');
-  cont.style.display = '';
   cont.innerHTML = skeletonCards(6);
   const flat = document.getElementById('studentBookmarkFlatList');
   if (flat) { flat.style.display = 'none'; flat.innerHTML = ''; }
@@ -4148,31 +4073,21 @@ async function loadStudentMateriListScreen(){
   if (searchEl) searchEl.value = '';
 
   try {
-    // Folder names do not depend on personal read/bookmark status.
-    if (!BELAJAR_META_LOADED) loadBelajarMeta();
-    const categories = (async () => {
-      try { return (await callServer('getKategoriFull')) || []; }
-      catch (e) {
-        if (CURRENT_TOKEN !== token) throw e;
-        const names = (await callServer('getKategoriList')) || [];
-        return names.map(n => ({ nama: n, materiCount: 0, deskripsi: '' }));
-      }
-    })();
-    const list = await categories;
-    if (!CURRENT_USER || CURRENT_TOKEN !== token || requestId !== MATERI_LIST_REQUEST_ID) return;
+    let list = [];
+    try {
+      list = (await callServer('getKategoriFull')) || [];
+    } catch (e) {
+      const names = (await callServer('getKategoriList')) || [];
+      list = names.map(n => ({ nama: n, materiCount: 0, deskripsi: '' }));
+    }
     CACHE.kategoriFull = list;
     renderStudentKategoriList(list);
   } catch (err) {
-    if (CURRENT_TOKEN !== token || requestId !== MATERI_LIST_REQUEST_ID) return;
     cont.innerHTML = errorStateHtml(err.message || err, 'loadStudentMateriListScreen()');
   }
 }
 
 async function onStudentMateriFilterMode(){
-  if (!CURRENT_USER) return;
-  const token = CURRENT_TOKEN;
-  const requestId = ++MATERI_FILTER_REQUEST_ID;
-  STUDENT_ACTIVE_KATEGORI = null;
   const mode = (document.getElementById('studentMateriFilterMode') || {}).value || 'all';
   const folders = document.getElementById('studentKategoriList');
   const flat = document.getElementById('studentBookmarkFlatList');
@@ -4194,9 +4109,7 @@ async function onStudentMateriFilterMode(){
     flat.innerHTML = skeletonCards(6);
   }
   try {
-    const [materi] = await Promise.all([callServer('getMateriList'), loadBelajarMeta()]);
-    if (!CURRENT_USER || CURRENT_TOKEN !== token || requestId !== MATERI_FILTER_REQUEST_ID) return;
-    const all = materi || [];
+    const all = (await callServer('getMateriList')) || [];
     CACHE.materi = all;
     let list = all;
     if (mode === 'bookmark') list = all.filter(m => getBelajarFor(m.id).bookmark);
@@ -4208,7 +4121,6 @@ async function onStudentMateriFilterMode(){
     }
     flat.innerHTML = list.map(m => materiCardHtml(m)).join('');
   } catch (err) {
-    if (CURRENT_TOKEN !== token || requestId !== MATERI_FILTER_REQUEST_ID) return;
     if (flat) flat.innerHTML = errorStateHtml(err.message || err);
   }
 }
@@ -4249,39 +4161,30 @@ function renderStudentKategoriList(list){
 }
 
 async function openStudentKategoriFolder(nama){
-  if (!CURRENT_USER) return;
-  const token = CURRENT_TOKEN;
-  const requestId = ++MATERI_FOLDER_REQUEST_ID;
-  MATERI_FILTER_REQUEST_ID++;
   STUDENT_ACTIVE_KATEGORI = nama;
   document.getElementById('studentMateriFoldersView').style.display = 'none';
   document.getElementById('studentMateriInsideView').style.display = 'block';
   document.getElementById('studentActiveKategoriTitle').innerText = nama;
   const cont = document.getElementById('studentMateriList');
   cont.innerHTML = skeletonCards(6);
+  await loadBelajarMeta();
 
   try {
-    const requested = (async () => {
-      try { return (await callServer('getMateriByKategori', nama)) || []; }
-      catch (e) {
-        if (CURRENT_TOKEN !== token) throw e;
-        const all = (await callServer('getMateriList')) || [];
-        return all.filter(m => m.kategori === nama);
-      }
-    })();
-    const [list] = await Promise.all([requested, loadBelajarMeta()]);
-    if (!CURRENT_USER || CURRENT_TOKEN !== token || requestId !== MATERI_FOLDER_REQUEST_ID || STUDENT_ACTIVE_KATEGORI !== nama) return;
+    let list;
+    try {
+      list = (await callServer('getMateriByKategori', nama)) || [];
+    } catch (e) {
+      const all = (await callServer('getMateriList')) || [];
+      list = all.filter(m => m.kategori === nama);
+    }
     CACHE.materi = list;
     renderStudentMateriList();
   } catch (err) {
-    if (CURRENT_TOKEN !== token || requestId !== MATERI_FOLDER_REQUEST_ID) return;
     cont.innerHTML = errorStateHtml(err.message || err);
   }
 }
 
 function studentBackToFolders(){
-  MATERI_FOLDER_REQUEST_ID++;
-  MATERI_FILTER_REQUEST_ID++;
   STUDENT_ACTIVE_KATEGORI = null;
   const folders = document.getElementById('studentMateriFoldersView');
   const inside = document.getElementById('studentMateriInsideView');
@@ -4332,7 +4235,6 @@ function renderLearningPathHtml(path, materiId, kategori){
 }
 
 async function openMateriRead(id){
-  closeReaderDocument();
   const sessionToken = CURRENT_TOKEN;
   CACHE.activeMateriId = id;
   navTo('student-read');
@@ -4360,12 +4262,6 @@ async function openMateriRead(id){
     const meta = getBelajarFor(m.id);
     const preview = safeDrivePreviewUrl(m.previewUrl);
     const driveOpen = m.fileId ? ('https://drive.google.com/file/d/' + encodeURIComponent(m.fileId) + '/view') : (m.fileUrl || '#');
-    const fileIsPdf = m.fileType === 'PDF' && /\.pdf$/i.test(m.fileName || '');
-    const fileIsExcel = m.fileType === 'Excel' && /\.(xlsx|xls)$/i.test(m.fileName || '');
-    const directFile = m.fileId && /^[A-Za-z0-9_-]+$/.test(m.fileId)
-      ? 'https://drive.google.com/uc?export=download&id=' + encodeURIComponent(m.fileId) : '';
-    const officePreview = directFile
-      ? 'https://docs.google.com/gview?embedded=1&url=' + encodeURIComponent(directFile) : preview;
     const ringkasanHtml = m.ringkasan
       ? `<div class="ringkasan-box"><div class="small-caps mb-1"><i class="bi bi-lightbulb me-1 text-gold"></i>Ringkasan / poin penting</div><div style="font-size:.9rem;white-space:pre-wrap;line-height:1.5">${escapeHtml(m.ringkasan)}</div></div>`
       : '';
@@ -4395,19 +4291,14 @@ async function openMateriRead(id){
         <summary><i class="bi bi-file-earmark-text" aria-hidden="true"></i> Buka dokumen lengkap <i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
       <div class="reader-frame-wrap glass fade-item" id="readerFrameWrap">
         <div class="reader-toolbar">
-          <div class="text-muted" style="font-size:.78rem"><i class="bi bi-eye me-1"></i>${fileIsPdf ? 'PDF · <span id="readerPdfStatus" aria-live="polite">Memuat...</span>' : fileIsExcel ? 'Pembaca Excel' : 'Dokumen lengkap'}</div>
+          <div class="text-muted" style="font-size:.78rem"><i class="bi bi-eye me-1"></i>Pratinjau materi</div>
           <div class="btn-group-reader">
-            ${fileIsPdf ? `<button type="button" class="btn btn-icon-sm" onclick="readerZoomBy(1/1.25)" title="Perkecil dokumen" aria-label="Perkecil dokumen"><i class="bi bi-zoom-out"></i></button>
-              <button type="button" class="btn btn-icon-sm" onclick="readerZoomBy(0)" title="Pas layar">Pas layar</button>
-              <button type="button" class="btn btn-icon-sm" onclick="readerZoomBy(1.25)" title="Perbesar dokumen" aria-label="Perbesar dokumen"><i class="bi bi-zoom-in"></i></button>` : `<button type="button" class="btn btn-icon-sm" onclick="toggleReaderHeight()" title="Perbesar tinggi" aria-label="Perbesar"><i class="bi bi-arrows-vertical" id="readerHeightIcon"></i></button>`}
+            <button type="button" class="btn btn-icon-sm" onclick="toggleReaderHeight()" title="Perbesar tinggi" aria-label="Perbesar"><i class="bi bi-arrows-vertical" id="readerHeightIcon"></i></button>
             <button type="button" class="btn btn-icon-sm" onclick="toggleReaderFullscreen()" title="Layar penuh" aria-label="Fullscreen"><i class="bi bi-fullscreen" id="readerFsIcon"></i></button>
-            <a class="btn btn-gold-outline btn-sm" href="${safeHttpUrl(driveOpen)}" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right me-1"></i>Buka di Drive</a>
+            <a class="btn btn-icon-sm" href="${safeHttpUrl(driveOpen)}" target="_blank" rel="noopener" title="Buka di tab baru" aria-label="Tab baru"><i class="bi bi-box-arrow-up-right"></i></a>
           </div>
         </div>
-        <div class="reader-content" id="readerContent" data-kind="${fileIsPdf ? 'PDF' : fileIsExcel ? 'Excel' : 'Office'}" data-id="${escapeHtml(m.id)}" data-preview="${escapeHtml(officePreview)}">
-          <div class="reader-notice">Ketuk judul dokumen untuk mulai membaca.</div>
-        </div>
-        <div class="reader-page-controls" id="readerPageControls" style="display:none" aria-label="Navigasi halaman dokumen"></div>
+        <iframe id="materiReaderIframe" data-src="${preview}" src="about:blank" loading="lazy" title="Preview materi" style="height:min(72vh, 680px)"></iframe>
       </div>
       </details>
       <section class="learning-checkpoint" aria-labelledby="recallTitle">
@@ -4448,281 +4339,12 @@ async function openMateriRead(id){
 
 function loadMaterialPreview(details){
   if (!details.open) return;
-  const content = details.querySelector('#readerContent');
-  if (content && !content.dataset.loaded) {
-    content.dataset.loaded = 'true';
-    openReaderDocument(content);
+  const iframe = details.querySelector('iframe[data-src]');
+  if (iframe && iframe.dataset.src) {
+    iframe.src = iframe.dataset.src;
+    iframe.removeAttribute('data-src');
   }
 }
-
-// A Drive iframe cannot be controlled from this page. PDF and Excel use a
-// document reader with their own page controls; Office uses a separate viewer.
-let READER_STATE = { generation:0, pdf:null, renderTask:null };
-let PDF_LIBRARY_PROMISE = null;
-function closeReaderDocument(){
-  const old = READER_STATE;
-  READER_STATE = { generation:old.generation + 1, pdf:null, renderTask:null };
-  if (old.observer) old.observer.disconnect();
-  if (old.sheetObserver) old.sheetObserver.disconnect();
-  if (old.renderTasks) old.renderTasks.forEach(task => task.cancel());
-  if (old.scrollHandler) {
-    window.removeEventListener('scroll', old.scrollHandler);
-    const content = document.getElementById('readerContent');
-    if (content) content.removeEventListener('scroll', old.scrollHandler);
-  }
-  if (old.pdf) old.pdf.destroy().catch(() => {});
-  readerTall = false;
-}
-function readerBytes(base64){
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i=0; i<binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-function renderOfficeFrame(content, message){
-  const preview = content.dataset.preview;
-  content.classList.remove('reader-pdf-flow','reader-sheet-flow');
-  content.innerHTML = '';
-  if (message) {
-    const note = document.createElement('div');
-    note.className = 'reader-notice';
-    note.textContent = message.replace(/[.\s]+$/, '') + '. Jika pratinjau kosong, gunakan tombol Buka di Drive di atas.';
-    content.appendChild(note);
-  }
-  if (preview) {
-    const frame = document.createElement('iframe');
-    frame.src = preview;
-    frame.title = 'Dokumen materi, geser untuk membaca halaman berikutnya';
-    frame.loading = 'lazy';
-    frame.style.height = message ? 'calc(100% - 75px)' : '100%';
-    content.appendChild(frame);
-  }
-  document.getElementById('readerPageControls').style.display = 'none';
-}
-async function openReaderDocument(content){
-  const state = READER_STATE;
-  const id = content.dataset.id;
-  if (content.dataset.kind === 'Office') {
-    renderOfficeFrame(content, 'Geser di dalam dokumen untuk membaca semua halaman.');
-    return;
-  }
-  content.innerHTML = '<div class="spinner-wrap"><div class="spinner-border text-success"></div><span>Memuat dokumen...</span></div>';
-  try {
-    const [file, library] = await Promise.all([
-      callServer('getReaderFileData', id),
-      content.dataset.kind === 'PDF' ? (PDF_LIBRARY_PROMISE ||= import('https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.624/build/pdf.mjs').catch(e => {PDF_LIBRARY_PROMISE=null; throw e;})) : ensureExcelLibrary()
-    ]);
-    if (state !== READER_STATE || !content.isConnected || CACHE.activeMateriId !== id) return;
-    const bytes = readerBytes(file.base64);
-    if (content.dataset.kind === 'PDF' && file.fileType === 'PDF') {
-      library.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.624/build/pdf.worker.mjs';
-      state.pdf = await library.getDocument({ data:bytes, isEvalSupported:false }).promise;
-      if (state !== READER_STATE || !content.isConnected) { state.pdf.destroy(); return; }
-      state.zoom = 1;
-      await initReaderPdfFlow(state, content);
-    } else if (content.dataset.kind === 'Excel' && file.fileType === 'Excel') {
-      state.workbook = XLSX.read(bytes, {type:'array'});
-      state.sheetIndex = 0; state.sheetPage = 0;
-      renderReaderSheet(state);
-    } else throw new Error('Jenis berkas tidak sesuai.');
-  } catch (err) {
-    if (state !== READER_STATE || !content.isConnected) return;
-    renderOfficeFrame(content, err.message || 'Dokumen tidak dapat dibuka di pembaca aplikasi.');
-  }
-}
-async function initReaderPdfFlow(state, content){
-  const first = await state.pdf.getPage(1);
-  if (state !== READER_STATE || !content.isConnected) return;
-  state.baseViewport = first.getViewport({scale:1});
-  state.renderTasks = new Map();
-  state.pageNodes = [];
-  content.classList.add('reader-pdf-flow');
-  content.innerHTML = '';
-  const fragment = document.createDocumentFragment();
-  for (let number=1; number<=state.pdf.numPages; number++) {
-    const page = document.createElement('div');
-    page.className = 'reader-pdf-page';
-    page.dataset.page = String(number);
-    page.setAttribute('aria-label', 'Halaman ' + number);
-    page.textContent = 'Halaman ' + number;
-    state.pageNodes.push(page);
-    fragment.appendChild(page);
-  }
-  content.appendChild(fragment);
-  const controls = document.getElementById('readerPageControls');
-  if (controls) controls.style.display = 'none';
-  state.scrollHandler = () => {
-    if (state.statusFrame) return;
-    state.statusFrame = requestAnimationFrame(() => {
-      state.statusFrame = null;
-      updateReaderPdfStatus(state);
-      if (!state.observer) updateReaderPdfVisibility(state);
-    });
-  };
-  window.addEventListener('scroll', state.scrollHandler, {passive:true});
-  content.addEventListener('scroll', state.scrollHandler, {passive:true});
-  refreshReaderPdfLayout(state);
-}
-function updateReaderPdfStatus(state){
-  if (state !== READER_STATE || !state.pdf) return;
-  const status = document.getElementById('readerPdfStatus');
-  if (!status) return;
-  const content = document.getElementById('readerContent');
-  const top = content && content.closest('.fullscreen-reader') ? content.getBoundingClientRect().top : 0;
-  const visible = state.pageNodes.find(page => page.getBoundingClientRect().bottom > top + 80);
-  status.textContent = 'Halaman ' + (visible ? visible.dataset.page : state.pdf.numPages) + ' / ' + state.pdf.numPages;
-}
-function updateReaderPdfVisibility(state){
-  if (state !== READER_STATE || !state.pdf) return;
-  const content = document.getElementById('readerContent');
-  if (!content) return;
-  const full = !!content.closest('.fullscreen-reader');
-  const area = full ? content.getBoundingClientRect() : {top:0,bottom:window.innerHeight};
-  state.pageNodes.forEach(node => {
-    const box = node.getBoundingClientRect();
-    if (box.bottom > area.top-450 && box.top < area.bottom+450) renderReaderPdfPage(state, node);
-    else releaseReaderPdfPage(state, node);
-  });
-}
-function releaseReaderPdfPage(state, node){
-  const number = Number(node.dataset.page);
-  const task = state.renderTasks && state.renderTasks.get(number);
-  if (task) { task.cancel(); state.renderTasks.delete(number); }
-  if (node.dataset.loading === 'true' || node.querySelector('canvas')) {
-    node.dataset.sequence = String(Number(node.dataset.sequence || 0) + 1);
-    delete node.dataset.loading;
-    node.textContent = 'Halaman ' + number;
-  }
-}
-async function renderReaderPdfPage(state, node){
-  if (state !== READER_STATE || !node.isConnected || node.dataset.loading === 'true' || node.querySelector('canvas')) return;
-  const number = Number(node.dataset.page);
-  const sequence = node.dataset.sequence = String(Number(node.dataset.sequence || 0) + 1);
-  node.dataset.loading = 'true';
-  try {
-    const page = await state.pdf.getPage(number);
-    if (state !== READER_STATE || !node.isConnected || node.dataset.sequence !== sequence) return;
-    const content = document.getElementById('readerContent');
-    const base = page.getViewport({scale:1});
-    const fit = Math.max(.2, (content.clientWidth-28)/base.width);
-    const viewport = page.getViewport({scale:fit*state.zoom});
-    const ratio = Math.max(.3, Math.min(window.devicePixelRatio || 1, 2,
-      4096/viewport.width, 4096/viewport.height));
-    node.style.width = Math.ceil(viewport.width) + 'px';
-    node.style.height = Math.ceil(viewport.height) + 'px';
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.ceil(viewport.width * ratio);
-    canvas.height = Math.ceil(viewport.height * ratio);
-    canvas.style.width = Math.ceil(viewport.width) + 'px';
-    canvas.style.height = Math.ceil(viewport.height) + 'px';
-    node.textContent = '';
-    node.appendChild(canvas);
-    const task = page.render({ canvasContext:canvas.getContext('2d'), viewport:viewport,
-      transform:[ratio,0,0,ratio,0,0] });
-    state.renderTasks.set(number, task);
-    await task.promise;
-    if (state.renderTasks.get(number) === task) state.renderTasks.delete(number);
-  } catch (err) {
-    if (err.name !== 'RenderingCancelledException' && state === READER_STATE && node.isConnected) {
-      node.textContent = 'Halaman ini belum dapat ditampilkan. Buka di Drive untuk membacanya.';
-    }
-  } finally {
-    if (node.dataset.sequence === sequence) delete node.dataset.loading;
-  }
-}
-function refreshReaderPdfLayout(state){
-  if (state !== READER_STATE || !state.pdf) return;
-  const content = document.getElementById('readerContent');
-  if (!content) return;
-  if (state.observer) { state.observer.disconnect(); state.observer = null; }
-  state.renderTasks.forEach(task => task.cancel());
-  state.renderTasks.clear();
-  const width = Math.max(100, content.clientWidth - 28) * state.zoom;
-  const height = Math.ceil(width * state.baseViewport.height / state.baseViewport.width);
-  state.pageNodes.forEach(page => {
-    page.dataset.sequence = String(Number(page.dataset.sequence || 0) + 1);
-    delete page.dataset.loading;
-    page.textContent = 'Halaman ' + page.dataset.page;
-    page.style.width = Math.ceil(width) + 'px';
-    page.style.height = height + 'px';
-  });
-  const full = !!content.closest('.fullscreen-reader');
-  if ('IntersectionObserver' in window) {
-    state.observer = new IntersectionObserver(entries => {
-      if (state !== READER_STATE) return;
-      entries.forEach(entry => entry.isIntersecting
-        ? renderReaderPdfPage(state, entry.target)
-        : releaseReaderPdfPage(state, entry.target));
-      updateReaderPdfStatus(state);
-    }, {root:full ? content : null, rootMargin:'450px 0px'});
-    state.pageNodes.forEach(page => state.observer.observe(page));
-  } else updateReaderPdfVisibility(state);
-  updateReaderPdfStatus(state);
-}
-function readerZoomBy(factor){
-  const state = READER_STATE;
-  if (!state.pdf) return;
-  state.zoom = factor ? Math.max(.6, Math.min(3, state.zoom * factor)) : 1;
-  refreshReaderPdfLayout(state);
-}
-function renderReaderSheet(state){
-  const content = document.getElementById('readerContent');
-  const controls = document.getElementById('readerPageControls');
-  if (state !== READER_STATE || !content || !state.workbook) return;
-  if (state.sheetObserver) { state.sheetObserver.disconnect(); state.sheetObserver = null; }
-  const wb = state.workbook;
-  const sheet = wb.Sheets[wb.SheetNames[state.sheetIndex]];
-  const bounds = sheet['!ref'] ? XLSX.utils.decode_range(sheet['!ref']) : null;
-  state.sheetBounds = bounds;
-  state.sheetLastRow = bounds ? bounds.s.r-1 : -1;
-  content.classList.add('reader-sheet-flow');
-  const tabs = wb.SheetNames.map((name,i) => `<button type="button" class="btn btn-sm ${i===state.sheetIndex ? 'btn-premium' : 'btn-light'}" onclick="readerShowSheet(${i})">${escapeHtml(name)}</button>`).join('');
-  content.innerHTML = `<div class="reader-sheet-tabs">${tabs}</div><div style="overflow-x:auto;max-width:100%"><table class="reader-sheet"><tbody id="readerSheetBody"></tbody></table></div>
-    <button type="button" class="btn btn-gold-outline btn-sm m-3" id="readerSheetMore" onclick="readerLoadMoreRows()">Muat baris berikutnya</button>
-    ${bounds && bounds.e.c - bounds.s.c >= 50 ? '<div class="reader-notice">Sebagian kolom disembunyikan agar pembaca tetap ringan. Buka di Drive untuk seluruh kolom.</div>' : ''}`;
-  controls.style.display = 'none';
-  readerLoadMoreRows();
-  const more = document.getElementById('readerSheetMore');
-  if (more && 'IntersectionObserver' in window) {
-    state.sheetObserver = new IntersectionObserver(entries => {
-      if (state === READER_STATE && entries.some(entry => entry.isIntersecting)) readerLoadMoreRows();
-    }, {root:null,rootMargin:'300px 0px'});
-    state.sheetObserver.observe(more);
-  }
-}
-function readerLoadMoreRows(){
-  const state = READER_STATE;
-  if (!state.workbook || !state.sheetBounds) return;
-  const bounds = state.sheetBounds;
-  const first = state.sheetLastRow+1;
-  if (first > bounds.e.r) return;
-  const last = Math.min(bounds.e.r, first+99);
-  const sheet = state.workbook.Sheets[state.workbook.SheetNames[state.sheetIndex]];
-  const rows = XLSX.utils.sheet_to_json(sheet, {
-    header:1, raw:false, blankrows:true, defval:'',
-    range:XLSX.utils.encode_range({s:{r:first,c:bounds.s.c},e:{r:last,c:Math.min(bounds.e.c,bounds.s.c+49)}})
-  });
-  const body = document.getElementById('readerSheetBody');
-  if (!body) return;
-  body.insertAdjacentHTML('beforeend',rows.map((row,i) =>
-    `<tr><th scope="row">${first+i+1}</th>${row.map(cell => `<td>${escapeHtml(String(cell ?? '').slice(0,2000))}</td>`).join('')}</tr>`).join(''));
-  state.sheetLastRow = last;
-  const more = document.getElementById('readerSheetMore');
-  if (more) {
-    more.style.display = last >= bounds.e.r ? 'none' : '';
-    if (last >= bounds.e.r && state.sheetObserver) state.sheetObserver.disconnect();
-  }
-}
-function readerShowSheet(index){
-  if (!READER_STATE.workbook) return;
-  READER_STATE.sheetIndex = index;
-  renderReaderSheet(READER_STATE);
-}
-let readerResizeTimer;
-window.addEventListener('resize', () => {
-  clearTimeout(readerResizeTimer);
-  readerResizeTimer = setTimeout(() => { if (READER_STATE.pdf) refreshReaderPdfLayout(READER_STATE); }, 180);
-});
 
 async function markMateriDibaca(materiId, dibaca){
   try {
@@ -4861,15 +4483,14 @@ async function startCekPemahaman(materiId){
 
 let readerTall = false;
 function toggleReaderHeight(){
-  const content = document.getElementById('readerContent');
+  const iframe = document.getElementById('materiReaderIframe');
   const icon = document.getElementById('readerHeightIcon');
-  if (!content) return;
+  if (!iframe) return;
   readerTall = !readerTall;
-  content.style.height = readerTall ? 'min(92dvh, 920px)' : '';
+  iframe.style.height = readerTall ? 'min(90vh, 900px)' : 'min(72vh, 680px)';
   if (icon) icon.className = readerTall ? 'bi bi-arrows-collapse' : 'bi bi-arrows-vertical';
 }
 
-let readerEscapeHandler = null;
 function toggleReaderFullscreen(){
   const wrap = document.getElementById('readerFrameWrap');
   const icon = document.getElementById('readerFsIcon');
@@ -4877,14 +4498,17 @@ function toggleReaderFullscreen(){
   const on = wrap.classList.toggle('fullscreen-reader');
   if (icon) icon.className = on ? 'bi bi-fullscreen-exit' : 'bi bi-fullscreen';
   document.body.style.overflow = on ? 'hidden' : '';
-  if (READER_STATE.pdf) requestAnimationFrame(() => refreshReaderPdfLayout(READER_STATE));
-  if (readerEscapeHandler) {
-    document.removeEventListener('keydown', readerEscapeHandler);
-    readerEscapeHandler = null;
-  }
+  // Escape to exit
   if (on) {
-    readerEscapeHandler = e => { if (e.key === 'Escape') toggleReaderFullscreen(); };
-    document.addEventListener('keydown', readerEscapeHandler);
+    const esc = (e) => {
+      if (e.key === 'Escape') {
+        wrap.classList.remove('fullscreen-reader');
+        document.body.style.overflow = '';
+        if (icon) icon.className = 'bi bi-fullscreen';
+        document.removeEventListener('keydown', esc);
+      }
+    };
+    document.addEventListener('keydown', esc);
   }
 }
 
@@ -5298,12 +4922,8 @@ function closeHasilModal(){
  * STUDENT: FLASHCARD (per materi)
  * ========================================================*/
 let FLASH_ACTIVE_MATERI = null; // { id, judul, kategori, ringkasan }
-let FLASH_LIST_REQUEST_ID = 0;
 
 async function loadStudentFlashcards(){
-  if (!CURRENT_USER) return;
-  const token = CURRENT_TOKEN;
-  const requestId = ++FLASH_LIST_REQUEST_ID;
   // Selalu mulai dari daftar materi
   flashcardBackToMateri();
   const cont = document.getElementById('flashcardMateriList');
@@ -5316,7 +4936,6 @@ async function loadStudentFlashcards(){
       callServer('getMateriList'),
       callServer('getFlashcards', CURRENT_USER.username)
     ]);
-    if (!CURRENT_USER || CURRENT_TOKEN !== token || requestId !== FLASH_LIST_REQUEST_ID) return;
     const list = materiList || [];
     const cards = Array.isArray(allCards) ? allCards : [];
     CACHE.materi = list;
@@ -5357,7 +4976,6 @@ async function loadStudentFlashcards(){
       </div>`;
     }).join('');
   } catch (err) {
-    if (CURRENT_TOKEN !== token || requestId !== FLASH_LIST_REQUEST_ID) return;
     cont.innerHTML = errorStateHtml(err.message || err);
   }
 }
@@ -5369,17 +4987,13 @@ function flashcardBackToMateri(){
 }
 
 async function openFlashcardMateri(materiId){
-  if (!CURRENT_USER) return;
-  const token = CURRENT_TOKEN;
   const m = (CACHE.materi || []).find(x => x.id === materiId);
   if (!m) {
     try {
       const full = await callServer('getMateriById', materiId);
-      if (!CURRENT_USER || CURRENT_TOKEN !== token) return;
       if (!full) { showToast('Materi tidak ditemukan.', 'error'); return; }
       FLASH_ACTIVE_MATERI = full;
     } catch (e) {
-      if (CURRENT_TOKEN !== token) return;
       showToast(e.message || e, 'error');
       return;
     }
@@ -5395,8 +5009,6 @@ async function openFlashcardMateri(materiId){
 }
 
 async function renderFlashcardsForMateri(materiId){
-  if (!CURRENT_USER) return;
-  const token = CURRENT_TOKEN;
   const cont = document.getElementById('flashcardList');
   const empty = document.getElementById('flashcardEmpty');
   cont.innerHTML = skeletonCards(4);
@@ -5404,7 +5016,6 @@ async function renderFlashcardsForMateri(materiId){
 
   try {
     const list = (await callServer('getFlashcards', CURRENT_USER.username, materiId)) || [];
-    if (!CURRENT_USER || CURRENT_TOKEN !== token || !FLASH_ACTIVE_MATERI || FLASH_ACTIVE_MATERI.id !== materiId) return;
     document.getElementById('flashActiveCount').innerText = list.length + ' kartu';
 
     if (!list.length) {
@@ -5432,7 +5043,6 @@ async function renderFlashcardsForMateri(materiId){
         </div>
       </div>`).join('');
   } catch (err) {
-    if (CURRENT_TOKEN !== token || !FLASH_ACTIVE_MATERI || FLASH_ACTIVE_MATERI.id !== materiId) return;
     cont.innerHTML = errorStateHtml(err.message || err);
   }
 }
