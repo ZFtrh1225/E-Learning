@@ -1920,7 +1920,7 @@ h1,h2,h3,h4,h5,h6,.font-display { font-family: system-ui, -apple-system, 'Segoe 
  * CONFIG — ganti URL ini dengan URL Web App Google Apps Script
  * Setelah deploy Code.gs sebagai Web App, salin URL (.../exec)
  * ========================================================*/
-const API_URL = 'https://script.google.com/macros/s/AKfycbzBAgwsi_pc2imkVvxpJOQE11k6GRuSGP_8QEkY-tVOhWyC4iQR9Mlp8raBIzOL9-4/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwYCqV2znpAfaPNtbABABn7Ca7u-OPwXjYVhQQ2OlD0yTHwfl6APw3p_cK3FGsPL40/exec';
 // Contoh: 'https://script.google.com/macros/s/AKfycbx.../exec'
 
 let excelLoader = null;
@@ -2166,7 +2166,11 @@ function buildPayload(action, args) {
   switch (action) {
     case 'login':
       payload.username = args[0];
-      payload.password = args[1];
+      if (args[1] != null) payload.password = args[1];
+      if (args[2]) payload.passwordProof = args[2];
+      break;
+    case 'loginChallenge':
+      payload.username = args[0];
       break;
     case 'getMateriById':
     case 'deleteMateri':
@@ -2334,6 +2338,42 @@ async function callServer(name, ...args) {
 /* ==========================================================
  * LOGIN
  * ========================================================*/
+async function loginWithBrowserCrypto(username, password){
+  // The previous backend and browsers without Web Crypto still accept the old flow.
+  if (!window.crypto || !window.crypto.subtle || typeof TextEncoder === 'undefined') {
+    return callServer('login', username, password);
+  }
+  let challenge;
+  try {
+    challenge = await callServer('loginChallenge', username);
+  } catch (err) {
+    if (/^(Tindakan tidak tersedia\.|Action tidak dikenal: loginChallenge)$/.test(err.message || '')) {
+      return callServer('login', username, password);
+    }
+    throw err;
+  }
+  const iterations = Number(challenge && challenge.iterations);
+  const salt = challenge && challenge.salt;
+  if (!/^[a-f0-9]{64}$/.test(salt || '') || !Number.isInteger(iterations) ||
+      iterations < 10000 || iterations > 600000) {
+    throw new Error('Parameter keamanan login dari server tidak valid.');
+  }
+  const encoder = new TextEncoder();
+  const key = await window.crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits']);
+  const bits = await window.crypto.subtle.deriveBits(
+    { name:'PBKDF2', salt:encoder.encode(salt), iterations:iterations, hash:'SHA-256' }, key, 256);
+  const proof = btoa(String.fromCharCode(...new Uint8Array(bits)));
+  try {
+    return await callServer('login', username, null, proof);
+  } catch (err) {
+    // Existing verifiers need one password login, then the server upgrades them.
+    if (/^Akun memerlukan login lama sekali sebelum mode cepat aktif\.$/.test(err.message || '')) {
+      return callServer('login', username, password);
+    }
+    throw err;
+  }
+}
+
 function setRole(role){
   document.getElementById('roleStudentBtn').classList.toggle('active', role==='student');
   document.getElementById('roleAdminBtn').classList.toggle('active', role==='admin');
@@ -2359,7 +2399,7 @@ async function handleLogin(e){
   }
 
   try {
-    const res = await callServer('login', username, password);
+    const res = await loginWithBrowserCrypto(username, password);
     resetBtn();
     if (res.success) {
       CURRENT_USER = { username: res.username, fullname: res.fullname };
