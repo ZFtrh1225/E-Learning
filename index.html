@@ -1942,7 +1942,12 @@ function ensureExcelLibrary(){
 let CURRENT_USER = null;
 let CURRENT_ROLE = null;
 let CURRENT_TOKEN = null;
+let LOGIN_REQUEST_ID = 0;
 let BELAJAR_META_LOADED = false;
+let BELAJAR_META_REQUEST = null;
+let MATERI_LIST_REQUEST_ID = 0;
+let MATERI_FILTER_REQUEST_ID = 0;
+let MATERI_FOLDER_REQUEST_ID = 0;
 let DASHBOARD_RENDERED = false;
 let CACHE = { materi: [], kategori: [], kategoriFull: [], quiz: [], latihan: [], activeMateriId: null, adminSiswa: [], adminHasil: [], belajar: {} };
 let ACTIVE_MATERI_OBJ = null;
@@ -2284,6 +2289,7 @@ async function callServer(name, ...args) {
 
   try {
     const body = buildPayload(name, args);
+    const requestToken = CURRENT_TOKEN;
 
     // Content-Type text/plain menghindari CORS preflight (penting untuk GAS)
     const res = await fetch(API_URL, {
@@ -2310,6 +2316,11 @@ async function callServer(name, ...args) {
         throw new Error('Server mengembalikan halaman HTML (bukan JSON). Deployment Web App harus "Who has access: Anyone".');
       }
       throw new Error('Respons server bukan JSON. Cek deployment Apps Script & pastikan API_URL benar (berakhiran /exec).');
+    }
+
+    // An earlier account's response must never be handed to the current screen.
+    if (name !== 'login' && CURRENT_TOKEN !== requestToken) {
+      throw new Error('Permintaan dari sesi sebelumnya diabaikan.');
     }
 
     // Backend error (success: false) → throw agar catch di caller jalan
@@ -2383,6 +2394,7 @@ function setRole(role){
 
 async function handleLogin(e){
   e.preventDefault();
+  const loginId = ++LOGIN_REQUEST_ID;
   const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value.trim();
   const errBox = document.getElementById('loginError');
@@ -2400,6 +2412,7 @@ async function handleLogin(e){
 
   try {
     const res = await loginWithBrowserCrypto(username, password);
+    if (loginId !== LOGIN_REQUEST_ID) return false;
     resetBtn();
     if (res.success) {
       CURRENT_USER = { username: res.username, fullname: res.fullname };
@@ -2407,7 +2420,11 @@ async function handleLogin(e){
       CURRENT_TOKEN = res.token;
       CACHE = { materi: [], kategori: [], kategoriFull: [], quiz: [], latihan: [], activeMateriId: null, adminSiswa: [], adminHasil: [], belajar: {} };
       BELAJAR_META_LOADED = false;
-  DASHBOARD_RENDERED = false;
+      BELAJAR_META_REQUEST = null;
+      MATERI_LIST_REQUEST_ID++;
+      MATERI_FILTER_REQUEST_ID++;
+      MATERI_FOLDER_REQUEST_ID++;
+      DASHBOARD_RENDERED = false;
       enterApp();
       if (res.newUser) showToast('Akun baru berhasil dibuat. Selamat belajar!', 'success');
     } else {
@@ -2415,6 +2432,7 @@ async function handleLogin(e){
       errBox.style.display = 'block';
     }
   } catch (err) {
+    if (loginId !== LOGIN_REQUEST_ID) return false;
     resetBtn();
     errBox.innerText = 'Terjadi kesalahan: ' + (err.message || err);
     errBox.style.display = 'block';
@@ -2424,11 +2442,16 @@ async function handleLogin(e){
 }
 
 function logout(){
+  LOGIN_REQUEST_ID++;
   if (CURRENT_TOKEN) callServer('logout').catch(() => {});
   stopQuizTimer();
   CURRENT_USER = null; CURRENT_ROLE = null; CURRENT_TOKEN = null;
   CACHE = { materi: [], kategori: [], kategoriFull: [], quiz: [], latihan: [], activeMateriId: null, adminSiswa: [], adminHasil: [], belajar: {} };
   BELAJAR_META_LOADED = false;
+  BELAJAR_META_REQUEST = null;
+  MATERI_LIST_REQUEST_ID++;
+  MATERI_FILTER_REQUEST_ID++;
+  MATERI_FOLDER_REQUEST_ID++;
   DASHBOARD_RENDERED = false;
   document.getElementById('appShell').classList.remove('active');
   document.getElementById('loginScreen').classList.add('active');
@@ -3958,6 +3981,7 @@ async function loadStudentDashboard(){
     }
     DASHBOARD_RENDERED = true;
   } catch (err) {
+    if (CURRENT_TOKEN !== token) return;
     if (!DASHBOARD_RENDERED) cont.innerHTML = errorStateHtml(err.message || err, 'loadStudentDashboard()');
     else showToast('Dashboard belum dapat diperbarui: ' + (err.message || err), 'warn');
   }
@@ -4023,14 +4047,28 @@ function getBelajarFor(materiId){
 }
 
 async function loadBelajarMeta(){
-  if (!CURRENT_USER) return;
-  try {
-    const list = (await callServer('getBelajarMeta', CURRENT_USER.username)) || [];
-    const map = {};
-    list.forEach(b => { map[b.materiId] = b; });
-    CACHE.belajar = map;
-    BELAJAR_META_LOADED = true;
-  } catch (e) { CACHE.belajar = CACHE.belajar || {}; }
+  if (!CURRENT_USER || BELAJAR_META_LOADED) return;
+  const token = CURRENT_TOKEN;
+  if (BELAJAR_META_REQUEST && BELAJAR_META_REQUEST.token === token) {
+    return BELAJAR_META_REQUEST.promise;
+  }
+  const promise = (async () => {
+    try {
+      const list = (await callServer('getBelajarMeta', CURRENT_USER.username)) || [];
+      if (!CURRENT_USER || CURRENT_TOKEN !== token || BELAJAR_META_LOADED) return;
+      const map = {};
+      list.forEach(b => { map[b.materiId] = b; });
+      CACHE.belajar = map;
+      BELAJAR_META_LOADED = true;
+    } catch (e) {
+      if (CURRENT_TOKEN === token) CACHE.belajar = CACHE.belajar || {};
+    }
+  })();
+  BELAJAR_META_REQUEST = { token: token, promise: promise };
+  try { await promise; }
+  finally {
+    if (BELAJAR_META_REQUEST && BELAJAR_META_REQUEST.promise === promise) BELAJAR_META_REQUEST = null;
+  }
 }
 
 function materiCardHtml(m){
@@ -4061,11 +4099,14 @@ function materiCardHtml(m){
  * STUDENT: MATERI LIST
  * ========================================================*/
 async function loadStudentMateriListScreen(){
+  if (!CURRENT_USER) return;
+  const token = CURRENT_TOKEN;
+  const requestId = ++MATERI_LIST_REQUEST_ID;
   studentBackToFolders();
-  await loadBelajarMeta();
   const modeEl = document.getElementById('studentMateriFilterMode');
   if (modeEl) modeEl.value = 'all';
   const cont = document.getElementById('studentKategoriList');
+  cont.style.display = '';
   cont.innerHTML = skeletonCards(6);
   const flat = document.getElementById('studentBookmarkFlatList');
   if (flat) { flat.style.display = 'none'; flat.innerHTML = ''; }
@@ -4073,21 +4114,31 @@ async function loadStudentMateriListScreen(){
   if (searchEl) searchEl.value = '';
 
   try {
-    let list = [];
-    try {
-      list = (await callServer('getKategoriFull')) || [];
-    } catch (e) {
-      const names = (await callServer('getKategoriList')) || [];
-      list = names.map(n => ({ nama: n, materiCount: 0, deskripsi: '' }));
-    }
+    // Folder names do not depend on personal read/bookmark status.
+    if (!BELAJAR_META_LOADED) loadBelajarMeta();
+    const categories = (async () => {
+      try { return (await callServer('getKategoriFull')) || []; }
+      catch (e) {
+        if (CURRENT_TOKEN !== token) throw e;
+        const names = (await callServer('getKategoriList')) || [];
+        return names.map(n => ({ nama: n, materiCount: 0, deskripsi: '' }));
+      }
+    })();
+    const list = await categories;
+    if (!CURRENT_USER || CURRENT_TOKEN !== token || requestId !== MATERI_LIST_REQUEST_ID) return;
     CACHE.kategoriFull = list;
     renderStudentKategoriList(list);
   } catch (err) {
+    if (CURRENT_TOKEN !== token || requestId !== MATERI_LIST_REQUEST_ID) return;
     cont.innerHTML = errorStateHtml(err.message || err, 'loadStudentMateriListScreen()');
   }
 }
 
 async function onStudentMateriFilterMode(){
+  if (!CURRENT_USER) return;
+  const token = CURRENT_TOKEN;
+  const requestId = ++MATERI_FILTER_REQUEST_ID;
+  STUDENT_ACTIVE_KATEGORI = null;
   const mode = (document.getElementById('studentMateriFilterMode') || {}).value || 'all';
   const folders = document.getElementById('studentKategoriList');
   const flat = document.getElementById('studentBookmarkFlatList');
@@ -4109,7 +4160,9 @@ async function onStudentMateriFilterMode(){
     flat.innerHTML = skeletonCards(6);
   }
   try {
-    const all = (await callServer('getMateriList')) || [];
+    const [materi] = await Promise.all([callServer('getMateriList'), loadBelajarMeta()]);
+    if (!CURRENT_USER || CURRENT_TOKEN !== token || requestId !== MATERI_FILTER_REQUEST_ID) return;
+    const all = materi || [];
     CACHE.materi = all;
     let list = all;
     if (mode === 'bookmark') list = all.filter(m => getBelajarFor(m.id).bookmark);
@@ -4121,6 +4174,7 @@ async function onStudentMateriFilterMode(){
     }
     flat.innerHTML = list.map(m => materiCardHtml(m)).join('');
   } catch (err) {
+    if (CURRENT_TOKEN !== token || requestId !== MATERI_FILTER_REQUEST_ID) return;
     if (flat) flat.innerHTML = errorStateHtml(err.message || err);
   }
 }
@@ -4161,30 +4215,39 @@ function renderStudentKategoriList(list){
 }
 
 async function openStudentKategoriFolder(nama){
+  if (!CURRENT_USER) return;
+  const token = CURRENT_TOKEN;
+  const requestId = ++MATERI_FOLDER_REQUEST_ID;
+  MATERI_FILTER_REQUEST_ID++;
   STUDENT_ACTIVE_KATEGORI = nama;
   document.getElementById('studentMateriFoldersView').style.display = 'none';
   document.getElementById('studentMateriInsideView').style.display = 'block';
   document.getElementById('studentActiveKategoriTitle').innerText = nama;
   const cont = document.getElementById('studentMateriList');
   cont.innerHTML = skeletonCards(6);
-  await loadBelajarMeta();
 
   try {
-    let list;
-    try {
-      list = (await callServer('getMateriByKategori', nama)) || [];
-    } catch (e) {
-      const all = (await callServer('getMateriList')) || [];
-      list = all.filter(m => m.kategori === nama);
-    }
+    const requested = (async () => {
+      try { return (await callServer('getMateriByKategori', nama)) || []; }
+      catch (e) {
+        if (CURRENT_TOKEN !== token) throw e;
+        const all = (await callServer('getMateriList')) || [];
+        return all.filter(m => m.kategori === nama);
+      }
+    })();
+    const [list] = await Promise.all([requested, loadBelajarMeta()]);
+    if (!CURRENT_USER || CURRENT_TOKEN !== token || requestId !== MATERI_FOLDER_REQUEST_ID || STUDENT_ACTIVE_KATEGORI !== nama) return;
     CACHE.materi = list;
     renderStudentMateriList();
   } catch (err) {
+    if (CURRENT_TOKEN !== token || requestId !== MATERI_FOLDER_REQUEST_ID) return;
     cont.innerHTML = errorStateHtml(err.message || err);
   }
 }
 
 function studentBackToFolders(){
+  MATERI_FOLDER_REQUEST_ID++;
+  MATERI_FILTER_REQUEST_ID++;
   STUDENT_ACTIVE_KATEGORI = null;
   const folders = document.getElementById('studentMateriFoldersView');
   const inside = document.getElementById('studentMateriInsideView');
@@ -4922,8 +4985,12 @@ function closeHasilModal(){
  * STUDENT: FLASHCARD (per materi)
  * ========================================================*/
 let FLASH_ACTIVE_MATERI = null; // { id, judul, kategori, ringkasan }
+let FLASH_LIST_REQUEST_ID = 0;
 
 async function loadStudentFlashcards(){
+  if (!CURRENT_USER) return;
+  const token = CURRENT_TOKEN;
+  const requestId = ++FLASH_LIST_REQUEST_ID;
   // Selalu mulai dari daftar materi
   flashcardBackToMateri();
   const cont = document.getElementById('flashcardMateriList');
@@ -4936,6 +5003,7 @@ async function loadStudentFlashcards(){
       callServer('getMateriList'),
       callServer('getFlashcards', CURRENT_USER.username)
     ]);
+    if (!CURRENT_USER || CURRENT_TOKEN !== token || requestId !== FLASH_LIST_REQUEST_ID) return;
     const list = materiList || [];
     const cards = Array.isArray(allCards) ? allCards : [];
     CACHE.materi = list;
@@ -4976,6 +5044,7 @@ async function loadStudentFlashcards(){
       </div>`;
     }).join('');
   } catch (err) {
+    if (CURRENT_TOKEN !== token || requestId !== FLASH_LIST_REQUEST_ID) return;
     cont.innerHTML = errorStateHtml(err.message || err);
   }
 }
@@ -4987,13 +5056,17 @@ function flashcardBackToMateri(){
 }
 
 async function openFlashcardMateri(materiId){
+  if (!CURRENT_USER) return;
+  const token = CURRENT_TOKEN;
   const m = (CACHE.materi || []).find(x => x.id === materiId);
   if (!m) {
     try {
       const full = await callServer('getMateriById', materiId);
+      if (!CURRENT_USER || CURRENT_TOKEN !== token) return;
       if (!full) { showToast('Materi tidak ditemukan.', 'error'); return; }
       FLASH_ACTIVE_MATERI = full;
     } catch (e) {
+      if (CURRENT_TOKEN !== token) return;
       showToast(e.message || e, 'error');
       return;
     }
@@ -5009,6 +5082,8 @@ async function openFlashcardMateri(materiId){
 }
 
 async function renderFlashcardsForMateri(materiId){
+  if (!CURRENT_USER) return;
+  const token = CURRENT_TOKEN;
   const cont = document.getElementById('flashcardList');
   const empty = document.getElementById('flashcardEmpty');
   cont.innerHTML = skeletonCards(4);
@@ -5016,6 +5091,7 @@ async function renderFlashcardsForMateri(materiId){
 
   try {
     const list = (await callServer('getFlashcards', CURRENT_USER.username, materiId)) || [];
+    if (!CURRENT_USER || CURRENT_TOKEN !== token || !FLASH_ACTIVE_MATERI || FLASH_ACTIVE_MATERI.id !== materiId) return;
     document.getElementById('flashActiveCount').innerText = list.length + ' kartu';
 
     if (!list.length) {
@@ -5043,6 +5119,7 @@ async function renderFlashcardsForMateri(materiId){
         </div>
       </div>`).join('');
   } catch (err) {
+    if (CURRENT_TOKEN !== token || !FLASH_ACTIVE_MATERI || FLASH_ACTIVE_MATERI.id !== materiId) return;
     cont.innerHTML = errorStateHtml(err.message || err);
   }
 }
