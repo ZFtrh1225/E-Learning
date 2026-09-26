@@ -1651,6 +1651,7 @@ h1,h2,h3,h4,h5,h6,.font-display { font-family: system-ui, -apple-system, 'Segoe 
               <span class="badge-kategori" id="flashActiveKategori">-</span>
               <h5 class="font-display mb-0 mt-1" id="flashActiveJudul">Materi</h5>
               <div class="text-muted" style="font-size:.82rem" id="flashActiveCount">0 kartu</div>
+              <div class="text-emerald" style="font-size:.8rem" id="flashActiveProgress"></div>
             </div>
             <div class="d-flex gap-2 flex-wrap" id="flashcardManageActions">
               <button class="btn btn-gold-outline btn-sm px-3" id="btnGenerateFlash" onclick="generateFlashFromActiveMateri()">
@@ -1690,7 +1691,7 @@ h1,h2,h3,h4,h5,h6,.font-display { font-family: system-ui, -apple-system, 'Segoe 
               <button type="button" class="btn btn-gold-outline px-3" onclick="startFlashcardPractice()">Latihan lagi</button>
               <button type="button" class="btn btn-premium px-3" onclick="stopFlashcardPractice()">Lihat daftar kartu</button>
             </div>
-            <div class="text-muted mt-3" style="font-size:.8rem">Penilaian ini berlaku untuk sesi latihan saat ini.</div>
+            <div class="text-muted mt-3" style="font-size:.8rem" id="flashPracticePersistence">Memeriksa penyimpanan progres...</div>
           </div>
           <div id="flashcardManageView">
           <div id="flashcardList" class="row g-3"></div>
@@ -2263,6 +2264,7 @@ function buildPayload(action, args) {
     case 'saveCatatanMateri':
     case 'saveFlashcard':
     case 'generateFlashcardsFromMateri':
+    case 'reviewFlashcard':
     case 'addStudent':
     case 'updateStudent':
     case 'resetStudentPassword':
@@ -5105,7 +5107,8 @@ function closeHasilModal(){
  * ========================================================*/
 let FLASH_ACTIVE_MATERI = null; // { id, judul, kategori, ringkasan }
 let FLASH_CARDS_CURRENT = null; // { materiId, cards }
-let FLASH_PRACTICE = null; // latihan hanya untuk sesi ini
+let FLASH_PRACTICE = null; // antrean latihan sesi ini
+let FLASH_REVIEW_SUPPORTED = false; // backend lama tetap dapat menjalankan mode sesi
 
 async function loadStudentFlashcards(){
   // Selalu mulai dari daftar materi
@@ -5127,9 +5130,13 @@ async function loadStudentFlashcards(){
 
     // Hitung jumlah kartu per materi
     const countMap = {};
+    const masteredMap = {};
     cards.forEach(c => {
       const mid = String(c.materiId || '');
-      if (mid) countMap[mid] = (countMap[mid] || 0) + 1;
+      if (mid) {
+        countMap[mid] = (countMap[mid] || 0) + 1;
+        if (c.reviewStatus === 'paham') masteredMap[mid] = (masteredMap[mid] || 0) + 1;
+      }
     });
 
     if (!list.length) {
@@ -5150,7 +5157,7 @@ async function loadStudentFlashcards(){
                 <span class="badge-kategori">${escapeHtml(m.kategori||'-')}</span>
                 <h6 class="font-display mb-1 mt-1 text-truncate-2">${escapeHtml(m.judul)}</h6>
                 <div class="text-muted" style="font-size:.8rem">
-                  <i class="bi bi-card-heading me-1"></i>${count} kartu
+                  <i class="bi bi-card-heading me-1"></i>${count} kartu · ${masteredMap[m.id] || 0} paham
                 </div>
               </div>
             </div>
@@ -5165,7 +5172,7 @@ async function loadStudentFlashcards(){
 }
 
 function flashcardBackToMateri(){
-  stopFlashcardPractice();
+  stopFlashcardPractice(false);
   FLASH_CARDS_CURRENT = null;
   FLASH_ACTIVE_MATERI = null;
   document.getElementById('flashcardMateriView').style.display = 'block';
@@ -5173,7 +5180,7 @@ function flashcardBackToMateri(){
 }
 
 async function openFlashcardMateri(materiId){
-  stopFlashcardPractice();
+  stopFlashcardPractice(false);
   FLASH_CARDS_CURRENT = null;
   const m = (CACHE.materi || []).find(x => x.id === materiId);
   if (!m) {
@@ -5208,7 +5215,8 @@ async function renderFlashcardsForMateri(materiId){
     if (!FLASH_ACTIVE_MATERI || String(FLASH_ACTIVE_MATERI.id) !== String(materiId)) return;
     const list = Array.isArray(response) ? response : [];
     FLASH_CARDS_CURRENT = { materiId: String(materiId), cards: list };
-    document.getElementById('flashActiveCount').innerText = list.length + ' kartu';
+    FLASH_REVIEW_SUPPORTED = list.length > 0 && list.every(f => Object.prototype.hasOwnProperty.call(f, 'reviewStatus'));
+    updateFlashcardSavedProgress();
     document.getElementById('btnStartFlashPractice').disabled = !list.length;
 
     if (!list.length) {
@@ -5220,6 +5228,9 @@ async function renderFlashcardsForMateri(materiId){
     cont.innerHTML = list.map(f => `
       <div class="col-sm-6 col-lg-4">
         <div class="card-premium glass fade-item" style="cursor:pointer;min-height:150px" onclick="flipFlashcard(this)">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="badge-kategori">${f.reviewStatus === 'paham' ? 'Sudah paham' : f.reviewStatus === 'ulang' ? 'Perlu diulang' : 'Baru'}</span>
+          </div>
           <div class="fc-front">
             <div class="small-caps mb-1 text-muted">Depan · ketuk untuk balik</div>
             <div class="fw-semibold">${escapeHtml(f.front)}</div>
@@ -5257,7 +5268,18 @@ function flipFlashcard(el){
 }
 
 
-function stopFlashcardPractice(){
+function updateFlashcardSavedProgress(){
+  const cards = FLASH_CARDS_CURRENT && FLASH_CARDS_CURRENT.cards || [];
+  const label = document.getElementById('flashActiveProgress');
+  const count = document.getElementById('flashActiveCount');
+  if (count) count.textContent = cards.length + ' kartu';
+  if (label) label.textContent = FLASH_REVIEW_SUPPORTED
+    ? cards.filter(f => f.reviewStatus === 'paham').length + ' dari ' + cards.length + ' sudah paham · tersimpan di akun'
+    : (cards.length ? 'Progres masih berlaku untuk sesi ini sampai API diperbarui.' : '');
+}
+
+function stopFlashcardPractice(refresh = true){
+  const wasActive = !!FLASH_PRACTICE;
   FLASH_PRACTICE = null;
   const panel = document.getElementById('flashPracticePanel');
   const list = document.getElementById('flashcardManageView');
@@ -5265,6 +5287,7 @@ function stopFlashcardPractice(){
   if (panel) panel.style.display = 'none';
   if (list) list.style.display = '';
   if (actions) actions.style.display = '';
+  if (refresh && wasActive && FLASH_ACTIVE_MATERI) renderFlashcardsForMateri(FLASH_ACTIVE_MATERI.id);
 }
 
 function startFlashcardPractice(){
@@ -5274,15 +5297,22 @@ function startFlashcardPractice(){
     showToast('Belum ada kartu untuk materi ini.', 'warn');
     return;
   }
-  const queue = FLASH_CARDS_CURRENT.cards.slice();
+  const pending = FLASH_REVIEW_SUPPORTED
+    ? FLASH_CARDS_CURRENT.cards.filter(f => f.reviewStatus !== 'paham') : [];
+  const queue = (pending.length ? pending : FLASH_CARDS_CURRENT.cards).slice();
   for (let i = queue.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [queue[i], queue[j]] = [queue[j], queue[i]];
   }
   FLASH_PRACTICE = {
     materiId: materialId, queue: queue, total: queue.length,
-    mastered: 0, retries: 0, revealed: false
+    mastered: 0, retries: 0, revealed: false, saving: false,
+    persistent: FLASH_REVIEW_SUPPORTED
   };
+  document.getElementById('flashPracticePersistence').textContent = FLASH_REVIEW_SUPPORTED
+    ? (pending.length ? 'Kartu yang belum paham didahulukan. Hasil tersimpan di akun untuk perangkat lain.'
+       : 'Semua kartu sudah paham. Sesi ini mengulang seluruh kartu; hasil tetap tersimpan di akun.')
+    : 'Mode sesi: perbarui deployment Apps Script agar hasil tersimpan lintas perangkat.';
   document.getElementById('flashcardManageView').style.display = 'none';
   document.getElementById('flashcardManageActions').style.display = 'none';
   document.getElementById('flashPracticePanel').style.display = 'block';
@@ -5324,17 +5354,42 @@ function revealFlashcardPractice(){
   document.querySelector('#flashPracticeGradeActions button').focus();
 }
 
-function gradeFlashcardPractice(understood){
+async function gradeFlashcardPractice(understood){
   const s = FLASH_PRACTICE;
-  if (!s || !s.queue.length || !s.revealed) return;
-  const card = s.queue.shift();
-  if (understood) s.mastered++;
-  else {
-    s.queue.push(card);
-    s.retries++;
+  if (!s || !s.queue.length || !s.revealed || s.saving) return;
+  s.saving = true;
+  const buttons = document.querySelectorAll('#flashPracticeGradeActions button');
+  buttons.forEach(button => button.disabled = true);
+  const card = s.queue[0];
+  const sessionToken = CURRENT_TOKEN;
+  try {
+    if (s.persistent) {
+      const result = await callServer('reviewFlashcard', {
+        username: CURRENT_USER.username, id: card.id,
+        status: understood ? 'paham' : 'ulang'
+      });
+      if (!result || !result.success) throw new Error('Gagal menyimpan hasil latihan.');
+      if (s !== FLASH_PRACTICE || CURRENT_TOKEN !== sessionToken) return;
+      card.reviewStatus = result.reviewStatus;
+      card.reviewCount = result.reviewCount;
+      card.lastReviewedAt = result.lastReviewedAt;
+      updateFlashcardSavedProgress();
+    }
+    if (s !== FLASH_PRACTICE || CURRENT_TOKEN !== sessionToken) return;
+    s.queue.shift();
+    if (understood) s.mastered++;
+    else {
+      s.queue.push(card);
+      s.retries++;
+    }
+    renderFlashcardPractice();
+    if (!s.queue.length) document.querySelector('#flashPracticeDoneActions button').focus();
+  } catch (err) {
+    if (s === FLASH_PRACTICE && CURRENT_TOKEN === sessionToken) showToast(err.message || err, 'error');
+  } finally {
+    s.saving = false;
+    buttons.forEach(button => button.disabled = false);
   }
-  renderFlashcardPractice();
-  if (!s.queue.length) document.querySelector('#flashPracticeDoneActions button').focus();
 }
 
 function openAddFlashcardModal(){
