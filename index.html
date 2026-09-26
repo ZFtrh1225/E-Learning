@@ -395,6 +395,15 @@ html.dark .ringkasan-box{background:rgba(16,185,129,.1)}
 .reader-flashcard-face{width:100%;min-height:96px;text-align:left;background:transparent;color:var(--ink);border:0;padding:0;white-space:pre-wrap;overflow-wrap:anywhere}
 .reader-flashcard-face .small-caps{display:block;margin-bottom:8px}
 .reader-flashcard-face:hover .small-caps{color:var(--emerald-dark)}
+.flash-practice-panel{border:1px solid var(--border-light);border-radius:var(--radius-lg);padding:clamp(16px,4vw,26px);background:var(--card-bg)}
+.flash-practice-card{border:1px solid var(--border-light);border-radius:var(--radius-md);padding:clamp(16px,4vw,26px);background:var(--surface);min-height:180px;display:flex;flex-direction:column;justify-content:center;overflow-wrap:anywhere}
+.flash-practice-text{white-space:pre-wrap;line-height:1.55;font-size:clamp(1rem,3vw,1.15rem)}
+.flash-practice-answer{border-top:1px solid var(--border-light);padding-top:16px;margin-top:18px}
+.flash-practice-actions{display:flex;gap:10px;flex-wrap:wrap}
+.flash-practice-actions .btn{min-height:44px}
+.flash-practice-progress{height:8px;border-radius:999px;background:var(--border-light);overflow:hidden}
+.flash-practice-progress span{display:block;height:100%;background:var(--emerald);transition:width .2s ease}
+@media(max-width:640px){.flash-practice-actions .btn{flex:1 1 100%}}
 @media(max-width:640px){.reader-flashcard-form{grid-template-columns:1fr}.reader-flashcard-section .btn{min-height:44px}}
 
 .folder-card {
@@ -1643,20 +1652,53 @@ h1,h2,h3,h4,h5,h6,.font-display { font-family: system-ui, -apple-system, 'Segoe 
               <h5 class="font-display mb-0 mt-1" id="flashActiveJudul">Materi</h5>
               <div class="text-muted" style="font-size:.82rem" id="flashActiveCount">0 kartu</div>
             </div>
-            <div class="d-flex gap-2 flex-wrap">
+            <div class="d-flex gap-2 flex-wrap" id="flashcardManageActions">
               <button class="btn btn-gold-outline btn-sm px-3" id="btnGenerateFlash" onclick="generateFlashFromActiveMateri()">
                 <i class="bi bi-magic me-1"></i>Dari Ringkasan
               </button>
               <button class="btn btn-premium btn-sm px-3" onclick="openAddFlashcardModal()">
                 <i class="bi bi-plus-lg me-1"></i>Tambah Kartu
               </button>
+              <button type="button" class="btn btn-gold-outline btn-sm px-3" id="btnStartFlashPractice" onclick="startFlashcardPractice()" disabled>
+                <i class="bi bi-play-fill me-1"></i>Belajar Kartu
+              </button>
             </div>
           </div>
+          <div id="flashPracticePanel" class="flash-practice-panel glass mb-3" style="display:none" aria-label="Latihan flashcard">
+            <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-2">
+              <div class="small-caps">LATIHAN FLASHCARD</div>
+              <button type="button" class="btn btn-icon-sm" onclick="stopFlashcardPractice()" aria-label="Tutup latihan" title="Tutup latihan"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <div id="flashPracticeStatus" class="fw-semibold mb-2" aria-live="polite"></div>
+            <div class="flash-practice-progress mb-3" role="progressbar" aria-label="Kartu yang sudah dipahami" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="flashPracticeProgressFill" style="width:0%"></span></div>
+            <div id="flashPracticeCard" class="flash-practice-card">
+              <div class="small-caps mb-2">PERTANYAAN</div>
+              <div id="flashPracticeFront" class="flash-practice-text fw-semibold"></div>
+              <div id="flashPracticeAnswer" class="flash-practice-answer" style="display:none">
+                <div class="small-caps mb-2">JAWABAN</div>
+                <div id="flashPracticeBack" class="flash-practice-text"></div>
+              </div>
+            </div>
+            <div id="flashPracticeRevealActions" class="flash-practice-actions mt-3">
+              <button type="button" class="btn btn-premium px-3" id="flashPracticeReveal" onclick="revealFlashcardPractice()">Lihat jawaban</button>
+            </div>
+            <div id="flashPracticeGradeActions" class="flash-practice-actions mt-3" style="display:none">
+              <button type="button" class="btn btn-gold-outline px-3" onclick="gradeFlashcardPractice(false)">Ulangi lagi</button>
+              <button type="button" class="btn btn-premium px-3" onclick="gradeFlashcardPractice(true)">Sudah paham</button>
+            </div>
+            <div id="flashPracticeDoneActions" class="flash-practice-actions mt-3" style="display:none">
+              <button type="button" class="btn btn-gold-outline px-3" onclick="startFlashcardPractice()">Latihan lagi</button>
+              <button type="button" class="btn btn-premium px-3" onclick="stopFlashcardPractice()">Lihat daftar kartu</button>
+            </div>
+            <div class="text-muted mt-3" style="font-size:.8rem">Penilaian ini berlaku untuk sesi latihan saat ini.</div>
+          </div>
+          <div id="flashcardManageView">
           <div id="flashcardList" class="row g-3"></div>
           <div id="flashcardEmpty" class="empty-state" style="display:none">
             <i class="bi bi-layers"></i>
             Belum ada flashcard untuk materi ini.<br>
             <span class="text-muted" style="font-size:.85rem">Tambah manual atau buat otomatis dari ringkasan materi.</span>
+          </div>
           </div>
         </div>
       </div>
@@ -5062,6 +5104,8 @@ function closeHasilModal(){
  * STUDENT: FLASHCARD (per materi)
  * ========================================================*/
 let FLASH_ACTIVE_MATERI = null; // { id, judul, kategori, ringkasan }
+let FLASH_CARDS_CURRENT = null; // { materiId, cards }
+let FLASH_PRACTICE = null; // latihan hanya untuk sesi ini
 
 async function loadStudentFlashcards(){
   // Selalu mulai dari daftar materi
@@ -5121,12 +5165,16 @@ async function loadStudentFlashcards(){
 }
 
 function flashcardBackToMateri(){
+  stopFlashcardPractice();
+  FLASH_CARDS_CURRENT = null;
   FLASH_ACTIVE_MATERI = null;
   document.getElementById('flashcardMateriView').style.display = 'block';
   document.getElementById('flashcardInsideView').style.display = 'none';
 }
 
 async function openFlashcardMateri(materiId){
+  stopFlashcardPractice();
+  FLASH_CARDS_CURRENT = null;
   const m = (CACHE.materi || []).find(x => x.id === materiId);
   if (!m) {
     try {
@@ -5153,10 +5201,15 @@ async function renderFlashcardsForMateri(materiId){
   const empty = document.getElementById('flashcardEmpty');
   cont.innerHTML = skeletonCards(4);
   empty.style.display = 'none';
+  document.getElementById('btnStartFlashPractice').disabled = true;
 
   try {
-    const list = (await callServer('getFlashcards', CURRENT_USER.username, materiId)) || [];
+    const response = await callServer('getFlashcards', CURRENT_USER.username, materiId);
+    if (!FLASH_ACTIVE_MATERI || String(FLASH_ACTIVE_MATERI.id) !== String(materiId)) return;
+    const list = Array.isArray(response) ? response : [];
+    FLASH_CARDS_CURRENT = { materiId: String(materiId), cards: list };
     document.getElementById('flashActiveCount').innerText = list.length + ' kartu';
+    document.getElementById('btnStartFlashPractice').disabled = !list.length;
 
     if (!list.length) {
       cont.innerHTML = '';
@@ -5183,7 +5236,10 @@ async function renderFlashcardsForMateri(materiId){
         </div>
       </div>`).join('');
   } catch (err) {
-    cont.innerHTML = errorStateHtml(err.message || err);
+    if (FLASH_ACTIVE_MATERI && String(FLASH_ACTIVE_MATERI.id) === String(materiId)) {
+      FLASH_CARDS_CURRENT = null;
+      cont.innerHTML = errorStateHtml(err.message || err);
+    }
   }
 }
 
@@ -5198,6 +5254,87 @@ function flipFlashcard(el){
     front.style.display = 'none';
     back.style.display = '';
   }
+}
+
+
+function stopFlashcardPractice(){
+  FLASH_PRACTICE = null;
+  const panel = document.getElementById('flashPracticePanel');
+  const list = document.getElementById('flashcardManageView');
+  const actions = document.getElementById('flashcardManageActions');
+  if (panel) panel.style.display = 'none';
+  if (list) list.style.display = '';
+  if (actions) actions.style.display = '';
+}
+
+function startFlashcardPractice(){
+  const materialId = FLASH_ACTIVE_MATERI && String(FLASH_ACTIVE_MATERI.id);
+  if (!materialId || !FLASH_CARDS_CURRENT || FLASH_CARDS_CURRENT.materiId !== materialId ||
+      !FLASH_CARDS_CURRENT.cards.length) {
+    showToast('Belum ada kartu untuk materi ini.', 'warn');
+    return;
+  }
+  const queue = FLASH_CARDS_CURRENT.cards.slice();
+  for (let i = queue.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [queue[i], queue[j]] = [queue[j], queue[i]];
+  }
+  FLASH_PRACTICE = {
+    materiId: materialId, queue: queue, total: queue.length,
+    mastered: 0, retries: 0, revealed: false
+  };
+  document.getElementById('flashcardManageView').style.display = 'none';
+  document.getElementById('flashcardManageActions').style.display = 'none';
+  document.getElementById('flashPracticePanel').style.display = 'block';
+  renderFlashcardPractice();
+}
+
+function renderFlashcardPractice(){
+  const s = FLASH_PRACTICE;
+  if (!s || !FLASH_ACTIVE_MATERI || String(FLASH_ACTIVE_MATERI.id) !== s.materiId) return;
+  const status = document.getElementById('flashPracticeStatus');
+  const bar = document.querySelector('#flashPracticePanel [role="progressbar"]');
+  const percent = Math.round(s.mastered / s.total * 100);
+  bar.setAttribute('aria-valuenow', String(percent));
+  document.getElementById('flashPracticeProgressFill').style.width = percent + '%';
+  const done = !s.queue.length;
+  status.textContent = done
+    ? 'Selesai! ' + s.total + ' kartu dipahami dalam sesi ini. ' + s.retries + ' kali diulang.'
+    : (s.mastered + 1) + ' dari ' + s.total + ' kartu · ' + s.mastered + ' dipahami · ' + s.queue.length + ' tersisa';
+  document.getElementById('flashPracticeCard').style.display = done ? 'none' : '';
+  document.getElementById('flashPracticeRevealActions').style.display = done ? 'none' : 'flex';
+  document.getElementById('flashPracticeGradeActions').style.display = 'none';
+  document.getElementById('flashPracticeDoneActions').style.display = done ? 'flex' : 'none';
+  if (done) return;
+  const card = s.queue[0];
+  document.getElementById('flashPracticeFront').textContent = card.front || '';
+  document.getElementById('flashPracticeBack').textContent = card.back || '';
+  document.getElementById('flashPracticeAnswer').style.display = 'none';
+  s.revealed = false;
+  document.getElementById('flashPracticeReveal').focus();
+}
+
+function revealFlashcardPractice(){
+  const s = FLASH_PRACTICE;
+  if (!s || !s.queue.length || s.revealed) return;
+  s.revealed = true;
+  document.getElementById('flashPracticeAnswer').style.display = 'block';
+  document.getElementById('flashPracticeRevealActions').style.display = 'none';
+  document.getElementById('flashPracticeGradeActions').style.display = 'flex';
+  document.querySelector('#flashPracticeGradeActions button').focus();
+}
+
+function gradeFlashcardPractice(understood){
+  const s = FLASH_PRACTICE;
+  if (!s || !s.queue.length || !s.revealed) return;
+  const card = s.queue.shift();
+  if (understood) s.mastered++;
+  else {
+    s.queue.push(card);
+    s.retries++;
+  }
+  renderFlashcardPractice();
+  if (!s.queue.length) document.querySelector('#flashPracticeDoneActions button').focus();
 }
 
 function openAddFlashcardModal(){
