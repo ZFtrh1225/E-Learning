@@ -259,6 +259,8 @@ function routeAction_(action, data) {
     // Flashcard
     case 'getFlashcards':
       return jsonResponse_(getFlashcards(data.username, data.materiId || ''));
+    case 'getFlashcardOverview':
+      return jsonResponse_(getFlashcardOverview(data.username));
     case 'saveFlashcard':
       return jsonResponse_(saveFlashcard(data.data || data));
     case 'deleteFlashcard':
@@ -2250,6 +2252,7 @@ function getMateriReader(materiId, username) {
   return {
     materi: materi,
     path: path,
+    flashcards: getFlashcards(username, materiId),
     belajar: {
       materiId: materiId,
       dibaca: meta ? yes(meta.Dibaca) : false,
@@ -2571,6 +2574,22 @@ function getWeaknessAnalysis(username) {
 /* ============================================================
  * FLASHCARD
  * ==========================================================*/
+/** Daftar ringan untuk ponsel: tidak mengirim teks lengkap setiap kartu. */
+function getFlashcardOverview(username) {
+  username = String(username || '').trim();
+  const materi = getMateriList().map(m => ({ id: m.id, judul: m.judul, kategori: m.kategori }));
+  const counts = {};
+  sheetToObjects_(SHEET_FLASHCARD).forEach(f => {
+    if (String(f.Username) !== username) return;
+    const id = String(f.MateriID || '');
+    if (!id) return;
+    if (!counts[id]) counts[id] = { total: 0, mastered: 0 };
+    counts[id].total++;
+    if (String(f.ReviewStatus) === 'paham') counts[id].mastered++;
+  });
+  return { materi: materi, counts: counts };
+}
+
 function getFlashcards(username, materiId) {
   username = String(username || '').trim();
   let list = sheetToObjects_(SHEET_FLASHCARD).filter(f => String(f.Username) === username);
@@ -2892,7 +2911,7 @@ const OWN_ACTIONS_ = [
   'getHasilByStudent','getProgressByStudent','getBelajarMeta','markMateriDibaca',
   'toggleBookmark','saveCatatanMateri','getLearningPath','getMateriReader','getStudentDashboard',
   'getStudentProfile','recordActivity','getBadges','setWeeklyGoal','getWrongQueue',
-  'clearWrongItem','getRetryQuiz','getWeaknessAnalysis','getFlashcards',
+  'clearWrongItem','getRetryQuiz','getWeaknessAnalysis','getFlashcards','getFlashcardOverview',
   'saveFlashcard','deleteFlashcard','generateFlashcardsFromMateri','reviewFlashcard',
   'getCekPemahaman','startQuizAttempt','submitJawaban'
 ];
