@@ -5188,7 +5188,7 @@ async function loadStudentFlashcards(){
         callServer('getMateriList'),
         callServer('getFlashcards', CURRENT_USER.username)
       ]);
-      const counts = {};
+      const counts = Object.create(null);
       (Array.isArray(allCards) ? allCards : []).forEach(card => {
         const id = String(card.materiId || '');
         if (!id) return;
@@ -5210,7 +5210,8 @@ async function loadStudentFlashcards(){
     }
 
     cont.innerHTML = list.map(m => {
-      const count = counts[m.id] || { total: 0, mastered: 0 };
+      const count = Object.prototype.hasOwnProperty.call(counts, m.id)
+        ? counts[m.id] : { total: 0, mastered: 0 };
       return `
       <div class="col-sm-6 col-lg-4">
         <div class="folder-card glass fade-item" onclick="openFlashcardMateri(${jsArg(m.id)})" role="button" tabindex="0">
