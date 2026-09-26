@@ -2311,6 +2311,7 @@ function buildPayload(action, args) {
     case 'getBelajarMeta':
     case 'getStudentProfile':
     case 'getBadges':
+    case 'getFlashcardOverview':
     case 'getWrongQueue':
     case 'getRetryQuiz':
     case 'getWeaknessAnalysis':
@@ -4441,7 +4442,7 @@ async function openMateriRead(id){
         Tandai <b>sudah dibaca</b> setelah kamu menyelesaikan materi. Catatan tidak dinilai otomatis; cek pemahaman menggunakan soal singkat.
       </div>
     `;
-    loadReaderFlashcards(m.id);
+    loadReaderFlashcards(m.id, Array.isArray(bundle.flashcards) ? bundle.flashcards : undefined);
   } catch (err) {
     area.innerHTML = errorStateHtml(err.message || err);
   }
@@ -4458,7 +4459,7 @@ function loadMaterialPreview(details){
 
 
 let READER_FLASH_REQUEST = 0;
-async function loadReaderFlashcards(materiId){
+async function loadReaderFlashcards(materiId, preloadedCards){
   const section = document.getElementById('readerFlashcardSection');
   if (!section || section.dataset.materiId !== String(materiId) || !CURRENT_USER) return;
   const listEl = section.querySelector('#readerFlashcardList');
@@ -4467,7 +4468,8 @@ async function loadReaderFlashcards(materiId){
   const sessionToken = CURRENT_TOKEN;
   listEl.innerHTML = '<div class="text-muted" style="font-size:.84rem">Memuat kartu...</div>';
   try {
-    const cards = await callServer('getFlashcards', CURRENT_USER.username, materiId);
+    const cards = Array.isArray(preloadedCards) ? preloadedCards
+      : await callServer('getFlashcards', CURRENT_USER.username, materiId);
     if (request !== READER_FLASH_REQUEST || CURRENT_TOKEN !== sessionToken ||
         !section.isConnected || section.dataset.materiId !== String(materiId)) return;
     const items = Array.isArray(cards) ? cards : [];
@@ -5161,38 +5163,45 @@ function closeHasilModal(){
  * STUDENT: FLASHCARD (per materi)
  * ========================================================*/
 let FLASH_ACTIVE_MATERI = null; // { id, judul, kategori, ringkasan }
+let FLASH_MATERI_LIST = [];
 let FLASH_CARDS_CURRENT = null; // { materiId, cards }
 let FLASH_PRACTICE = null; // antrean latihan sesi ini
 let FLASH_REVIEW_SUPPORTED = false; // backend lama tetap dapat menjalankan mode sesi
 
 async function loadStudentFlashcards(){
-  // Selalu mulai dari daftar materi
   flashcardBackToMateri();
+  FLASH_MATERI_LIST = [];
   const cont = document.getElementById('flashcardMateriList');
   const empty = document.getElementById('flashcardMateriEmpty');
   cont.innerHTML = skeletonCards(6);
   empty.style.display = 'none';
+  const sessionToken = CURRENT_TOKEN;
 
   try {
-    const [materiList, allCards] = await Promise.all([
-      callServer('getMateriList'),
-      callServer('getFlashcards', CURRENT_USER.username)
-    ]);
-    const list = materiList || [];
-    const cards = Array.isArray(allCards) ? allCards : [];
-    CACHE.materi = list;
-    CACHE.flashcardsAll = cards;
-
-    // Hitung jumlah kartu per materi
-    const countMap = {};
-    const masteredMap = {};
-    cards.forEach(c => {
-      const mid = String(c.materiId || '');
-      if (mid) {
-        countMap[mid] = (countMap[mid] || 0) + 1;
-        if (c.reviewStatus === 'paham') masteredMap[mid] = (masteredMap[mid] || 0) + 1;
-      }
-    });
+    let overview;
+    try {
+      overview = await callServer('getFlashcardOverview', CURRENT_USER.username);
+    } catch (err) {
+      // Versi Apps Script lama tetap memakai dua endpoint yang sudah ada.
+      if (!/^(Tindakan tidak tersedia\.|Action tidak dikenal: getFlashcardOverview)$/.test(err.message || '')) throw err;
+      const [materi, allCards] = await Promise.all([
+        callServer('getMateriList'),
+        callServer('getFlashcards', CURRENT_USER.username)
+      ]);
+      const counts = {};
+      (Array.isArray(allCards) ? allCards : []).forEach(card => {
+        const id = String(card.materiId || '');
+        if (!id) return;
+        if (!counts[id]) counts[id] = { total: 0, mastered: 0 };
+        counts[id].total++;
+        if (card.reviewStatus === 'paham') counts[id].mastered++;
+      });
+      overview = { materi: materi, counts: counts };
+    }
+    if (CURRENT_TOKEN !== sessionToken || !document.getElementById('student-flashcard').classList.contains('active')) return;
+    const list = Array.isArray(overview.materi) ? overview.materi : [];
+    const counts = overview.counts || {};
+    FLASH_MATERI_LIST = list;
 
     if (!list.length) {
       cont.innerHTML = '';
@@ -5201,7 +5210,7 @@ async function loadStudentFlashcards(){
     }
 
     cont.innerHTML = list.map(m => {
-      const count = countMap[m.id] || 0;
+      const count = counts[m.id] || { total: 0, mastered: 0 };
       return `
       <div class="col-sm-6 col-lg-4">
         <div class="folder-card glass fade-item" onclick="openFlashcardMateri(${jsArg(m.id)})" role="button" tabindex="0">
@@ -5212,7 +5221,7 @@ async function loadStudentFlashcards(){
                 <span class="badge-kategori">${escapeHtml(m.kategori||'-')}</span>
                 <h6 class="font-display mb-1 mt-1 text-truncate-2">${escapeHtml(m.judul)}</h6>
                 <div class="text-muted" style="font-size:.8rem">
-                  <i class="bi bi-card-heading me-1"></i>${count} kartu · ${masteredMap[m.id] || 0} paham
+                  <i class="bi bi-card-heading me-1"></i>${count.total} kartu · ${count.mastered} paham
                 </div>
               </div>
             </div>
@@ -5239,7 +5248,7 @@ async function openFlashcardMateri(materiId){
   closeFlashcardEditor();
   stopFlashcardPractice(false);
   FLASH_CARDS_CURRENT = null;
-  const m = (CACHE.materi || []).find(x => x.id === materiId);
+  const m = FLASH_MATERI_LIST.find(x => x.id === materiId);
   if (!m) {
     try {
       const full = await callServer('getMateriById', materiId);
