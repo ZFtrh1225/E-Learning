@@ -265,6 +265,8 @@ function routeAction_(action, data) {
       return jsonResponse_(deleteFlashcard(data.id, data._actor));
     case 'generateFlashcardsFromMateri':
       return jsonResponse_(generateFlashcardsFromMateri(data.data || data));
+    case 'reviewFlashcard':
+      return jsonResponse_(reviewFlashcard(data.data || data));
 
     // Admin
     case 'getAdminStats':
@@ -457,10 +459,15 @@ function initSheets() {
   sh = ss.getSheetByName(SHEET_FLASHCARD);
   if (!sh) {
     sh = ss.insertSheet(SHEET_FLASHCARD);
-    sh.appendRow(['ID', 'Username', 'MateriID', 'Kategori', 'Front', 'Back', 'CreatedAt']);
-    sh.getRange(1, 1, 1, 7).setFontWeight('bold');
+    sh.appendRow(['ID', 'Username', 'MateriID', 'Kategori', 'Front', 'Back', 'CreatedAt', 'ReviewStatus', 'ReviewCount', 'LastReviewedAt']);
+    sh.getRange(1, 1, 1, 10).setFontWeight('bold');
     sh.setFrozenRows(1);
   }
+  ensureColumns_(SHEET_FLASHCARD, [
+    { name: 'ReviewStatus', value: 'baru' },
+    { name: 'ReviewCount', value: 0 },
+    { name: 'LastReviewedAt', value: '' }
+  ]);
 
   // Badge log
   sh = ss.getSheetByName(SHEET_BADGE);
@@ -2574,7 +2581,10 @@ function getFlashcards(username, materiId) {
     kategori: f.Kategori,
     front: f.Front,
     back: f.Back,
-    createdAt: toIso_(f.CreatedAt)
+    createdAt: toIso_(f.CreatedAt),
+    reviewStatus: ['paham', 'ulang'].indexOf(String(f.ReviewStatus)) !== -1 ? String(f.ReviewStatus) : 'baru',
+    reviewCount: Number(f.ReviewCount) || 0,
+    lastReviewedAt: f.LastReviewedAt ? toIso_(f.LastReviewedAt) : ''
   }));
 }
 
@@ -2634,6 +2644,42 @@ function deleteFlashcard(id, username) {
     getSS().getSheetByName(SHEET_FLASHCARD).deleteRow(found.rowNumber);
   }
   return { success: true };
+}
+
+function reviewFlashcard(data) {
+  const username = String(data.username || '').trim();
+  const id = String(data.id || '').trim();
+  const status = String(data.status || '').trim();
+  if (!username || !id || ['paham', 'ulang'].indexOf(status) === -1) {
+    throw new Error('Kartu dan hasil latihan tidak valid.');
+  }
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const found = findRowByValue_(SHEET_FLASHCARD, 'ID', id);
+    if (!found) throw new Error('Kartu tidak ditemukan.');
+    if (String(found.values[found.headers.indexOf('Username')]) !== username) {
+      throw new Error('Kartu ini milik akun lain.');
+    }
+    // Tambahkan kolom pada sheet lama saat penggunaan pertama, tanpa mengubah kartu yang ada.
+    ensureColumns_(SHEET_FLASHCARD, [
+      { name: 'ReviewStatus', value: 'baru' },
+      { name: 'ReviewCount', value: 0 },
+      { name: 'LastReviewedAt', value: '' }
+    ]);
+    const sh = getSS().getSheetByName(SHEET_FLASHCARD);
+    const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+    const col = name => headers.indexOf(name) + 1;
+    const count = Number(sh.getRange(found.rowNumber, col('ReviewCount')).getValue()) || 0;
+    const now = new Date();
+    sh.getRange(found.rowNumber, col('ReviewStatus')).setValue(status);
+    sh.getRange(found.rowNumber, col('ReviewCount')).setValue(count + 1);
+    sh.getRange(found.rowNumber, col('LastReviewedAt')).setValue(now);
+    return { success: true, id: id, reviewStatus: status, reviewCount: count + 1,
+      lastReviewedAt: toIso_(now) };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function generateFlashcardsFromMateri(data) {
@@ -2844,7 +2890,7 @@ const OWN_ACTIONS_ = [
   'toggleBookmark','saveCatatanMateri','getLearningPath','getMateriReader','getStudentDashboard',
   'getStudentProfile','recordActivity','getBadges','setWeeklyGoal','getWrongQueue',
   'clearWrongItem','getRetryQuiz','getWeaknessAnalysis','getFlashcards',
-  'saveFlashcard','deleteFlashcard','generateFlashcardsFromMateri',
+  'saveFlashcard','deleteFlashcard','generateFlashcardsFromMateri','reviewFlashcard',
   'getCekPemahaman','startQuizAttempt','submitJawaban'
 ];
 
