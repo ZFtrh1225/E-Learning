@@ -2617,6 +2617,7 @@ function saveFlashcard(data) {
       if (kategori) setCol('Kategori', kategori);
       return { success: true, id: data.id };
     }
+    throw new Error('Kartu tidak ditemukan. Muat ulang daftar kartu.');
   }
 
   const id = generateId_();
@@ -2689,39 +2690,41 @@ function generateFlashcardsFromMateri(data) {
 
   const m = getMateriById(materiId);
   if (!m) throw new Error('Materi tidak ditemukan.');
-
   const ringkasan = String(m.ringkasan || '').trim();
   if (!ringkasan) {
-    return { success: true, created: 0, message: 'Materi belum punya ringkasan. Tambahkan ringkasan dulu.' };
+    return { success: true, created: 0, skipped: 0, message: 'Materi belum punya ringkasan.' };
   }
 
-  // Simple split by newline or sentence
   const lines = ringkasan.split(/\n+/).map(l => l.trim()).filter(l => l.length > 10);
-  let created = 0;
-  lines.slice(0, 8).forEach((line, i) => {
-    const parts = line.split(/[:–—-]/);
-    let front, back;
-    if (parts.length >= 2) {
-      front = parts[0].trim();
-      back = parts.slice(1).join(':').trim();
-    } else {
-      front = 'Poin ' + (i + 1) + ' — ' + m.judul;
-      back = line;
-    }
-    if (front && back) {
-      try {
-        saveFlashcard({
-          username: username,
-          materiId: materiId,
-          kategori: m.kategori,
-          front: front.substring(0, 120),
-          back: back.substring(0, 300)
-        });
-        created++;
-      } catch (e) {}
-    }
-  });
-  return { success: true, created: created };
+  // Dua klik bersamaan tidak boleh membuat kartu yang sama dua kali.
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const key = (front, back) => String(front).trim().replace(/\s+/g, ' ').toLowerCase() +
+      '\u0000' + String(back).trim().replace(/\s+/g, ' ').toLowerCase();
+    const existing = new Set(getFlashcards(username, materiId).map(f => key(f.front, f.back)));
+    let created = 0;
+    let skipped = 0;
+    lines.slice(0, 8).forEach((line, i) => {
+      const parts = line.split(/[:–—-]/);
+      const front = (parts.length >= 2 ? parts[0].trim() : 'Poin ' + (i + 1) + ' — ' + m.judul).substring(0, 120);
+      const back = (parts.length >= 2 ? parts.slice(1).join(':').trim() : line).substring(0, 300);
+      if (!front || !back) return;
+      const signature = key(front, back);
+      if (existing.has(signature)) {
+        skipped++;
+        return;
+      }
+      saveFlashcard({ username: username, materiId: materiId, kategori: m.kategori,
+        front: front, back: back });
+      existing.add(signature);
+      created++;
+    });
+    return { success: true, created: created, skipped: skipped,
+      message: created ? '' : (skipped ? 'Semua kartu dari ringkasan sudah ada.' : 'Tidak ada poin yang dapat dijadikan kartu.') };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /* ============================================================
