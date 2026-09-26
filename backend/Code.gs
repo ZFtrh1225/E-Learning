@@ -2578,7 +2578,7 @@ function getWeaknessAnalysis(username) {
 function getFlashcardOverview(username) {
   username = String(username || '').trim();
   const materi = getMateriList().map(m => ({ id: m.id, judul: m.judul, kategori: m.kategori }));
-  const counts = {};
+  const counts = Object.create(null);
   sheetToObjects_(SHEET_FLASHCARD).forEach(f => {
     if (String(f.Username) !== username) return;
     const id = String(f.MateriID || '');
