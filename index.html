@@ -388,7 +388,7 @@ html.dark .ringkasan-box{background:rgba(16,185,129,.1)}
 .catatan-box textarea{min-height:100px}
 .learn-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .reader-flashcard-section{margin-top:16px}
-.reader-flashcard-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.reader-flashcard-form{display:grid;grid-template-columns:1fr;gap:12px}
 .reader-flashcard-form label{font-size:.83rem;font-weight:600;margin-bottom:6px;display:block}
 .reader-flashcard-form textarea{resize:vertical;min-height:86px}
 .reader-flashcard-card{border:1px solid var(--border-light);border-radius:14px;background:var(--card-bg);padding:14px;min-width:0}
@@ -404,7 +404,16 @@ html.dark .ringkasan-box{background:rgba(16,185,129,.1)}
 .flash-practice-progress{height:8px;border-radius:999px;background:var(--border-light);overflow:hidden}
 .flash-practice-progress span{display:block;height:100%;background:var(--emerald);transition:width .2s ease}
 @media(max-width:640px){.flash-practice-actions .btn{flex:1 1 100%}}
-@media(max-width:640px){.reader-flashcard-form{grid-template-columns:1fr}.reader-flashcard-section .btn{min-height:44px}}
+@media(min-width:768px){.reader-flashcard-form{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.flashcard-edit-actions{display:flex;flex-wrap:wrap;gap:8px}
+.flashcard-edit-actions .btn{min-height:44px}
+.reader-flashcard-card .btn-icon-sm,#flashcardList .btn-icon-sm{min-width:44px;min-height:44px}
+@media(max-width:767px){
+  #flashcardManageActions{width:100%;display:grid!important;grid-template-columns:1fr}
+  #flashcardManageActions .btn,.flashcard-edit-actions .btn{width:100%;min-height:46px}
+  .flashcard-edit-actions{display:grid;grid-template-columns:1fr;width:100%}
+  .reader-flashcard-section .btn{min-height:44px}
+}
 
 .folder-card {
   border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--border-light);
@@ -1657,7 +1666,7 @@ h1,h2,h3,h4,h5,h6,.font-display { font-family: system-ui, -apple-system, 'Segoe 
               <button class="btn btn-gold-outline btn-sm px-3" id="btnGenerateFlash" onclick="generateFlashFromActiveMateri()">
                 <i class="bi bi-magic me-1"></i>Dari Ringkasan
               </button>
-              <button class="btn btn-premium btn-sm px-3" onclick="openAddFlashcardModal()">
+              <button type="button" class="btn btn-premium btn-sm px-3" onclick="openAddFlashcardModal()">
                 <i class="bi bi-plus-lg me-1"></i>Tambah Kartu
               </button>
               <button type="button" class="btn btn-gold-outline btn-sm px-3" id="btnStartFlashPractice" onclick="startFlashcardPractice()" disabled>
@@ -1694,6 +1703,23 @@ h1,h2,h3,h4,h5,h6,.font-display { font-family: system-ui, -apple-system, 'Segoe 
             <div class="text-muted mt-3" style="font-size:.8rem" id="flashPracticePersistence">Memeriksa penyimpanan progres...</div>
           </div>
           <div id="flashcardManageView">
+          <form id="flashcardEditor" class="card-premium glass mb-3" style="display:none" onsubmit="saveFlashcardEditor(event)">
+            <h6 class="font-display mb-3" id="flashcardEditorTitle">Tambah flashcard</h6>
+            <div class="reader-flashcard-form">
+              <div>
+                <label for="flashcardFrontInput">Depan kartu · pertanyaan / istilah</label>
+                <textarea class="form-control form-control-premium" id="flashcardFrontInput" rows="3" maxlength="500" required placeholder="Tulis pertanyaan atau istilah"></textarea>
+              </div>
+              <div>
+                <label for="flashcardBackInput">Belakang kartu · jawaban / penjelasan</label>
+                <textarea class="form-control form-control-premium" id="flashcardBackInput" rows="3" maxlength="2000" required placeholder="Tulis jawaban dengan bahasamu sendiri"></textarea>
+              </div>
+            </div>
+            <div class="flashcard-edit-actions mt-3">
+              <button type="submit" class="btn btn-premium btn-sm px-3" id="flashcardEditorSave">Simpan flashcard</button>
+              <button type="button" class="btn btn-gold-outline btn-sm px-3" onclick="closeFlashcardEditor()">Batal</button>
+            </div>
+          </form>
           <div id="flashcardList" class="row g-3"></div>
           <div id="flashcardEmpty" class="empty-state" style="display:none">
             <i class="bi bi-layers"></i>
@@ -4374,9 +4400,10 @@ async function openMateriRead(id){
               <textarea class="form-control form-control-premium" id="readerFlashBack" maxlength="2000" required placeholder="Tulis jawaban singkat dengan bahasamu sendiri..."></textarea>
             </div>
           </div>
-          <button type="submit" class="btn btn-premium btn-sm px-3 mt-3" id="readerFlashSave">
-            <i class="bi bi-plus-lg me-1"></i>Simpan flashcard
-          </button>
+          <div class="flashcard-edit-actions mt-3">
+            <button type="submit" class="btn btn-premium btn-sm px-3" id="readerFlashSave"><i class="bi bi-plus-lg me-1"></i>Simpan flashcard</button>
+            <button type="button" class="btn btn-gold-outline btn-sm px-3" id="readerFlashCancel" onclick="cancelReaderFlashEdit()" style="display:none">Batal edit</button>
+          </div>
         </form>
         <div class="border-top mt-3 pt-3" style="border-color:var(--border-light)!important">
           <div class="fw-semibold mb-2" style="font-size:.88rem">Kartu tersimpan</div>
@@ -4444,6 +4471,7 @@ async function loadReaderFlashcards(materiId){
     if (request !== READER_FLASH_REQUEST || CURRENT_TOKEN !== sessionToken ||
         !section.isConnected || section.dataset.materiId !== String(materiId)) return;
     const items = Array.isArray(cards) ? cards : [];
+    section._flashcards = items;
     countEl.textContent = items.length + ' kartu';
     if (!items.length) {
       listEl.innerHTML = '<div class="text-muted" style="font-size:.84rem">Belum ada kartu. Buat kartu pertama di atas.</div>';
@@ -4456,7 +4484,9 @@ async function loadReaderFlashcards(materiId){
                   onclick="flipReaderFlashcard(this)" data-front="${escapeHtml(f.front)}" data-back="${escapeHtml(f.back)}">
             <span class="small-caps">Pertanyaan · ketuk untuk balik</span><span class="reader-flashcard-text">${escapeHtml(f.front)}</span>
           </button>
-          <div class="d-flex justify-content-end mt-2">
+          <div class="d-flex justify-content-end gap-2 mt-2">
+            <button type="button" class="btn btn-icon-sm" title="Edit flashcard" aria-label="Edit flashcard"
+                    onclick="editReaderFlashcard(${jsArg(f.id)}, ${jsArg(materiId)})"><i class="bi bi-pencil"></i></button>
             <button type="button" class="btn btn-icon-sm" title="Hapus flashcard" aria-label="Hapus flashcard"
                     onclick="deleteReaderFlashcard(${jsArg(f.id)}, ${jsArg(materiId)})"><i class="bi bi-trash text-danger"></i></button>
           </div>
@@ -4476,6 +4506,30 @@ function flipReaderFlashcard(button){
   button.querySelector('.reader-flashcard-text').textContent = showBack ? button.dataset.back : button.dataset.front;
 }
 
+function cancelReaderFlashEdit(){
+  const form = document.getElementById('readerFlashcardForm');
+  if (!form) return;
+  form.reset();
+  delete form.dataset.cardId;
+  document.getElementById('readerFlashSave').innerHTML = '<i class="bi bi-plus-lg me-1"></i>Simpan flashcard';
+  document.getElementById('readerFlashCancel').style.display = 'none';
+}
+
+function editReaderFlashcard(id, materiId){
+  const section = document.getElementById('readerFlashcardSection');
+  if (!section || section.dataset.materiId !== String(materiId)) return;
+  const card = (section._flashcards || []).find(f => String(f.id) === String(id));
+  if (!card) { showToast('Kartu tidak ditemukan. Muat ulang daftar.', 'warn'); return; }
+  const form = section.querySelector('#readerFlashcardForm');
+  form.dataset.cardId = String(id);
+  form.querySelector('#readerFlashFront').value = card.front || '';
+  form.querySelector('#readerFlashBack').value = card.back || '';
+  section.querySelector('#readerFlashSave').textContent = 'Simpan perubahan';
+  section.querySelector('#readerFlashCancel').style.display = '';
+  form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  form.querySelector('#readerFlashFront').focus({ preventScroll: true });
+}
+
 async function saveReaderFlashcard(event){
   event.preventDefault();
   const form = event.currentTarget;
@@ -4485,6 +4539,7 @@ async function saveReaderFlashcard(event){
   const backEl = form.querySelector('#readerFlashBack');
   const front = frontEl.value.trim();
   const back = backEl.value.trim();
+  const cardId = form.dataset.cardId || '';
   if (!materiId || !CURRENT_USER || !ACTIVE_MATERI_OBJ || String(ACTIVE_MATERI_OBJ.id) !== materiId) return;
   if (!front || !back) {
     showToast('Isi pertanyaan dan jawabannya.', 'warn');
@@ -4496,16 +4551,15 @@ async function saveReaderFlashcard(event){
   const sessionToken = CURRENT_TOKEN;
   try {
     const result = await callServer('saveFlashcard', {
-      username: CURRENT_USER.username, materiId: materiId,
+      username: CURRENT_USER.username, materiId: materiId, id: cardId,
       kategori: ACTIVE_MATERI_OBJ.kategori || '', front: front, back: back
     });
     if (!result || !result.success) throw new Error((result && result.message) || 'Gagal menyimpan kartu.');
     if (section.isConnected && CURRENT_TOKEN === sessionToken && section.dataset.materiId === materiId) {
-      frontEl.value = '';
-      backEl.value = '';
-      showToast('Flashcard tersimpan.', 'success');
+      cancelReaderFlashEdit();
+      showToast(cardId ? 'Flashcard diperbarui.' : 'Flashcard tersimpan.', 'success');
       await loadReaderFlashcards(materiId);
-      frontEl.focus();
+      if (section.isConnected) frontEl.focus({ preventScroll: true });
     }
   } catch (err) {
     if (section.isConnected && CURRENT_TOKEN === sessionToken) showToast(err.message || err, 'error');
@@ -4522,6 +4576,7 @@ async function deleteReaderFlashcard(id, materiId){
     const result = await callServer('deleteFlashcard', id);
     if (!result || !result.success) throw new Error((result && result.message) || 'Gagal menghapus kartu.');
     if (section && section.isConnected && section.dataset.materiId === String(materiId) && CURRENT_TOKEN === sessionToken) {
+      if (section.querySelector('#readerFlashcardForm').dataset.cardId === String(id)) cancelReaderFlashEdit();
       showToast('Flashcard dihapus.', 'success');
       await loadReaderFlashcards(materiId);
     }
@@ -5172,6 +5227,7 @@ async function loadStudentFlashcards(){
 }
 
 function flashcardBackToMateri(){
+  closeFlashcardEditor();
   stopFlashcardPractice(false);
   FLASH_CARDS_CURRENT = null;
   FLASH_ACTIVE_MATERI = null;
@@ -5180,6 +5236,7 @@ function flashcardBackToMateri(){
 }
 
 async function openFlashcardMateri(materiId){
+  closeFlashcardEditor();
   stopFlashcardPractice(false);
   FLASH_CARDS_CURRENT = null;
   const m = (CACHE.materi || []).find(x => x.id === materiId);
@@ -5239,10 +5296,9 @@ async function renderFlashcardsForMateri(materiId){
             <div class="small-caps mb-1 text-emerald">Belakang</div>
             <div style="font-size:.92rem;line-height:1.45">${escapeHtml(f.back)}</div>
           </div>
-          <div class="mt-3 d-flex justify-content-end">
-            <button class="btn-icon-sm" style="width:32px;height:32px" onclick="event.stopPropagation();deleteFlashcardItem(${jsArg(f.id)})" title="Hapus">
-              <i class="bi bi-trash" style="font-size:.85rem;color:#ef4444"></i>
-            </button>
+          <div class="mt-3 d-flex justify-content-end gap-2">
+            <button type="button" class="btn-icon-sm" onclick="event.stopPropagation();editFlashcardItem(${jsArg(f.id)})" title="Edit flashcard" aria-label="Edit flashcard"><i class="bi bi-pencil"></i></button>
+            <button type="button" class="btn-icon-sm" onclick="event.stopPropagation();deleteFlashcardItem(${jsArg(f.id)})" title="Hapus flashcard" aria-label="Hapus flashcard"><i class="bi bi-trash text-danger"></i></button>
           </div>
         </div>
       </div>`).join('');
@@ -5392,38 +5448,78 @@ async function gradeFlashcardPractice(understood){
   }
 }
 
+function closeFlashcardEditor(){
+  const form = document.getElementById('flashcardEditor');
+  if (!form) return;
+  form.reset();
+  delete form.dataset.cardId;
+  form.style.display = 'none';
+  document.getElementById('flashcardEditorTitle').textContent = 'Tambah flashcard';
+  document.getElementById('flashcardEditorSave').textContent = 'Simpan flashcard';
+}
+
 function openAddFlashcardModal(){
   if (!FLASH_ACTIVE_MATERI || !FLASH_ACTIVE_MATERI.id) {
     showToast('Pilih materi dulu.', 'warn');
     return;
   }
-  const front = prompt('Teks depan kartu (pertanyaan / istilah):');
-  if (front === null) return;
-  if (!String(front).trim()) { showToast('Teks depan wajib diisi.', 'warn'); return; }
-  const back = prompt('Teks belakang kartu (jawaban / penjelasan):');
-  if (back === null) return;
-  if (!String(back).trim()) { showToast('Teks belakang wajib diisi.', 'warn'); return; }
-  saveNewFlashcard(String(front).trim(), String(back).trim());
+  closeFlashcardEditor();
+  const form = document.getElementById('flashcardEditor');
+  form.style.display = 'block';
+  form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.getElementById('flashcardFrontInput').focus({ preventScroll: true });
 }
 
-async function saveNewFlashcard(front, back){
-  if (!FLASH_ACTIVE_MATERI || !FLASH_ACTIVE_MATERI.id) {
-    showToast('Pilih materi dulu.', 'warn');
+function editFlashcardItem(id){
+  const card = FLASH_CARDS_CURRENT && FLASH_CARDS_CURRENT.cards.find(f => String(f.id) === String(id));
+  if (!card || !FLASH_ACTIVE_MATERI || FLASH_CARDS_CURRENT.materiId !== String(FLASH_ACTIVE_MATERI.id)) {
+    showToast('Kartu tidak ditemukan. Muat ulang daftar.', 'warn');
     return;
   }
+  const form = document.getElementById('flashcardEditor');
+  form.dataset.cardId = String(id);
+  form.style.display = 'block';
+  document.getElementById('flashcardEditorTitle').textContent = 'Edit flashcard';
+  document.getElementById('flashcardEditorSave').textContent = 'Simpan perubahan';
+  document.getElementById('flashcardFrontInput').value = card.front || '';
+  document.getElementById('flashcardBackInput').value = card.back || '';
+  form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.getElementById('flashcardFrontInput').focus({ preventScroll: true });
+}
+
+async function saveFlashcardEditor(event){
+  event.preventDefault();
+  const form = event.currentTarget;
+  const material = FLASH_ACTIVE_MATERI;
+  if (!material || !CURRENT_USER) return;
+  const frontEl = document.getElementById('flashcardFrontInput');
+  const backEl = document.getElementById('flashcardBackInput');
+  const front = frontEl.value.trim();
+  const back = backEl.value.trim();
+  const cardId = form.dataset.cardId || '';
+  if (!front || !back) {
+    showToast('Isi pertanyaan dan jawabannya.', 'warn');
+    (!front ? frontEl : backEl).focus();
+    return;
+  }
+  const button = document.getElementById('flashcardEditorSave');
+  button.disabled = true;
+  const token = CURRENT_TOKEN;
   try {
     const res = await callServer('saveFlashcard', {
-      username: CURRENT_USER.username,
-      materiId: FLASH_ACTIVE_MATERI.id,
-      kategori: FLASH_ACTIVE_MATERI.kategori || '',
-      front: front,
-      back: back
+      username: CURRENT_USER.username, id: cardId,
+      materiId: material.id, kategori: material.kategori || '',
+      front: front, back: back
     });
-    if (!res || !res.success) throw new Error((res && res.message) || 'Gagal menyimpan.');
-    showToast('Flashcard ditambahkan.', 'success');
-    await renderFlashcardsForMateri(FLASH_ACTIVE_MATERI.id);
+    if (!res || !res.success) throw new Error((res && res.message) || 'Gagal menyimpan kartu.');
+    if (CURRENT_TOKEN !== token || !FLASH_ACTIVE_MATERI || String(FLASH_ACTIVE_MATERI.id) !== String(material.id)) return;
+    closeFlashcardEditor();
+    showToast(cardId ? 'Flashcard diperbarui.' : 'Flashcard ditambahkan.', 'success');
+    await renderFlashcardsForMateri(material.id);
   } catch (err) {
-    showToast(err.message || err, 'error');
+    if (CURRENT_TOKEN === token) showToast(err.message || err, 'error');
+  } finally {
+    button.disabled = false;
   }
 }
 
@@ -5431,6 +5527,8 @@ async function deleteFlashcardItem(id){
   if (!confirm('Hapus flashcard ini?')) return;
   try {
     await callServer('deleteFlashcard', id);
+    const editor = document.getElementById('flashcardEditor');
+    if (editor && editor.dataset.cardId === String(id)) closeFlashcardEditor();
     showToast('Flashcard dihapus.', 'success');
     if (FLASH_ACTIVE_MATERI) await renderFlashcardsForMateri(FLASH_ACTIVE_MATERI.id);
     else loadStudentFlashcards();
@@ -5452,7 +5550,7 @@ async function generateFlashFromActiveMateri(){
       materiId: FLASH_ACTIVE_MATERI.id
     });
     if (res.created > 0) {
-      showToast(res.created + ' flashcard dibuat dari ringkasan.', 'success');
+      showToast(res.created + ' flashcard dibuat' + (res.skipped ? ', ' + res.skipped + ' sudah ada.' : '.'), 'success');
       await renderFlashcardsForMateri(FLASH_ACTIVE_MATERI.id);
     } else {
       showToast(res.message || 'Tidak ada flashcard yang dibuat. Pastikan materi punya ringkasan.', 'warn');
