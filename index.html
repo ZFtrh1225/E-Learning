@@ -1302,9 +1302,12 @@ h1,h2,h3,h4,h5,h6,.font-display { font-family: system-ui, -apple-system, 'Segoe 
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
           <h5 class="font-display mb-0">Manajemen Soal</h5>
           <div class="d-flex gap-2 flex-wrap">
-            <a class="btn btn-gold-outline btn-sm px-3" href="https://cdn.jsdelivr.net/gh/placeholder/template_soal_edufsr.xlsx" id="btnDownloadSoalTemplate" download onclick="return downloadSoalTemplate(event)">
-              <i class="bi bi-file-earmark-excel me-1"></i>Template Excel
-            </a>
+            <button type="button" class="btn btn-gold-outline btn-sm px-3" id="btnDownloadSoalTemplatePG" onclick="downloadSoalTemplate('PG')">
+              <i class="bi bi-file-earmark-excel me-1"></i>Template PG
+            </button>
+            <button type="button" class="btn btn-gold-outline btn-sm px-3" id="btnDownloadSoalTemplateEssay" onclick="downloadSoalTemplate('Essay')">
+              <i class="bi bi-file-earmark-excel me-1"></i>Template Essay
+            </button>
             <button class="btn btn-premium btn-sm px-3" onclick="openBulkSoalModal()">
               <i class="bi bi-upload me-1"></i>Import Excel/CSV
             </button>
@@ -1346,7 +1349,7 @@ h1,h2,h3,h4,h5,h6,.font-display { font-family: system-ui, -apple-system, 'Segoe 
             <div class="modal-body">
               <p class="text-muted" style="font-size:.88rem">
                 Unggah file <b>.xlsx</b> atau <b>.csv</b> sesuai template. Maksimal 200 soal per unggahan.
-                Kolom wajib: <code>Kategori</code>, <code>Tipe</code>, <code>Pertanyaan</code>. Untuk PG wajib opsi A–D + JawabanBenar.
+                Pilih template PG atau Essay di halaman ini. Kolom wajib: <code>Kategori</code>, <code>Tipe</code>, <code>Pertanyaan</code>. Untuk PG wajib opsi A–D + <code>JawabanBenar</code>; Essay dinilai manual oleh admin.
               </p>
               <div class="mb-3">
                 <label class="small-caps mb-1 d-block">Fallback kategori (jika kolom Kategori kosong)</label>
@@ -1359,7 +1362,7 @@ h1,h2,h3,h4,h5,h6,.font-display { font-family: system-ui, -apple-system, 'Segoe 
               <div class="dropzone" id="bulkSoalDropzone" onclick="document.getElementById('bulkSoalFile').click()">
                 <i class="bi bi-file-earmark-arrow-up d-block mb-2"></i>
                 <div class="fw-semibold">Klik atau jatuhkan file .xlsx / .csv</div>
-                <div class="text-muted mt-1" style="font-size:.8rem">Sheet pertama akan dibaca (abaikan baris header)</div>
+                <div class="text-muted mt-1" style="font-size:.8rem">Aplikasi membaca sheet pertama; baris pertama harus berisi nama kolom.</div>
                 <input type="file" id="bulkSoalFile" accept=".xlsx,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="d-none" onchange="onBulkSoalFileSelected(event)">
               </div>
               <div id="bulkSoalPreview" class="mt-3" style="display:none">
@@ -3449,20 +3452,63 @@ function openBulkSoalModal(){
   new bootstrap.Modal(document.getElementById('bulkSoalModal')).show();
 }
 
-function downloadSoalTemplate(e){
-  // Generate minimal template client-side so link always works
-  e.preventDefault();
-  const headers = ['Kategori','Tipe','Pertanyaan','PilihanA','PilihanB','PilihanC','PilihanD','JawabanBenar','Kesulitan','MateriID','Tags','Pembahasan','Status'];
-  const sample = ['Matematika','PG','Contoh: 2+2=?','3','4','5','6','B','Mudah','','dasar','2+2=4','Aktif'];
-  const csv = headers.join(',') + '\n' + sample.map(c => '"' + String(c).replace(/"/g,'""') + '"').join(',') + '\n';
-  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'template_soal_edufsr.csv';
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast('Template CSV diunduh. Buka di Excel lalu Save As .xlsx jika perlu.', 'success');
+async function downloadSoalTemplate(tipe){
+  const isEssay = String(tipe || '').toLowerCase() === 'essay';
+  try {
+    await ensureExcelLibrary();
+
+    const headers = isEssay
+      ? ['Kategori','Tipe','Pertanyaan','Kesulitan','MateriID','Tags','Status']
+      : ['Kategori','Tipe','Pertanyaan','PilihanA','PilihanB','PilihanC','PilihanD','JawabanBenar','Kesulitan','MateriID','Tags','Pembahasan','Status'];
+    const sample = isEssay
+      ? ['Bahasa Indonesia','Essay','Jelaskan perbedaan antara fakta dan opini.','Sedang','','pemahaman','Aktif']
+      : ['Matematika','PG','Berapakah hasil 2 + 2?','3','4','5','6','B','Mudah','','aritmetika','2 + 2 = 4.','Aktif'];
+
+    const sheet = XLSX.utils.aoa_to_sheet([headers, sample]);
+    sheet['!cols'] = isEssay
+      ? [{wch:20},{wch:10},{wch:55},{wch:14},{wch:20},{wch:20},{wch:14}]
+      : [{wch:18},{wch:8},{wch:42},{wch:18},{wch:18},{wch:18},{wch:18},{wch:15},{wch:14},{wch:20},{wch:18},{wch:36},{wch:14}];
+    sheet['!autofilter'] = { ref: 'A1:' + (isEssay ? 'G2' : 'M2') };
+
+    const guideRows = isEssay
+      ? [
+          ['PETUNJUK TEMPLATE SOAL ESSAY'],
+          ['Aturan','Keterangan'],
+          ['Urutan penggunaan','Isi data pada sheet Soal. Aplikasi hanya membaca sheet pertama.'],
+          ['Baris contoh','Ganti atau hapus baris contoh sebelum mengimpor data sebenarnya.'],
+          ['Kolom wajib','Kategori, Tipe, dan Pertanyaan. Tipe harus ditulis Essay.'],
+          ['Jawaban benar','Tidak digunakan. Essay dinilai manual oleh admin dengan nilai 0–100.'],
+          ['MateriID','Opsional. Isi jika soal khusus untuk satu materi.'],
+          ['Kesulitan','Mudah, Sedang, atau Sulit. Jika kosong, aplikasi memakai Sedang.'],
+          ['Status','Aktif atau Terkunci. Jika kosong, aplikasi memakai Aktif.'],
+          ['Batas impor','Maksimal 200 soal dalam satu unggahan.']
+        ]
+      : [
+          ['PETUNJUK TEMPLATE SOAL PILIHAN GANDA'],
+          ['Aturan','Keterangan'],
+          ['Urutan penggunaan','Isi data pada sheet Soal. Aplikasi hanya membaca sheet pertama.'],
+          ['Baris contoh','Ganti atau hapus baris contoh sebelum mengimpor data sebenarnya.'],
+          ['Kolom wajib','Kategori, Tipe, Pertanyaan, PilihanA–PilihanD, dan JawabanBenar.'],
+          ['JawabanBenar','Isi satu huruf: A, B, C, atau D.'],
+          ['MateriID','Opsional. Isi jika soal khusus untuk satu materi.'],
+          ['Pembahasan','Opsional. Ditampilkan kepada siswa setelah kuis.'],
+          ['Status','Aktif atau Terkunci. Jika kosong, aplikasi memakai Aktif.'],
+          ['Batas impor','Maksimal 200 soal dalam satu unggahan.']
+        ];
+    const guide = XLSX.utils.aoa_to_sheet(guideRows);
+    guide['!cols'] = [{wch:24},{wch:82}];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, sheet, 'Soal');
+    XLSX.utils.book_append_sheet(wb, guide, 'Petunjuk');
+    const filename = isEssay
+      ? 'Template_Soal_Essay_EduFSR.xlsx'
+      : 'Template_Soal_Pilihan_Ganda_EduFSR.xlsx';
+    XLSX.writeFile(wb, filename, { bookType: 'xlsx', compression: true });
+    showToast('Template ' + (isEssay ? 'Essay' : 'Pilihan Ganda') + ' (.xlsx) diunduh.', 'success');
+  } catch (err) {
+    showToast('Gagal membuat template Excel: ' + (err.message || err), 'error');
+  }
   return false;
 }
 
