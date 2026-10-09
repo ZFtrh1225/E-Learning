@@ -2359,7 +2359,7 @@ async function callServer(name, ...args) {
   }
 
   // Timeout lebih panjang untuk upload chunk / finalize
-  const longActions = { login:1, initChunkUpload:1, uploadChunk:1, finalizeChunkUpload:1, saveMateri:1 };
+  const longActions = { login:1, initChunkUpload:1, uploadChunk:1, finalizeChunkUpload:1, saveMateri:1, importSoalBulk:1 };
   const timeoutMs = longActions[name] ? 120000 : 30000;
 
   const controller = new AbortController();
@@ -3080,7 +3080,7 @@ async function loadSoalScopeSelect(){
       Object.keys(byCat).sort().forEach(cat => {
         html += `<optgroup label="${escapeHtml(cat)}">`;
         byCat[cat].forEach(m => {
-          html += `<option value="${escapeHtml(m.id)}">${escapeHtml(m.judul)}</option>`;
+          html += `<option value="${escapeHtml(m.id)}" data-kategori="${escapeHtml(m.kategori || '')}">${escapeHtml(m.judul)}</option>`;
         });
         html += '</optgroup>';
       });
@@ -3107,8 +3107,9 @@ async function loadSoalForScope(){
   SOAL_ACTIVE_SCOPE = val;
   if (!val) {
     area.innerHTML = '';
+    CACHE.quiz = [];
     if (searchEl) { searchEl.value = ''; searchEl.disabled = true; }
-    return;
+    return [];
   }
   if (searchEl) { searchEl.value = ''; searchEl.disabled = false; }
   area.innerHTML = '<div class="row g-3">' + skeletonCards(3).replace(/col-sm-6 col-lg-4/g, 'col-12') + '</div>';
@@ -3122,8 +3123,11 @@ async function loadSoalForScope(){
     }
     CACHE.quiz = list;
     renderAdminSoalList(list);
+    return list;
   } catch (err) {
+    CACHE.quiz = [];
     area.innerHTML = errorStateHtml(err.message || err, 'loadSoalForScope()');
+    return [];
   }
 }
 
@@ -3618,31 +3622,135 @@ function renderBulkSoalPreview(rows){
   document.getElementById('bulkSoalResult').style.display = 'none';
 }
 
+function bulkScopeKey(value){
+  let text = String(value == null ? '' : value);
+  try { text = text.normalize('NFKC'); } catch (e) {}
+  return text.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function prepareBulkRowsForCurrentScope(rows, defaultKategori, defaultMateriId){
+  const scopeEl = document.getElementById('soalMateriSelect');
+  const currentScope = scopeEl ? String(scopeEl.value || '').trim() : '';
+  return rows.map(row => {
+    const item = Object.assign({}, row);
+    if (SOAL_SCOPE_MODE === 'kategori' && currentScope) {
+      if (!item.kategori || bulkScopeKey(item.kategori) === bulkScopeKey(currentScope)) {
+        item.kategori = currentScope;
+      }
+      item.materiId = String(item.materiId || '').trim();
+    } else if (SOAL_SCOPE_MODE === 'materi' && currentScope) {
+      if (!item.materiId) item.materiId = currentScope;
+      if (!item.kategori && defaultKategori) item.kategori = defaultKategori;
+    }
+    if (!item.kategori && defaultKategori) item.kategori = defaultKategori;
+    if (!item.materiId && defaultMateriId) item.materiId = defaultMateriId;
+    return item;
+  });
+}
+
+async function importSoalBulkCompat(payload){
+  try {
+    return await callServer('importSoalBulk', payload);
+  } catch (err) {
+    const message = String(err && err.message || err || '');
+    const unsupported = /Tindakan tidak tersedia|Action tidak dikenal|unknown action/i.test(message);
+    if (!unsupported) throw err;
+    if (payload.soals.length > 25) {
+      throw new Error('Backend masih versi lama dan fallback dibatasi 25 soal. Deploy Code.gs versi terbaru, lalu impor ulang.');
+    }
+
+    const importedIds = [];
+    const errors = [];
+    for (let i = 0; i < payload.soals.length; i++) {
+      const row = payload.soals[i];
+      try {
+        const saved = await callServer('saveSoal', {
+          kategori: row.kategori || payload.defaultKategori || '',
+          materiId: row.materiId || payload.defaultMateriId || '',
+          tipe: /^essay$/i.test(row.tipe || '') ? 'Essay' : 'PG',
+          pertanyaan: row.pertanyaan || '',
+          a: row.a || '', b: row.b || '', c: row.c || '', d: row.d || '',
+          jawabanBenar: row.jawabanBenar || '',
+          kesulitan: row.kesulitan || 'Sedang',
+          tags: row.tags || '',
+          pembahasan: row.pembahasan || '',
+          status: row.status || 'Aktif'
+        });
+        if (saved && saved.id) importedIds.push(saved.id);
+        else importedIds.push('');
+      } catch (rowErr) {
+        errors.push({ row: i + 2, message: rowErr.message || String(rowErr) });
+      }
+    }
+    return {
+      success: true,
+      imported: importedIds.length,
+      failed: errors.length,
+      total: payload.soals.length,
+      errors: errors,
+      importedIds: importedIds.filter(Boolean),
+      compatibilityMode: true
+    };
+  }
+}
+
 async function submitBulkSoal(){
   if (!BULK_SOAL_ROWS.length) return;
   const btn = document.getElementById('bulkSoalSubmitBtn');
   const txt = document.getElementById('bulkSoalSubmitText');
+  const resultEl = document.getElementById('bulkSoalResult');
+  const defaultKategori = document.getElementById('bulkDefaultKategori').value.trim();
+  const defaultMateriId = document.getElementById('bulkDefaultMateriId').value.trim();
+  const rows = prepareBulkRowsForCurrentScope(BULK_SOAL_ROWS, defaultKategori, defaultMateriId);
+  const beforeIds = new Set((CACHE.quiz || []).map(x => String(x.id)));
   btn.disabled = true;
   txt.innerText = 'Mengimpor...';
+  resultEl.style.display = 'none';
+
   try {
-    const res = await callServer('importSoalBulk', {
-      soals: BULK_SOAL_ROWS,
-      defaultKategori: document.getElementById('bulkDefaultKategori').value.trim(),
-      defaultMateriId: document.getElementById('bulkDefaultMateriId').value.trim()
+    const res = await importSoalBulkCompat({
+      soals: rows,
+      defaultKategori: defaultKategori,
+      defaultMateriId: defaultMateriId
     });
-    const resultEl = document.getElementById('bulkSoalResult');
-    resultEl.style.display = 'block';
-    let msg = `<div class="alert alert-success py-2 mb-0" style="border-radius:12px">Berhasil import <b>${res.imported}</b> dari ${res.total} soal.`;
-    if (res.failed) msg += ` Gagal: <b>${res.failed}</b>.</div>`;
-    else msg += `</div>`;
-    if (res.errors && res.errors.length) {
-      msg += `<div class="text-muted mt-2" style="font-size:.8rem">Contoh error: ` +
-        res.errors.slice(0, 5).map(e => `baris ${e.row}: ${escapeHtml(e.message)}`).join('; ') + `</div>`;
+
+    const refreshed = await loadSoalForScope();
+    const addedVisible = refreshed.filter(x => !beforeIds.has(String(x.id))).length;
+    const reportedImported = Number(res && res.imported);
+    const imported = Number.isFinite(reportedImported) ? reportedImported : addedVisible;
+    const reportedFailed = Number(res && res.failed);
+    const failed = Number.isFinite(reportedFailed) ? reportedFailed : Math.max(0, rows.length - imported);
+    const total = Number.isFinite(Number(res && res.total)) ? Number(res.total) : rows.length;
+    const alertClass = imported <= 0 ? 'alert-danger' : (failed > 0 || addedVisible === 0 ? 'alert-warning' : 'alert-success');
+
+    let msg = `<div class="alert ${alertClass} py-2 mb-0" style="border-radius:12px">`;
+    if (imported > 0) msg += `Berhasil menyimpan <b>${imported}</b> dari ${total} soal.`;
+    else msg += `Tidak ada soal yang berhasil disimpan dari ${total} baris.`;
+    if (failed) msg += ` Gagal: <b>${failed}</b>.`;
+    if (imported > 0 && addedVisible === 0) {
+      const targets = (res.categories || []).join(', ');
+      msg += `<div class="mt-1">Data tersimpan tetapi belum muncul pada scope ini.${targets ? ' Target kategori: <b>' + escapeHtml(targets) + '</b>.' : ' Periksa Kategori dan MateriID.'}</div>`;
+    } else if (addedVisible > 0) {
+      msg += `<div class="mt-1"><b>${addedVisible}</b> soal baru sudah tampil pada daftar saat ini.</div>`;
     }
+    if (res.compatibilityMode) {
+      msg += '<div class="mt-1"><i class="bi bi-info-circle me-1"></i>Mode kompatibilitas dipakai karena backend belum diperbarui. Deploy Code.gs terbaru agar impor besar lebih cepat.</div>';
+    }
+    msg += '</div>';
+
+    if (res.errors && res.errors.length) {
+      msg += `<div class="text-muted mt-2" style="font-size:.8rem">Detail: ` +
+        res.errors.slice(0, 8).map(e => `baris ${e.row}: ${escapeHtml(e.message)}`).join('; ') + `</div>`;
+    }
+    resultEl.style.display = 'block';
     resultEl.innerHTML = msg;
-    showToast(`${res.imported} soal berhasil diimpor.`, res.failed ? 'warn' : 'success');
-    if (res.imported > 0) loadSoalForScope();
+
+    if (imported <= 0) showToast('Impor gagal. Periksa detail pada jendela impor.', 'error');
+    else if (addedVisible === 0 || failed > 0) showToast(`${imported} soal tersimpan; periksa detail scope/impor.`, 'warn');
+    else showToast(`${addedVisible} soal berhasil diimpor dan ditampilkan.`, 'success');
   } catch (err) {
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = `<div class="alert alert-danger py-2 mb-0" style="border-radius:12px">${escapeHtml(err.message || err)}</div>`;
     showToast(err.message || err, 'error');
   } finally {
     btn.disabled = false;
