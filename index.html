@@ -3628,6 +3628,15 @@ function bulkScopeKey(value){
   return text.replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
+function bulkQuestionKey(row){
+  return [
+    bulkScopeKey(row && (row.kategori || row.Kategori)),
+    String(row && (row.materiId || row.MateriID) || '').trim(),
+    bulkScopeKey(row && (row.tipe || row.Tipe || 'PG')),
+    bulkScopeKey(row && (row.pertanyaan || row.Pertanyaan))
+  ].join('||');
+}
+
 function prepareBulkRowsForCurrentScope(rows, defaultKategori, defaultMateriId){
   const scopeEl = document.getElementById('soalMateriSelect');
   const currentScope = scopeEl ? String(scopeEl.value || '').trim() : '';
@@ -3661,9 +3670,14 @@ async function importSoalBulkCompat(payload){
 
     const importedIds = [];
     const errors = [];
+    const existingKeys = new Set((CACHE.quiz || []).map(bulkQuestionKey));
     for (let i = 0; i < payload.soals.length; i++) {
       const row = payload.soals[i];
       try {
+        const rowKey = bulkQuestionKey(row);
+        if (existingKeys.has(rowKey)) {
+          throw new Error('Soal duplikat pada kategori/materi yang sama');
+        }
         const saved = await callServer('saveSoal', {
           kategori: row.kategori || payload.defaultKategori || '',
           materiId: row.materiId || payload.defaultMateriId || '',
@@ -3678,6 +3692,7 @@ async function importSoalBulkCompat(payload){
         });
         if (saved && saved.id) importedIds.push(saved.id);
         else importedIds.push('');
+        existingKeys.add(rowKey);
       } catch (rowErr) {
         errors.push({ row: i + 2, message: rowErr.message || String(rowErr) });
       }
