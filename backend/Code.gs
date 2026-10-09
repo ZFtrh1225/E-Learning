@@ -1661,14 +1661,53 @@ function importSoalBulk(data) {
   const defaultMateriId = String(data.defaultMateriId || data.materiId || '').trim();
   const sh = getSS().getSheetByName(SHEET_SOAL);
   if (!sh) throw new Error('Sheet Soal tidak ditemukan. Jalankan initSheets() dari editor.');
+  // Pastikan seluruh kolom inti tersedia. Tanpa ini setValues dapat sukses,
+  // tetapi Kategori/Pertanyaan masuk ke kolom kosong dan soal tidak pernah terlihat.
   ensureColumns_(SHEET_SOAL, [
+    { name: 'ID', value: '' }, { name: 'Kategori', value: '' },
+    { name: 'Tipe', value: 'PG' }, { name: 'Pertanyaan', value: '' },
+    { name: 'PilihanA', value: '' }, { name: 'PilihanB', value: '' },
+    { name: 'PilihanC', value: '' }, { name: 'PilihanD', value: '' },
+    { name: 'JawabanBenar', value: '' }, { name: 'Status', value: 'Aktif' },
     { name: 'MateriID', value: '' }, { name: 'Kesulitan', value: 'Sedang' },
     { name: 'Tags', value: '' }, { name: 'Pembahasan', value: '' },
     { name: 'GambarFileID', value: '' }, { name: 'GambarURL', value: '' }
   ]);
   const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
-  const materiById = new Map(sheetToObjects_(SHEET_MATERI).map(m => [String(m.ID), m]));
+  const requiredHeaders = ['ID', 'Kategori', 'Tipe', 'Pertanyaan', 'JawabanBenar', 'Status', 'MateriID'];
+  const missingHeaders = requiredHeaders.filter(h => headers.indexOf(h) === -1);
+  if (missingHeaders.length) {
+    throw new Error('Struktur sheet Soal tidak valid. Kolom hilang: ' + missingHeaders.join(', '));
+  }
+
+  const materiRows = sheetToObjects_(SHEET_MATERI);
+  const materiById = new Map(materiRows.map(m => [String(m.ID).trim(), m]));
+  const kategoriByKey = new Map();
+  const kategoriKey = value => {
+    let text = String(value == null ? '' : value);
+    try { text = text.normalize('NFKC'); } catch (e) {}
+    return text.replace(/\s+/g, ' ').trim().toLowerCase();
+  };
+  const registerKategori = value => {
+    const nama = String(value == null ? '' : value).replace(/\s+/g, ' ').trim();
+    const key = kategoriKey(nama);
+    if (key && !kategoriByKey.has(key)) kategoriByKey.set(key, nama);
+  };
+  getKategoriList().forEach(registerKategori);
+  materiRows.forEach(m => registerKategori(m.Kategori));
+
+  const soalKey = (kategori, materiId, tipe, pertanyaan) => [
+    kategoriKey(kategori),
+    String(materiId == null ? '' : materiId).trim(),
+    String(tipe == null ? '' : tipe).trim().toLowerCase(),
+    kategoriKey(pertanyaan)
+  ].join('||');
+  const existingSoalKeys = new Set(
+    sheetToObjects_(SHEET_SOAL).map(s => soalKey(s.Kategori, s.MateriID, s.Tipe, s.Pertanyaan))
+  );
+
   const prepared = [];
+  const preparedMeta = [];
   const errors = [];
 
   soals.forEach((row, idx) => {
@@ -1683,23 +1722,48 @@ function importSoalBulk(data) {
 
       if (materiId) {
         const m = materiById.get(materiId);
-        if (m) kategori = String(m.Kategori || kategori).trim();
+        if (!m) throw new Error('MateriID "' + materiId + '" tidak ditemukan');
+        kategori = String(m.Kategori || kategori).trim();
       }
       if (!kategori) throw new Error('Kategori wajib');
 
+      // Gunakan nama kategori resmi agar perbedaan huruf besar, spasi ganda,
+      // atau karakter Unicode tidak membuat soal tersimpan tetapi tersembunyi.
+      const kategoriResmi = kategoriByKey.get(kategoriKey(kategori));
+      if (!kategoriResmi) {
+        throw new Error('Kategori "' + kategori + '" tidak terdaftar. Pilih kategori yang tersedia di aplikasi.');
+      }
+      kategori = kategoriResmi;
+
+      const currentSoalKey = soalKey(kategori, materiId, tipe, pertanyaan);
+      if (existingSoalKeys.has(currentSoalKey)) {
+        throw new Error('Soal duplikat pada kategori/materi yang sama');
+      }
+
       const jawabanBenar = String(row.jawabanBenar || row.JawabanBenar || '').trim().toUpperCase();
+      const pilihanA = String(row.a || row.PilihanA || row.pilihanA || '').trim();
+      const pilihanB = String(row.b || row.PilihanB || row.pilihanB || '').trim();
+      const pilihanC = String(row.c || row.PilihanC || row.pilihanC || '').trim();
+      const pilihanD = String(row.d || row.PilihanD || row.pilihanD || '').trim();
       if (tipe === 'PG' && !['A', 'B', 'C', 'D'].includes(jawabanBenar)) {
         throw new Error('JawabanBenar PG harus A/B/C/D');
+      }
+      if (tipe === 'PG' && (!pilihanA || !pilihanB || !pilihanC || !pilihanD)) {
+        throw new Error('PilihanA sampai PilihanD wajib diisi untuk PG');
+      }
+      if (tipe === 'PG') {
+        const pilihanKunci = { A: pilihanA, B: pilihanB, C: pilihanC, D: pilihanD }[jawabanBenar];
+        if (!pilihanKunci) throw new Error('Pilihan untuk JawabanBenar tidak boleh kosong');
       }
 
       const difficulty = row.kesulitan || row.Kesulitan || 'Sedang';
       const record = {
         ID: generateId_(), Kategori: kategori, Tipe: tipe,
         Pertanyaan: sheetLiteral_(pertanyaan),
-        PilihanA: sheetLiteral_(row.a || row.PilihanA || row.pilihanA || ''),
-        PilihanB: sheetLiteral_(row.b || row.PilihanB || row.pilihanB || ''),
-        PilihanC: sheetLiteral_(row.c || row.PilihanC || row.pilihanC || ''),
-        PilihanD: sheetLiteral_(row.d || row.PilihanD || row.pilihanD || ''),
+        PilihanA: sheetLiteral_(pilihanA),
+        PilihanB: sheetLiteral_(pilihanB),
+        PilihanC: sheetLiteral_(pilihanC),
+        PilihanD: sheetLiteral_(pilihanD),
         JawabanBenar: tipe === 'PG' ? jawabanBenar : '',
         Status: (row.status || row.Status) === 'Terkunci' ? 'Terkunci' : 'Aktif',
         MateriID: materiId,
@@ -1709,28 +1773,64 @@ function importSoalBulk(data) {
         GambarFileID: '', GambarURL: ''
       };
       prepared.push(headers.map(h => Object.prototype.hasOwnProperty.call(record, h) ? record[h] : ''));
+      preparedMeta.push({ id: record.ID, kategori: kategori, materiId: materiId });
+      existingSoalKeys.add(currentSoalKey);
     } catch (e) {
       errors.push({ row: idx + 2, message: e.message || String(e) }); // +2 = header + 1-index
     }
   });
 
   if (prepared.length) {
-    // One contiguous write instead of up to 200 appendRow and schema lookups.
+    // Satu penulisan atomik, lalu baca ulang ID yang baru ditulis.
+    // Jika verifikasi gagal, kosongkan rentang agar tidak meninggalkan soal yatim.
     const lock = LockService.getScriptLock();
     lock.waitLock(30000);
+    let startRow = 0;
     try {
-      sh.getRange(sh.getLastRow() + 1, 1, prepared.length, headers.length).setValues(prepared);
+      startRow = sh.getLastRow() + 1;
+      sh.getRange(startRow, 1, prepared.length, headers.length).setValues(prepared);
+      SpreadsheetApp.flush();
+
+      const idCol = headers.indexOf('ID');
+      const saved = sh.getRange(startRow, 1, prepared.length, headers.length).getValues();
+      const savedIds = saved.map(r => String(r[idCol] || '').trim());
+      const expectedIds = preparedMeta.map(x => String(x.id));
+      const verified = savedIds.length === expectedIds.length &&
+        expectedIds.every((id, i) => savedIds[i] === id);
+      if (!verified) {
+        sh.getRange(startRow, 1, prepared.length, headers.length).clearContent();
+        SpreadsheetApp.flush();
+        throw new Error('Verifikasi penyimpanan soal gagal. Tidak ada data impor yang dipertahankan.');
+      }
+    } catch (writeErr) {
+      if (startRow > 0) {
+        try {
+          sh.getRange(startRow, 1, prepared.length, headers.length).clearContent();
+          SpreadsheetApp.flush();
+        } catch (rollbackErr) {}
+      }
+      throw writeErr;
     } finally {
       lock.releaseLock();
     }
   }
 
+  const kategoriSet = {};
+  const materiSet = {};
+  preparedMeta.forEach(x => {
+    if (x.kategori) kategoriSet[x.kategori] = true;
+    if (x.materiId) materiSet[x.materiId] = true;
+  });
   return {
     success: true,
     imported: prepared.length,
     failed: errors.length,
     total: soals.length,
-    errors: errors.slice(0, 20)
+    errors: errors.slice(0, 20),
+    importedIds: preparedMeta.map(x => x.id),
+    categories: Object.keys(kategoriSet),
+    materiIds: Object.keys(materiSet),
+    verified: prepared.length > 0
   };
 }
 
