@@ -1696,6 +1696,16 @@ function importSoalBulk(data) {
   getKategoriList().forEach(registerKategori);
   materiRows.forEach(m => registerKategori(m.Kategori));
 
+  const soalKey = (kategori, materiId, tipe, pertanyaan) => [
+    kategoriKey(kategori),
+    String(materiId == null ? '' : materiId).trim(),
+    String(tipe == null ? '' : tipe).trim().toLowerCase(),
+    kategoriKey(pertanyaan)
+  ].join('||');
+  const existingSoalKeys = new Set(
+    sheetToObjects_(SHEET_SOAL).map(s => soalKey(s.Kategori, s.MateriID, s.Tipe, s.Pertanyaan))
+  );
+
   const prepared = [];
   const preparedMeta = [];
   const errors = [];
@@ -1724,6 +1734,11 @@ function importSoalBulk(data) {
         throw new Error('Kategori "' + kategori + '" tidak terdaftar. Pilih kategori yang tersedia di aplikasi.');
       }
       kategori = kategoriResmi;
+
+      const currentSoalKey = soalKey(kategori, materiId, tipe, pertanyaan);
+      if (existingSoalKeys.has(currentSoalKey)) {
+        throw new Error('Soal duplikat pada kategori/materi yang sama');
+      }
 
       const jawabanBenar = String(row.jawabanBenar || row.JawabanBenar || '').trim().toUpperCase();
       const pilihanA = String(row.a || row.PilihanA || row.pilihanA || '').trim();
@@ -1759,6 +1774,7 @@ function importSoalBulk(data) {
       };
       prepared.push(headers.map(h => Object.prototype.hasOwnProperty.call(record, h) ? record[h] : ''));
       preparedMeta.push({ id: record.ID, kategori: kategori, materiId: materiId });
+      existingSoalKeys.add(currentSoalKey);
     } catch (e) {
       errors.push({ row: idx + 2, message: e.message || String(e) }); // +2 = header + 1-index
     }
